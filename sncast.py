@@ -72,10 +72,15 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
     :param  mag_delta:  ML increment used in grid search
     """
     # region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
-    if region == 'UK': # UK scale, Ottemöller and Sargeant (2013), BSSA, doi:10.1785/0120130085
-        a = 0.95
-        b = 0.00183
-        c = -1.76
+    if region == 'UK':
+        #UK Scale uses new ML equation from Luckett et al., (2019) https://doi.org/10.1093/gji/ggy484
+        # Takes form log(amp) + a*log(hypo-dist) + b*hypo-dist + c*exp(d * hypo-dist) + e
+        a = 1.11
+        b = 0.00189
+        c = -1.16
+        d = -0.2
+        e = -2.09
+
     elif region == 'CAL': # South. California scale, IASPEI (2005), 
                           # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
         a = 1.11
