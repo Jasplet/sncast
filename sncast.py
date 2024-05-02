@@ -122,7 +122,7 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
                 m = mag_min - mag_delta
                 while ampl < snr*noise[j]: 
                     m = m + mag_delta
-                    ampl = pow(10,(m - a*log10(hypo_dist) - b*hypo_dist - c))
+                    ampl = calc_ampl(m, hypo_dist, region)
                 mag.append(m)
             # sort magnitudes in ascending order
             mag = sorted(mag)
