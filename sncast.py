@@ -53,14 +53,14 @@ def calc_ampl(local_mag, hypo_dist, region):
         c = -2.09
         d = -1.16
         e = -0.2
-        ampl = np.power((local_mag - a*np.log10(hypo_dist) - b*hypo_dist - d*np.exp(e*hypo_dist) - e), 10)
+        ampl = np.power(10, (local_mag - a*np.log10(hypo_dist) - b*hypo_dist - d*np.exp(e*hypo_dist) - e))
 
     elif region == 'CAL': # South. California scale, IASPEI (2005), 
                           # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
         a = 1.11
         b = 0.00189
         c = -2.09
-        ampl = np.power((local_mag - a*np.log10(hypo_dist) - b*hypo_dist - c), 10)
+        ampl = np.power(10, (local_mag - a*np.log10(hypo_dist) - b*hypo_dist - c))
 
     return ampl
 
@@ -96,7 +96,7 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
 #### 9.10.2020    array_in = np.genfromtxt('%s/%s.dat' %(dir_in, filename), dtype=None, delimiter=",")
 #### 9.10.2020    array_in = np.genfromtxt('%s/%s.dat' %(dir_in, filename), encoding='ASCII', dtype=None, delimiter=",")
-    array_in = np.genfromtxt('%s/%s' %(dir_in, filename), encoding='ASCII', dtype=None, delimiter=",")
+    array_in = np.genfromtxt('%s/%s' %(dir_in, filename), encoding='ASCII', dtype=None, delimiter=",", skip_header=1)
     lon = ([t[0] for t in array_in])
     lat = [t[1] for t in array_in]
     noise = [t[2] for t in array_in]
@@ -106,7 +106,9 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
     ny = int( (lat1 - lat0) / dlat) + 1
     # open output file:
 ### 9.10.2020    f = open('%s/%s-stat%s-foc%s-snr%s-%s.grd' %(dir_in, filename, stat_num, foc_depth, snr, region), 'wb')
-    f = open('%s/%s-stat%s-foc%s-snr%s-%s.grd' %(dir_in, filename, stat_num, foc_depth, snr, region), 'w')
+    fstem = filename.split('.')[0]
+    f = open(f'{dir_in}/{fstem}-stat{stat_num}-foc{foc_depth}-snr{snr}-{region}.grd', 'w')
+    f.write('longitude latitude ML_min\n')
     mag=[]
 
     for ix in range(nx): # loop through longitude increments
