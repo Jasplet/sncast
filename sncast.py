@@ -42,6 +42,28 @@ import sys
 from obspy.signal.util import util_geo_km
 from math import pow, log10, sqrt
 
+def calc_ampl(local_mag, hypo_dist, region):
+
+        # region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
+    if region == 'UK':
+        #UK Scale uses new ML equation from Luckett et al., (2019) https://doi.org/10.1093/gji/ggy484
+        # Takes form log(amp) + a*log(hypo-dist) + b*hypo-dist + d*exp(e * hypo-dist) + c
+        a = 1.11
+        b = 0.00189
+        c = -2.09
+        d = -1.16
+        e = -0.2
+        ampl = np.power((local_mag - a*np.log10(hypo_dist) - b*hypo_dist - d*np.exp(e*hypo_dist) - e), 10)
+
+    elif region == 'CAL': # South. California scale, IASPEI (2005), 
+                          # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
+        a = 1.11
+        b = 0.00189
+        c = -2.09
+        ampl = np.power((local_mag - a*np.log10(hypo_dist) - b*hypo_dist - c), 10)
+
+    return ampl
+
 def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
           dlat=0.2,stat_num=4, snr=3, foc_depth=0, region='CAL', mag_min=-3.0, mag_delta=0.1):
     """
@@ -71,22 +93,6 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
     :param  mag_min:	minimum ML value for grid search
     :param  mag_delta:  ML increment used in grid search
     """
-    # region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
-    if region == 'UK':
-        #UK Scale uses new ML equation from Luckett et al., (2019) https://doi.org/10.1093/gji/ggy484
-        # Takes form log(amp) + a*log(hypo-dist) + b*hypo-dist + c*exp(d * hypo-dist) + e
-        a = 1.11
-        b = 0.00189
-        c = -1.16
-        d = -0.2
-        e = -2.09
-
-    elif region == 'CAL': # South. California scale, IASPEI (2005), 
-                          # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
-        a = 1.11
-        b = 0.00189
-        c = -2.09
-
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
 #### 9.10.2020    array_in = np.genfromtxt('%s/%s.dat' %(dir_in, filename), dtype=None, delimiter=",")
 #### 9.10.2020    array_in = np.genfromtxt('%s/%s.dat' %(dir_in, filename), encoding='ASCII', dtype=None, delimiter=",")
@@ -106,9 +112,8 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
     for ix in range(nx): # loop through longitude increments
         ilon = lon0 + ix*dlon
         for iy in range(ny): # loop through latitude increments
-            ilat = lat0 + iy*dlat
-            j = 0
-            for jstat in stat: # loop through stations 
+            ilat = lat0 + iy*dlat 
+            for j,jstat in enumerate(stat): # loop through stations 
                 # calculate hypcocentral distance in km
                 dx, dy = util_geo_km(ilon, ilat, lon[j], lat[j])
                 hypo_dist = sqrt(dx**2 + dy**2 + foc_depth**2)
@@ -119,7 +124,6 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
                     m = m + mag_delta
                     ampl = pow(10,(m - a*log10(hypo_dist) - b*hypo_dist - c))
                 mag.append(m)
-                j = j + 1   
             # sort magnitudes in ascending order
             mag = sorted(mag)
             # write out lonngitude, latitude and smallest detectable magnitude
