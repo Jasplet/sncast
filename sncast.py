@@ -96,7 +96,7 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
 #### 9.10.2020    array_in = np.genfromtxt('%s/%s.dat' %(dir_in, filename), dtype=None, delimiter=",")
 #### 9.10.2020    array_in = np.genfromtxt('%s/%s.dat' %(dir_in, filename), encoding='ASCII', dtype=None, delimiter=",")
-    array_in = np.genfromtxt('%s/%s' %(dir_in, filename), encoding='ASCII', dtype=None, delimiter=",", skip_header=1)
+    array_in = np.genfromtxt('%s/%s' %(dir_in, filename), encoding='ASCII', dtype=None, delimiter=",", skip_header=0)
     lon = ([t[0] for t in array_in])
     lat = [t[1] for t in array_in]
     noise = [t[2] for t in array_in]
