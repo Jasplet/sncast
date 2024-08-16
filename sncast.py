@@ -131,5 +131,6 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
             dets['lat'].append(ilat)
             dets['mag'].append(mag[stat_num-1])
             del mag[:]
+            
     return dets
 
