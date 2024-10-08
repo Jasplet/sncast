@@ -65,7 +65,7 @@ def calc_ampl(local_mag, hypo_dist, region):
     return ampl
 
 def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
-          dlat=0.2,stat_num=4, snr=3, foc_depth=0, region='CAL', mag_min=-3.0, mag_delta=0.1):
+          dlat=0.2,stat_num=4, snr=3, foc_depth=0, region='CAL', mag_min=-3.0, mag_delta=0.1, arrays=None, array_mode='emp'):
     """
     This routine calculates the geographic distribution of the minimum 
     detectable local magnitude ML for a given seismic network. Required 
@@ -108,7 +108,8 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
     # open output file:
 ### 9.10.2020    f = open('%s/%s-stat%s-foc%s-snr%s-%s.grd' %(dir_in, filename, stat_num, foc_depth, snr, region), 'wb')
     mag=[]
-    dets = {'lat':[], 'lon':[],'mag':[]}
+    array_mag = []
+    dets = {'Longitude':[], 'Latitude':[],'ML_min':[]}
     for ix in range(nx): # loop through longitude increments
         ilon = lon0 + ix*dlon
         for iy in range(ny): # loop through latitude increments
@@ -126,11 +127,31 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
                 mag.append(m)
             # sort magnitudes in ascending order
             mag = sorted(mag)
+            # add array bit    
+            if arrays:
+                for a in range(0,len(arrays['lon'])):
+                    dx, dy = util_geo_km(ilon, ilat, arrays['lon'][a], arrays['lat'][a])
+                    hypo_dist = sqrt(dx**2 + dy**2 + foc_depth**2)
+                    #estimated noise level on array (rootn or another cleverer method to get a displaement number)
+                    m = mag_min - mag_delta
+                    ampl = 0
+                    while ampl < snr*arrays['noise'][a]:
+                        m = m + mag_delta
+                        ampl = calc_ampl(m, hypo_dist, region)
+                    array_mag.append(m)
+                if np.min(array_mag) < mag[stat_num-1]:
+                    dets['ML_min'].append(np.min(array_mag))
+                else:
+                    dets['ML_min'].append(mag[stat_num-1])
+            else:
+                dets['ML_min'].append(mag[stat_num-1])
+
             # write out lonngitude, latitude and smallest detectable magnitude
-            dets['lon'].append(ilon)
-            dets['lat'].append(ilat)
-            dets['mag'].append(mag[stat_num-1])
-            del mag[:]
+            dets['Longitude'].append(ilon)
+            dets['Latitude'].append(ilat)
             
+            del array_mag[:]
+            del mag[:]
+
     return dets
 
