@@ -38,9 +38,12 @@
 # --------------------------------------------------------------------
 
 import numpy as np
-import sys
+import pandas as pd
+from pathlib import Path
 from obspy.signal.util import util_geo_km
 from math import pow, log10, sqrt
+import pygc 
+import xarray
 
 def calc_ampl(local_mag, hypo_dist, region):
 
@@ -64,22 +67,21 @@ def calc_ampl(local_mag, hypo_dist, region):
 
     return ampl
 
-def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
-          dlat=0.2,stat_num=4, snr=3, foc_depth=0, region='CAL', mag_min=-3.0, mag_delta=0.1, arrays=None, array_mode='emp'):
+def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
+          dlat=0.2,stat_num=4, snr=3, foc_depth=0, region='CAL', mag_min=-3.0, mag_delta=0.1, arrays=None):
     """
     This routine calculates the geographic distribution of the minimum 
     detectable local magnitude ML for a given seismic network. Required 
-#### 9.10.2020    input is a file containg four comma separated
+#### 9.10.2020    input is a file (or a pandas DataFrame) containing four comma separated
     columns containing for each seismic station:
 
-         longitude, latitude, noise [nm], station name
-    e.g.: -7.5100, 55.0700, 0.53, IDGL
+         longitude, latitude, elevation, noise [nm], station name
+    e.g.: -7.5100, 55.0700, 0, 0.53, IDGL
 
     The output file *.grd lists in ASCII xyz format: longitud, latitude, ML
   
     Optional parameters are:
 
-    :param  dir_in:	full path to input and output file
     :param  lon0:	minimum longitude of search grid
     :param  lon1:	maximum longitude of search grid
     :param  lat0:	minimum latitude of search grid
@@ -94,14 +96,16 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
     :param  mag_delta:  ML increment used in grid search
     """
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
-#### 9.10.2020    array_in = np.genfromtxt('%s/%s.dat' %(dir_in, filename), dtype=None, delimiter=",")
-#### 9.10.2020    array_in = np.genfromtxt('%s/%s.dat' %(dir_in, filename), encoding='ASCII', dtype=None, delimiter=",")
-    array_in = np.genfromtxt('%s/%s' %(dir_in, filename), encoding='ASCII', dtype=None, delimiter=",", skip_header=1)
-    lon = ([t[0] for t in array_in])
-
-    lat = [t[1] for t in array_in]
-    noise = [t[2] for t in array_in]
-    stat = [t[3] for t in array_in]
+    if type(stations_in) == str:
+        stations_df = pd.read_csv(stations_in)
+    else:
+        stations_df = stations_in.copy()
+    
+    stat_lon = stations_df['longitude'].values
+    stat_lat = stations_df['latitude'].values
+    stat_elev = stations_df['elevation_km'].values
+    stat = stations_df['station'].values
+    noise = stations_df['noise [nm]'].values
     # grid size
     nx = int( (lon1 - lon0) / dlon) + 1
     ny = int( (lat1 - lat0) / dlat) + 1
@@ -116,8 +120,9 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
             ilat = lat0 + iy*dlat 
             for j,jstat in enumerate(stat): # loop through stations 
                 # calculate hypcocentral distance in km
-                dx, dy = util_geo_km(ilon, ilat, lon[j], lat[j])
-                hypo_dist = sqrt(dx**2 + dy**2 + foc_depth**2)
+                dx, dy = util_geo_km(ilon, ilat, stat_lon[j], stat_lat[j])
+                dz = np.abs(foc_depth - stat_elev[j])
+                hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                 # find smallest detectable magnitude
                 ampl = 0.0
                 m = mag_min - mag_delta
@@ -131,7 +136,8 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
             if arrays:
                 for a in range(0,len(arrays['lon'])):
                     dx, dy = util_geo_km(ilon, ilat, arrays['lon'][a], arrays['lat'][a])
-                    hypo_dist = sqrt(dx**2 + dy**2 + foc_depth**2)
+                    dz = np.abs(foc_depth - arrays['elev'][a])
+                    hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     #estimated noise level on array (rootn or another cleverer method to get a displaement number)
                     m = mag_min - mag_delta
                     ampl = 0
@@ -155,3 +161,90 @@ def minML(filename, dir_in='./', lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0
 
     return dets
 
+
+def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_depth=20, ddist=5, ddepth=0.5,
+                    stat_num=4, snr=3, region='CAL', mag_min=-3.0, mag_delta=0.1, arrays=None):
+    
+    '''
+    Function to calculate a 2-D cross section of a SNCAST model. 
+    X-section line defined by start lat/lon and the azimuth and length (in km) of the line
+
+    Input should be a csv file (or Pandas DataFrame)
+      longitude, latitude, noise [nm], station name
+    e.g.: -7.5100, 55.0700, 0.53, IDGL
+    
+    Parameters
+    ----------
+        stations : DataFrame or csv filename
+    '''
+
+    if type(stations_in) == str:
+        stations_df = pd.read_csv(stations_in)
+    else:
+        stations_df = stations_in.copy()
+
+    lon = stations_df['lon'].values
+    lat = stations_df['lat'].values
+    elev = stations_df['elevation'].values
+    stat = stations_df['station'].values
+    noise = stations_df['noise [nm]'].values
+
+    ## Calculate lon/lat co-ordinates for X-section line 
+    ndists = int((length_km / ddist)+1)
+    distance_km = np.linspace(0, length_km, ndists)
+    xsection = pygc.great_circle(latitude=lat0, longitude=lon0,
+                                 azimuth=azi, distance=distance_km*1e3)
+    ndepths = int( (max_depth - min_depth) / ddepth) + 1
+    depths = np.linspace(min_depth, max_depth, ndepths)
+    # Iterate along cross-section
+    mag=[]
+    array_mag = []
+    # dets = {'Distance_km': [], 'Depth_km': [], 'ML_min':[]}
+    mag_grid = np.zeros((ndepths, ndists))
+    for i in range(0, ndists):
+        # get lat/lon of each point on line
+        ilat = xsection['latitude'][i]
+        ilon = xsection['longitude'][i]
+        dist_km = distance_km[i]
+        # Iterate over depth 
+        for d in range(ndepths):
+            for s, _ in enumerate(stat) : # loop through stations 
+                # calculate hypcocentral distance in km
+                dz = elev[s] - depths[d]
+                dx, dy = util_geo_km(ilon, ilat, lon[s], lat[s])
+                hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
+                # find smallest detectable magnitude
+                ampl = 0.0
+                m = mag_min - mag_delta
+                while ampl < snr*noise[s]: 
+                    m = m + mag_delta
+                    ampl = calc_ampl(m, hypo_dist, region)
+                mag.append(m)
+            # sort magnitudes in ascending order
+            mag = sorted(mag)
+            # add array bit    
+            if arrays:
+                for a in range(0,len(arrays['lon'])):
+                    dx, dy = util_geo_km(ilon, ilat, arrays['lon'][a], arrays['lat'][a])
+                    hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
+                    #estimated noise level on array (rootn or another cleverer method to get a displaement number)
+                    m = mag_min - mag_delta
+                    ampl = 0
+                    while ampl < snr*arrays['noise'][a]:
+                        m = m + mag_delta
+                        ampl = calc_ampl(m, hypo_dist, region)
+                    array_mag.append(m)
+                if np.min(array_mag) < mag[stat_num-1]:
+                    mag_grid[d, i] = np.min(array_mag)
+                else:
+                    mag_grid[d, i] = mag[stat_num-1]
+            else:
+                mag_grid[d, i] = mag[stat_num-1]
+
+            del array_mag[:]
+            del mag[:]
+
+    # Make xarray grid to output
+
+    array = xarray.DataArray(mag_grid, coords=[depths,distance_km ], dims=['depth_km','distance_along_xsection_km'])
+    return array
