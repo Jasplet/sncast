@@ -116,6 +116,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
 ### 9.10.2020    f = open('%s/%s-stat%s-foc%s-snr%s-%s.grd' %(dir_in, filename, stat_num, foc_depth, snr, region), 'wb')
     mag=[]
     array_mag = []
+    obs_mag = []
     mag_grid = np.zeros((ny, nx))
     for ix in range(nx): # loop through longitude increments
         for iy in range(ny): # loop through latitude increments
@@ -138,7 +139,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
 
             if arrays:
                 for a in range(0,len(arrays['lon'])):
-                    dx, dy = util_geo_km(ilon, ilat, arrays['lon'][a], arrays['lat'][a])
+                    dx, dy = util_geo_km(lons[ix], lats[iy], arrays['lon'][a], arrays['lat'][a])
                     dz = np.abs(foc_depth - arrays['elev'][a])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     #estimated noise level on array (rootn or another cleverer method to get a displaement number)
@@ -152,19 +153,21 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                     mag_grid[iy, ix] = np.min(array_mag)
             
             if obs:
-                for o in range(0, len(obs['lon'])):
-                    dx, dy = util_geo_km(ilon, ilat, arrays['lon'][a], arrays['lat'][a])
-                    dz = np.abs(foc_depth - arrays['elev'][a])
+                for o in range(0, len(obs['longitude'])):
+                    dx, dy = util_geo_km(lons[ix], lats[iy],
+                                         obs['longitude'][o],
+                                         obs['latitude'][o])
+                    dz = np.abs(foc_depth - obs['elevation_km'][o])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     #estimated noise level on array (rootn or another cleverer method to get a displaement number)
                     m = mag_min - mag_delta
                     ampl = 0
-                    while ampl < snr*arrays['noise'][a]:
+                    while ampl < snr*obs['noise [nm]'][o]:
                         m = m + mag_delta
                         ampl = calc_ampl(m, hypo_dist, region)
                     obs_mag.append(m)
-                if np.min(obs_mag) < mag_grid[iy,ix]:
-                    mag_grid[iy, ix] = mag[obs_stat_num-1]
+                if obs_mag[obs_stat_num-1] < mag_grid[iy,ix]:
+                    mag_grid[iy, ix] = obs_mag[obs_stat_num-1]
         
             del array_mag[:]
             del mag[:]
