@@ -179,7 +179,8 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
 
 
 def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_depth=20, ddist=5, ddepth=0.5,
-                    stat_num=4, snr=3, region='CAL', mag_min=-3.0, mag_delta=0.1, arrays=None):
+                    stat_num=4, snr=3, region='CAL', mag_min=-3.0, mag_delta=0.1,
+                    arrays=None, obs=None, obs_stat_num=3):
     
     '''
     Function to calculate a 2-D cross section of a SNCAST model. 
@@ -215,6 +216,7 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
     # Iterate along cross-section
     mag=[]
     array_mag = []
+    obs_mag = [] 
     # dets = {'Distance_km': [], 'Depth_km': [], 'ML_min':[]}
     mag_grid = np.zeros((ndepths, ndists))
     for i in range(0, ndists):
@@ -238,7 +240,8 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                 mag.append(m)
             # sort magnitudes in ascending order
             mag = sorted(mag)
-            # add array bit    
+            mag_grid[d,i] = mag[stat_num-1]
+             # add array bit    
             if arrays:
                 for a in range(0,len(arrays['lon'])):
                     dx, dy = util_geo_km(ilon, ilat, arrays['lon'][a], arrays['lat'][a])
@@ -250,15 +253,30 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                         m = m + mag_delta
                         ampl = calc_ampl(m, hypo_dist, region)
                     array_mag.append(m)
-                if np.min(array_mag) < mag[stat_num-1]:
+                if np.min(array_mag) < mag_grid[d,i]:
                     mag_grid[d, i] = np.min(array_mag)
-                else:
-                    mag_grid[d, i] = mag[stat_num-1]
-            else:
-                mag_grid[d, i] = mag[stat_num-1]
 
+            if obs:
+                for o in range(0, len(obs['longitude'])):                         
+                    dz = np.abs(obs['elevation_km'][o] - depths[d])
+                    dx, dy = util_geo_km(ilon, ilat,
+                                         obs['longitude'][o],
+                                         obs['latitude'][o])
+                    hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
+                    hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
+                    #estimated noise level on array (rootn or another cleverer method to get a displaement number)
+                    m = mag_min - mag_delta
+                    ampl = 0
+                    while ampl < snr*obs['noise [nm]'][o]:
+                        m = m + mag_delta
+                        ampl = calc_ampl(m, hypo_dist, region)
+                    obs_mag.append(m)
+                if obs_mag[obs_stat_num-1] < mag_grid[d,i]:
+                    mag_grid[d, i] = obs_mag[obs_stat_num-1]
+        
             del array_mag[:]
             del mag[:]
+            del obs_mag[:]
 
     # Make xarray grid to output
 
