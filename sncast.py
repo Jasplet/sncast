@@ -56,19 +56,19 @@ import xarray
 #       https://doi.org/10.1007/s10518-013-9461-4
 
 
-GPMES = {'RE19':{'PGV':{'c1':-4.4578, 'c2': 1.6540,
-                        'c3': -0.1044, 'c4' : -1.6308,
-                        'c5': 0.2082, 'c6' : -1.6465,
-                        'c7': 0.1568, 'c8' : -2.3547,
-                        'c9': 0.0676, 'c10': -0.000991,
-                        'c11': 2.8899},
-                'PGA': {'c1':-2.1780, 'c2':1.6355,
-                        'c3':-0.1241, 'c4':-1.8303,
-                        'c5':0.2165, 'c6':-1.8318,
-                        'c7':0.1622, 'c8':-1.9899,
-                        'c9':0.0678, 'c10':-0.002073,
-                        'c11':2.3460}
-                }, 
+GMPES = {'RE19': {'PGV': {'c1': -4.4578, 'c2': 1.6540,
+                          'c3': -0.1044, 'c4': -1.6308,
+                          'c5': 0.2082, 'c6': -1.6465,
+                          'c7': 0.1568, 'c8': -2.3547,
+                          'c9': 0.0676, 'c10': -0.000991,
+                          'c11': 2.8899},
+                  'PGA': {'c1': -2.1780, 'c2': 1.6355,
+                          'c3': -0.1241, 'c4': -1.8303,
+                          'c5': 0.2165, 'c6': -1.8318,
+                          'c7': 0.1622, 'c8': -1.9899,
+                          'c9': 0.0678, 'c10': -0.002073,
+                          'c11': 2.3460}
+                },
         'AK14': {'PGA': {'a1':2.52977, 'a2': 0.0029, 'a3': -0.05496,
                          'a4':-1.31001, 'a5': 0.2529, 'a6':	7.5,
                          'a7':-0.5096, 'a8':-0.1091,'a9':0.0937,
@@ -151,8 +151,45 @@ def convert_mw_to_ml(ml, region='UK'):
     return mw
 
 
-def calc_pgv(local_mag, epic_dist, gpme):
+def calc_pgv(mw, epic_dist, author, model_type='PGV'):
 
+    if author == 'RE19':
+        coeffs = GMPES[author][model_type]
+        dist = np.sqrt(coeffs['c11']**2 + epic_dist)
+        f0, f1, f2 = _re19_f_terms(dist)
+        #
+        # y can be either PGA, PGV or one of the periods if those
+        # coefficiants are added.
+        y1 = coeffs['c1'] + coeffs['c2']*mw + coeffs['c3']*mw**2
+        y2 = f0*(coeffs['c4'] + coeffs['c5']*mw)
+        y3 = f1*(coeffs['c6'] + coeffs['c7']*mw)
+        y4 = f2*(coeffs['c8'] + coeffs['c9']*mw)
+        y5 = coeffs['c10']* dist
+        y = np.power(y1 + y2 + y3 + y4 + y5, 10)
+    elif author == 'AK14':
+
+        
+        return y
+
+
+def _re19_f_terms(dist, r0=10, r1=50, r2=100):
+
+    if dist <= r0:
+        f0 = np.log10(r0/dist)
+    else:
+        f0 = 0
+
+    if dist <= r1:
+        f1 = np.log10(dist/1.0)
+    elif dist > r1:
+        f1 = np.log10(dist/1.0)
+
+    if dist <= r2:
+        f2 = 0
+    elif dist > r2:
+        f2 = np.log10(dist/r2)
+
+    return f0, f1, f2
 
 def calc_ampl(local_mag, hypo_dist, region):
 
