@@ -44,6 +44,18 @@ from math import sqrt
 import pygc
 import xarray
 
+# Citations for GMPES
+# RE19: Edwards, B (2019) Update of the UK stochastic ground motion model using 
+#       a decade of broadband data. In: SECED 2019 Conference, 2019-9-9 - 2019-9-10,
+#       Greenwich, London. 
+#       https://livrepository.liverpool.ac.uk/3060529/1/SECED_2019_paper_Rietbrock_Edwards_FINAL.pdf
+
+# AK14: Akkar, S., Sandıkkaya, M.A., Bommer, J.J., 2014.,
+#       Empirical ground-motion models for point- and extended-source crustal
+#       earthquake scenarios in Europe and the Middle East. Bull Earthquake Eng 12, 359–387.
+#       https://doi.org/10.1007/s10518-013-9461-4
+
+
 GPMES = {'RE19':{'PGV':{'c1':-4.4578, 'c2': 1.6540,
                         'c3': -0.1044, 'c4' : -1.6308,
                         'c5': 0.2082, 'c6' : -1.6465,
