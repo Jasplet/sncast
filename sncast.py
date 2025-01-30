@@ -45,11 +45,76 @@ import pygc
 import xarray
 
 
+def convert_mw_to_ml(mw, region='UK'):
+    '''
+    Converts Moment magntiude to local magnitude
+    using an empirical scaling relationship
+
+    Default region is the UK.
+    For small M<3 event we use the conversion developed by Butcher et al., (2020)
+    https://doi.org/10.1785/0120190032 using data from
+    New Ollerton and is applicable for small magntiude events.
+
+    For Mw > 3 the Ottemöller and Sargeant (2013) https://doi.org/10.1785/0120130085
+    conversion is used instead.
+
+    Parameters:
+    ----------
+    mw : numpy.Array
+        array of moment magnitudes to convert
+    region : str
+        Region's scaling relationship to use. Defaults to UK
+    '''
+
+    if region == 'UK':
+        butcher_uk_small_mw = np.vectorize(lambda x: (x - 0.75) / 0.69)
+        ottermoller_uk = np.vectorize(lambda x: (x - 0.23) / 0.85)
+
+        ml = np.where(mw <= 3, butcher_uk_small_mw(mw), ottermoller_uk(mw))
+    else:
+        raise ValueError(f'Unsupported region {region}')
+
+    return ml
+
+
+
+def convert_mw_to_ml(ml, region='UK'):
+    '''
+    Converts Local magnitude to moment magnitude
+    using an empirical scaling relationship
+
+    Default region is the UK.
+    For small M<3 event we use the conversion developed by Butcher et al., (2020)
+    https://doi.org/10.1785/0120190032 using data from
+    New Ollerton and is applicable for small magntiude events.
+
+    For Mw > 3 the Ottemöller and Sargeant (2013) https://doi.org/10.1785/0120130085
+    conversion is used instead.
+
+    Parameters:
+    ----------
+    mw : numpy.Array
+        array of moment magnitudes to convert
+    region : str
+        Region's scaling relationship to use. Defaults to UK
+    '''
+
+    if region == 'UK':
+        butcher_uk_small_mw = np.vectorize(lambda x: 0.75*x + 0.69)
+        ottermoller_uk = np.vectorize(lambda x: 0.85*x + 0.23)
+
+        ml = np.where(ml <= 3, butcher_uk_small_mw(ml), ottermoller_uk(ml))
+    else:
+        raise ValueError(f'Unsupported region {region}')
+
+    return mw
+
+
 def calc_ampl(local_mag, hypo_dist, region):
 
     #   region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
     if region == 'UK':
-        #   UK Scale uses new ML equation from Luckett et al., (2019) 
+        #   UK Scale uses new ML equation from Luckett et al., (2019)
         #   https://doi.org/10.1093/gji/ggy484
         #   Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist + d*exp(e * hypo-dist) + c
         a = 1.11
@@ -59,8 +124,9 @@ def calc_ampl(local_mag, hypo_dist, region):
         e = -0.2
         ampl = np.power(10, (local_mag - a*np.log10(hypo_dist) - b*hypo_dist - c - d*np.exp(e*hypo_dist)))
 
-    elif region == 'CAL': # South. California scale, IASPEI (2005), 
-                          # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
+    elif region == 'CAL':
+        # South. California scale, IASPEI (2005),
+        # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
         a = 1.11
         b = 0.00189
         c = -2.09
@@ -99,11 +165,11 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     :param  mag_delta:  ML increment used in grid search
     """
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
-    if type(stations_in) == str:
+    if stations_in is str:
         stations_df = pd.read_csv(stations_in)
     else:
         stations_df = stations_in.copy()
-    
+
     stat_lon = stations_df['longitude'].values
     stat_lat = stations_df['latitude'].values
     stat_elev = stations_df['elevation_km'].values
@@ -141,10 +207,14 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
 
             if arrays:
                 for a in range(0,len(arrays['lon'])):
-                    dx, dy = util_geo_km(lons[ix], lats[iy], arrays['lon'][a], arrays['lat'][a])
+                    dx, dy = util_geo_km(lons[ix],
+                                         lats[iy],
+                                         arrays['lon'][a],
+                                         arrays['lat'][a])
                     dz = np.abs(foc_depth - arrays['elev'][a])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                    #estimated noise level on array (rootn or another cleverer method to get a displaement number)
+                    # estimated noise level on array (rootn or another cleverer
+                    # method to get a displaement number)
                     m = mag_min - mag_delta
                     ampl = 0
                     while ampl < snr*arrays['noise'][a]:
@@ -183,7 +253,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
 def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_depth=20, ddist=5, ddepth=0.5,
                     stat_num=4, snr=3, region='CAL', mag_min=-3.0, mag_delta=0.1,
                     arrays=None, obs=None, obs_stat_num=3):
-    
+
     '''
     Function to calculate a 2-D cross section of a SNCAST model. 
     X-section line defined by start lat/lon and the azimuth and length (in km) of the line
@@ -191,7 +261,7 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
     Input should be a csv file (or Pandas DataFrame)
       longitude, latitude, noise [nm], station name
     e.g.: -7.5100, 55.0700, 0.53, IDGL
-    
+
     Parameters
     ----------
         stations : DataFrame or csv filename
@@ -225,10 +295,10 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
         # get lat/lon of each point on line
         ilat = xsection['latitude'][i]
         ilon = xsection['longitude'][i]
-        dist_km = distance_km[i]
         # Iterate over depth 
         for d in range(ndepths):
-            for s, _ in enumerate(stat) : # loop through stations 
+            for s, _ in enumerate(stat):
+                # loop through stations
                 # calculate hypcocentral distance in km
                 dz = elev[s] - depths[d]
                 dx, dy = util_geo_km(ilon, ilat, lon[s], lat[s])
@@ -236,37 +306,38 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                 # find smallest detectable magnitude
                 ampl = 0.0
                 m = mag_min - mag_delta
-                while ampl < snr*noise[s]: 
+                while ampl < snr*noise[s]:
                     m = m + mag_delta
                     ampl = calc_ampl(m, hypo_dist, region)
                 mag.append(m)
             # sort magnitudes in ascending order
             mag = sorted(mag)
             mag_grid[d,i] = mag[stat_num-1]
-             # add array bit    
+            # add array bit
             if arrays:
                 for a in range(0,len(arrays['lon'])):
                     dx, dy = util_geo_km(ilon, ilat, arrays['lon'][a], arrays['lat'][a])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                    #estimated noise level on array (rootn or another cleverer method to get a displaement number)
                     m = mag_min - mag_delta
                     ampl = 0
                     while ampl < snr*arrays['noise'][a]:
                         m = m + mag_delta
                         ampl = calc_ampl(m, hypo_dist, region)
                     array_mag.append(m)
-                if np.min(array_mag) < mag_grid[d,i]:
+                if np.min(array_mag) < mag_grid[d, i]:
                     mag_grid[d, i] = np.min(array_mag)
 
             if obs:
-                for o in range(0, len(obs['longitude'])):                         
+                for o in range(0, len(obs['longitude'])):              
                     dz = np.abs(obs['elevation_km'][o] - depths[d])
                     dx, dy = util_geo_km(ilon, ilat,
                                          obs['longitude'][o],
                                          obs['latitude'][o])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                    #estimated noise level on array (rootn or another cleverer method to get a displaement number)
+                    # estimated noise level on array
+                    # rootn or another cleverer method
+                    # to get a displaement number)
                     m = mag_min - mag_delta
                     ampl = 0
                     while ampl < snr*obs['noise [nm]'][o]:
@@ -275,12 +346,15 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                     obs_mag.append(m)
                 if obs_mag[obs_stat_num-1] < mag_grid[d,i]:
                     mag_grid[d, i] = obs_mag[obs_stat_num-1]
-        
+
             del array_mag[:]
             del mag[:]
             del obs_mag[:]
 
     # Make xarray grid to output
 
-    array = xarray.DataArray(mag_grid, coords=[depths,distance_km ], dims=['depth_km','distance_along_xsection_km'])
+    array = xarray.DataArray(mag_grid,
+                             coords=[depths, distance_km],
+                             dims=['depth_km',
+                                   'distance_along_xsection_km'])
     return array
