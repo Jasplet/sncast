@@ -39,18 +39,19 @@
 
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from obspy.signal.util import util_geo_km
-from math import pow, log10, sqrt
-import pygc 
+from math import sqrt
+import pygc
 import xarray
+
 
 def calc_ampl(local_mag, hypo_dist, region):
 
-        # region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
+    #   region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
     if region == 'UK':
-        #UK Scale uses new ML equation from Luckett et al., (2019) https://doi.org/10.1093/gji/ggy484
-        # Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist + d*exp(e * hypo-dist) + c
+        #   UK Scale uses new ML equation from Luckett et al., (2019) 
+        #   https://doi.org/10.1093/gji/ggy484
+        #   Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist + d*exp(e * hypo-dist) + c
         a = 1.11
         b = 0.00189
         c = -2.09
@@ -67,8 +68,9 @@ def calc_ampl(local_mag, hypo_dist, region):
 
     return ampl
 
+
 def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
-          dlat=0.2,stat_num=4, snr=3, foc_depth=0, region='CAL', mag_min=-2.0, mag_delta=0.1,
+          dlat=0.2, stat_num=4, snr=3, foc_depth=0, region='CAL', mag_min=-2.0, mag_delta=0.1,
           arrays=None, obs=None, obs_stat_num=3):
     """
     This routine calculates the geographic distribution of the minimum 
@@ -113,14 +115,14 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     lats = np.linspace(lat1, lat0, ny)
     lons = np.linspace(lon0, lon1, nx)
     # open output file:
-### 9.10.2020    f = open('%s/%s-stat%s-foc%s-snr%s-%s.grd' %(dir_in, filename, stat_num, foc_depth, snr, region), 'wb')
-    mag=[]
+# ## 9.10.2020    f = open('%s/%s-stat%s-foc%s-snr%s-%s.grd' %(dir_in, filename, stat_num, foc_depth, snr, region), 'wb')
+    mag = []
     array_mag = []
     obs_mag = []
     mag_grid = np.zeros((ny, nx))
     for ix in range(nx): # loop through longitude increments
         for iy in range(ny): # loop through latitude increments
-            for j,jstat in enumerate(stat): # loop through stations 
+            for j, jstat in enumerate(stat): # loop through stations
                 # calculate hypcocentral distance in km
                 dx, dy = util_geo_km(lons[ix], lats[iy], stat_lon[j], stat_lat[j])
                 dz = np.abs(foc_depth - stat_elev[j])
