@@ -51,6 +51,8 @@ from math import sqrt
 import pygc
 import xarray
 
+from gmpes import eval_gmpe
+from magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     '''
@@ -79,6 +81,30 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
         ampl = np.power(10, (local_mag - a*np.log10(hypo_dist) - b*hypo_dist - c))
 
     return ampl
+
+
+def _est_min_ML_at_station(noise,
+                           mag_min,
+                           mag_delta,
+                           distance,
+                           snr,
+                           method='ML',
+                           region='UK',
+                           gmpe='RE19',
+                           gmpe_model_type='PGV'):
+
+    signal = 0
+    ml = mag_min - mag_delta
+    while signal < snr*noise: 
+        ml = ml + mag_delta
+        if method == 'ML':
+            signal = calc_ampl_from_magnitude(ml, distance, region)
+        elif method == 'GMPE':
+            mw = convert_ml_to_mw(ml, region)
+            signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)
+            ml = convert_mw_to_ml(mw, region)
+
+    return ml
 
 
 def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
@@ -132,19 +158,15 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     array_mag = []
     obs_mag = []
     mag_grid = np.zeros((ny, nx))
-    for ix in range(nx): # loop through longitude increments
-        for iy in range(ny): # loop through latitude increments
-            for j, jstat in enumerate(stat): # loop through stations
+    for ix in range(nx):  # loop through longitude increments
+        for iy in range(ny):  # loop through latitude increments
+            for j, jstat in enumerate(stat):  # loop through stations
                 # calculate hypcocentral distance in km
                 dx, dy = util_geo_km(lons[ix], lats[iy], stat_lon[j], stat_lat[j])
                 dz = np.abs(foc_depth - stat_elev[j])
                 hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                 # find smallest detectable magnitude
-                ampl = 0.0
-                m = mag_min - mag_delta
-                while ampl < snr*noise[j]: 
-                    m = m + mag_delta
-                    ampl = calc_ampl_from_magnitude(m, hypo_dist, region)
+                m = _est_min_ML_at_station(noise[j], mag_min, mag_delta, hypo_dist, snr, region=region)
                 mag.append(m)
             # sort magnitudes in ascending order
             mag = sorted(mag)
@@ -152,7 +174,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
             mag_grid[iy, ix] = mag[stat_num-1]
 
             if arrays:
-                for a in range(0,len(arrays['lon'])):
+                for a in range(0, len(arrays['lon'])):
                     dx, dy = util_geo_km(lons[ix],
                                          lats[iy],
                                          arrays['lon'][a],
@@ -161,15 +183,16 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     # estimated noise level on array (rootn or another cleverer
                     # method to get a displaement number)
-                    m = mag_min - mag_delta
-                    ampl = 0
-                    while ampl < snr*arrays['noise'][a]:
-                        m = m + mag_delta
-                        ampl = calc_ampl(m, hypo_dist, region)
+                    m = _est_min_ML_at_station(arrays['noise'][a],
+                                               mag_min,
+                                               mag_delta,
+                                               hypo_dist,
+                                               snr,
+                                               region=region)
                     array_mag.append(m)
-                if np.min(array_mag) < mag_grid[iy,ix]:
+                if np.min(array_mag) < mag_grid[iy, ix]:
                     mag_grid[iy, ix] = np.min(array_mag)
-            
+
             if obs:
                 for o in range(0, len(obs['longitude'])):
                     dx, dy = util_geo_km(lons[ix], lats[iy],
@@ -177,16 +200,17 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                                          obs['latitude'][o])
                     dz = np.abs(foc_depth - obs['elevation_km'][o])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                    #estimated noise level on array (rootn or another cleverer method to get a displaement number)
-                    m = mag_min - mag_delta
-                    ampl = 0
-                    while ampl < snr*obs['noise [nm]'][o]:
-                        m = m + mag_delta
-                        ampl = calc_ampl(m, hypo_dist, region)
+                    # estimated noise level on OBSs
+                    m = _est_min_ML_at_station(obs['noise [nm]'][o],
+                                               mag_min,
+                                               mag_delta,
+                                               hypo_dist,
+                                               snr,
+                                               region=region)
                     obs_mag.append(m)
-                if obs_mag[obs_stat_num-1] < mag_grid[iy,ix]:
+                if obs_mag[obs_stat_num-1] < mag_grid[iy, ix]:
                     mag_grid[iy, ix] = obs_mag[obs_stat_num-1]
-        
+
             del array_mag[:]
             del mag[:]
             del obs_mag[:]
@@ -213,7 +237,7 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
         stations : DataFrame or csv filename
     '''
 
-    if type(stations_in) == str:
+    if stations_in is str:
         stations_df = pd.read_csv(stations_in)
     else:
         stations_df = stations_in.copy()
@@ -224,7 +248,7 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
     stat = stations_df['station'].values
     noise = stations_df['noise [nm]'].values
 
-    ## Calculate lon/lat co-ordinates for X-section line 
+    # Calculate lon/lat co-ordinates for X-section line
     ndists = int((length_km / ddist)+1)
     distance_km = np.linspace(0, length_km, ndists)
     xsection = pygc.great_circle(latitude=lat0, longitude=lon0,
@@ -232,9 +256,9 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
     ndepths = int( (max_depth - min_depth) / ddepth) + 1
     depths = np.linspace(min_depth, max_depth, ndepths)
     # Iterate along cross-section
-    mag=[]
+    mag = []
     array_mag = []
-    obs_mag = [] 
+    obs_mag = []
     # dets = {'Distance_km': [], 'Depth_km': [], 'ML_min':[]}
     mag_grid = np.zeros((ndepths, ndists))
     for i in range(0, ndists):
@@ -250,11 +274,12 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                 dx, dy = util_geo_km(ilon, ilat, lon[s], lat[s])
                 hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                 # find smallest detectable magnitude
-                ampl = 0.0
-                m = mag_min - mag_delta
-                while ampl < snr*noise[s]:
-                    m = m + mag_delta
-                    ampl = calc_ampl(m, hypo_dist, region)
+                m = _est_min_ML_at_station(noise[s],
+                                           mag_min,
+                                           mag_delta,
+                                           hypo_dist,
+                                           snr,
+                                           region=region)
                 mag.append(m)
             # sort magnitudes in ascending order
             mag = sorted(mag)
@@ -264,11 +289,12 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                 for a in range(0,len(arrays['lon'])):
                     dx, dy = util_geo_km(ilon, ilat, arrays['lon'][a], arrays['lat'][a])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                    m = mag_min - mag_delta
-                    ampl = 0
-                    while ampl < snr*arrays['noise'][a]:
-                        m = m + mag_delta
-                        ampl = calc_ampl(m, hypo_dist, region)
+                    m = _est_min_ML_at_station(arrays['noise'][a],
+                                               mag_min,
+                                               mag_delta,
+                                               hypo_dist,
+                                               snr,
+                                               region=region)
                     array_mag.append(m)
                 if np.min(array_mag) < mag_grid[d, i]:
                     mag_grid[d, i] = np.min(array_mag)
@@ -280,15 +306,15 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                                          obs['longitude'][o],
                                          obs['latitude'][o])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                    hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     # estimated noise level on array
                     # rootn or another cleverer method
                     # to get a displaement number)
-                    m = mag_min - mag_delta
-                    ampl = 0
-                    while ampl < snr*obs['noise [nm]'][o]:
-                        m = m + mag_delta
-                        ampl = calc_ampl(m, hypo_dist, region)
+                    m = _est_min_ML_at_station(obs['noise [nm]'][o],
+                                               mag_min,
+                                               mag_delta,
+                                               hypo_dist,
+                                               snr,
+                                               region=region)
                     obs_mag.append(m)
                 if obs_mag[obs_stat_num-1] < mag_grid[d,i]:
                     mag_grid[d, i] = obs_mag[obs_stat_num-1]
