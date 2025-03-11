@@ -67,16 +67,15 @@ GMPES = {'RE19': {'PGV': {'c1': -4.4578, 'c2': 1.6540,
                           'c5': 0.2165, 'c6': -1.8318,
                           'c7': 0.1622, 'c8': -1.9899,
                           'c9': 0.0678, 'c10': -0.002073,
-                          'c11': 2.3460}
-                },
-        'AK14': {'PGA': {'a1':2.52977, 'a2': 0.0029, 'a3': -0.05496,
-                         'a4':-1.31001, 'a5': 0.2529, 'a6':	7.5,
-                         'a7':-0.5096, 'a8':-0.1091,'a9':0.0937,
-                         'c1':6.75, 'V_con':1000, 'V_ref': 750, 
-                         'c':2.5, 'n':3.2, 'b1':-0.41997,
-                         'b2':-0.28846, 'phi':	0.6375,
-                         'tau':	0.3581},
-                'PGV': {'a1':6.13498, 'a2':0.0029, 'a3': -0.12091,
+                          'c11': 2.3460}},
+         'AK14': {'PGA': {'a1':2.52977, 'a2': 0.0029, 'a3': -0.05496,
+                          'a4':-1.31001, 'a5': 0.2529, 'a6':	7.5,
+                          'a7':-0.5096, 'a8': -0.1091,'a9':0.0937,
+                          'c1':6.75, 'V_con':1000, 'V_ref': 750, 
+                          'c':2.5, 'n':3.2, 'b1':-0.41997,
+                          'b2':-0.28846, 'phi':	0.6375,
+                          'tau':	0.3581},
+                 'PGV': {'a1':6.13498, 'a2':0.0029, 'a3': -0.12091,
                         'a4':-1.04013, 'a5': 0.2529, 'a6':7.5,
                         'a7':-0.5096, 'a8':-0.0616, 'a9':0.063,
                         'c1':6.75, 'V_con':	1000, 'V_ref':	750,
@@ -119,7 +118,7 @@ def convert_mw_to_ml(mw, region='UK'):
     return ml
 
 
-def convert_mw_to_ml(ml, region='UK'):
+def convert_ml_to_mw(ml, region='UK'):
     '''
     Converts Local magnitude to moment magnitude
     using an empirical scaling relationship
@@ -153,8 +152,8 @@ def convert_mw_to_ml(ml, region='UK'):
 
 def calc_pgv(mw, epic_dist, author, model_type='PGV'):
 
+    coeffs = GMPES[author][model_type]
     if author == 'RE19':
-        coeffs = GMPES[author][model_type]
         dist = np.sqrt(coeffs['c11']**2 + epic_dist)
         f0, f1, f2 = _re19_f_terms(dist)
         #
@@ -167,7 +166,6 @@ def calc_pgv(mw, epic_dist, author, model_type='PGV'):
         y5 = coeffs['c10']* dist
         y = np.power(y1 + y2 + y3 + y4 + y5, 10)
     elif author == 'AK14':
-
         
         return y
 
