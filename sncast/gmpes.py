@@ -7,7 +7,16 @@ base_path = Path(__file__).resolve().parent.parent
 data_path = base_path / 'data' / 'gmpe_coeffs.json'
 
 SUPPORT_GMPES = ['RE19', 'AK14']
+# Citations for GMPES
+# RE19: Edwards, B (2019) Update of the UK stochastic ground motion model using 
+#       a decade of broadband data. In: SECED 2019 Conference, 2019-9-9 - 2019-9-10,
+#       Greenwich, London. 
+#       https://livrepository.liverpool.ac.uk/3060529/1/SECED_2019_paper_Rietbrock_Edwards_FINAL.pdf
 
+# AK14: Akkar, S., Sandıkkaya, M.A., Bommer, J.J., 2014.,
+#       Empirical ground-motion models for point- and extended-source crustal
+#       earthquake scenarios in Europe and the Middle East. Bull Earthquake Eng 12, 359–387.
+#       https://doi.org/10.1007/s10518-013-9461-4
 
 def calc_pgv(mw, epic_dist, author, model_type='PGV'):
 
