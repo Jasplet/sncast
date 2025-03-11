@@ -23,7 +23,7 @@ def eval_gmpe(mw, epic_dist, author, model_type='PGV'):
 
     if author not in SUPPORT_GMPES:
         raise ValueError(f'Author {author} not supported')
-    
+
     with open(data_path) as f:
         GMPES = json.load(f)
 
