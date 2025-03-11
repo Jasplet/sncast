@@ -62,8 +62,13 @@ import xarray
 #       earthquake scenarios in Europe and the Middle East. Bull Earthquake Eng 12, 359–387.
 #       https://doi.org/10.1007/s10518-013-9461-4
 
-def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
 
+def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
+    '''
+    Calculate the amplitude of a seismic signal given a local magnitude
+    and hypocentral distance. The empirical local magnitude 
+    scales from the UK and California regions are supported.
+    '''
     #   region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
     if region == 'UK':
         #   UK Scale uses new ML equation from Luckett et al., (2019)
