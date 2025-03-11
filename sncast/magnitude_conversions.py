@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def convert_mw_to_ml(mw, region='UK'):
     '''
     Converts Moment magntiude to local magnitude

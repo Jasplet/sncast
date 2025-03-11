@@ -1,6 +1,5 @@
 import numpy as np
 import json
-import os
 from pathlib import Path
 
 base_path = Path(__file__).resolve().parent.parent
