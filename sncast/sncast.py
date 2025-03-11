@@ -50,6 +50,7 @@ from obspy.signal.util import util_geo_km
 from math import sqrt
 import pygc
 import xarray
+import warnings
 
 from gmpes import eval_gmpe
 from magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
@@ -108,8 +109,8 @@ def _est_min_ML_at_station(noise,
 
 
 def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
-          dlat=0.2, stat_num=4, snr=3, foc_depth=0, region='CAL', mag_min=-2.0, mag_delta=0.1,
-          arrays=None, obs=None, obs_stat_num=3):
+          dlat=0.2, stat_num=4, snr=3, foc_depth=0, mag_min=-2.0, mag_delta=0.1,
+          arrays=None, obs=None, obs_stat_num=3, **kwargs):
     """
     This routine calculates the geographic distribution of the minimum 
     detectable local magnitude ML for a given seismic network. Required 
@@ -136,6 +137,24 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     :param  mag_min:	minimum ML value for grid search
     :param  mag_delta:  ML increment used in grid search
     """
+
+    if kwargs['method'] == 'ML':
+        kwargs['gmpe'] = None
+        kwargs['gmpe_model_type'] = None
+    elif kwargs['method'] == 'GMPE':
+        if not kwargs['gmpe']:
+            raise ValueError('GMPE model must be specified if GMPE method is selected')
+        if not kwargs['gmpe_model_type']:
+            raise ValueError('GMPE model type must be specified if GMPE method is selected')
+    else:
+        kwargs['method'] = 'ML'
+        warnings.warn('Method not recognised, using ML as default')
+   
+    if not kwargs['region']:
+        kwargs['region'] = 'CAL'
+        warnings.warn('Region not specified, using CAL as default')
+
+
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
     if stations_in is str:
         stations_df = pd.read_csv(stations_in)
@@ -148,8 +167,8 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     stat = stations_df['station'].values
     noise = stations_df['noise [nm]'].values
     # grid size
-    nx = int( (lon1 - lon0) / dlon) + 1
-    ny = int( (lat1 - lat0) / dlat) + 1
+    nx = int((lon1 - lon0) / dlon) + 1
+    ny = int((lat1 - lat0) / dlat) + 1
     lats = np.linspace(lat1, lat0, ny)
     lons = np.linspace(lon0, lon1, nx)
     # open output file:
@@ -166,7 +185,15 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                 dz = np.abs(foc_depth - stat_elev[j])
                 hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                 # find smallest detectable magnitude
-                m = _est_min_ML_at_station(noise[j], mag_min, mag_delta, hypo_dist, snr, region=region)
+                m = _est_min_ML_at_station(noise[j],
+                                           mag_min,
+                                           mag_delta,
+                                           hypo_dist,
+                                           snr,
+                                           method=kwargs['method'],
+                                           gmpe=kwargs['gmpe'],
+                                           gmpe_model_type=kwargs['gmpe_model_type'],
+                                           region=kwargs['region'])
                 mag.append(m)
             # sort magnitudes in ascending order
             mag = sorted(mag)
@@ -188,7 +215,10 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                                                mag_delta,
                                                hypo_dist,
                                                snr,
-                                               region=region)
+                                               method=kwargs['method'],
+                                               gmpe=kwargs['gmpe'],
+                                               gmpe_model_type=kwargs['gmpe_model_type'],
+                                               region=kwargs['region'])
                     array_mag.append(m)
                 if np.min(array_mag) < mag_grid[iy, ix]:
                     mag_grid[iy, ix] = np.min(array_mag)
@@ -206,7 +236,10 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                                                mag_delta,
                                                hypo_dist,
                                                snr,
-                                               region=region)
+                                               method=kwargs['method'],
+                                               gmpe=kwargs['gmpe'],
+                                               gmpe_model_type=kwargs['gmpe_model_type'],
+                                               region=kwargs['region'])
                     obs_mag.append(m)
                 if obs_mag[obs_stat_num-1] < mag_grid[iy, ix]:
                     mag_grid[iy, ix] = obs_mag[obs_stat_num-1]
@@ -222,7 +255,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
 
 def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_depth=20, ddist=5, ddepth=0.5,
                     stat_num=4, snr=3, region='CAL', mag_min=-3.0, mag_delta=0.1,
-                    arrays=None, obs=None, obs_stat_num=3):
+                    arrays=None, obs=None, obs_stat_num=3, **kwargs):
 
     '''
     Function to calculate a 2-D cross section of a SNCAST model. 
@@ -279,11 +312,14 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                                            mag_delta,
                                            hypo_dist,
                                            snr,
-                                           region=region)
+                                           method=kwargs['method'],
+                                           gmpe=kwargs['gmpe'],
+                                           gmpe_model_type=kwargs['gmpe_model_type'],
+                                           region=kwargs['region'])
                 mag.append(m)
             # sort magnitudes in ascending order
             mag = sorted(mag)
-            mag_grid[d,i] = mag[stat_num-1]
+            mag_grid[d, i] = mag[stat_num-1]
             # add array bit
             if arrays:
                 for a in range(0,len(arrays['lon'])):
@@ -294,7 +330,10 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                                                mag_delta,
                                                hypo_dist,
                                                snr,
-                                               region=region)
+                                               method=kwargs['method'],
+                                               gmpe=kwargs['gmpe'],
+                                               gmpe_model_type=kwargs['gmpe_model_type'],
+                                               region=kwargs['region'])
                     array_mag.append(m)
                 if np.min(array_mag) < mag_grid[d, i]:
                     mag_grid[d, i] = np.min(array_mag)
@@ -314,9 +353,12 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                                                mag_delta,
                                                hypo_dist,
                                                snr,
-                                               region=region)
+                                               method=kwargs['method'],
+                                               gmpe=kwargs['gmpe'],
+                                               gmpe_model_type=kwargs['gmpe_model_type'],
+                                               region=kwargs['region'])
                     obs_mag.append(m)
-                if obs_mag[obs_stat_num-1] < mag_grid[d,i]:
+                if obs_mag[obs_stat_num-1] < mag_grid[d, i]:
                     mag_grid[d, i] = obs_mag[obs_stat_num-1]
 
             del array_mag[:]
