@@ -58,7 +58,7 @@ def convert_ml_to_mw(ml, region='UK'):
         butcher_uk_small_mw = np.vectorize(lambda x: 0.75*x + 0.69)
         ottermoller_uk = np.vectorize(lambda x: 0.85*x + 0.23)
 
-        ml = np.where(ml <= 3, butcher_uk_small_mw(ml), ottermoller_uk(ml))
+        mw = np.where(ml <= 3, butcher_uk_small_mw(ml), ottermoller_uk(ml))
     else:
         raise ValueError(f'Unsupported region {region}')
 
