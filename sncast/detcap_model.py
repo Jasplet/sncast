@@ -6,15 +6,9 @@
 # Author:   Martin Möllhoff, DIAS
 # Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
 #           SN-CAST: seismic network capability assessment software tool
-#           for regional networks - examples from Ireland. 
-#           J Seismol 23, 493-504 (2019). https://doi.org/10.1007/s10950-019-09819-0
-#
-# You can run SNCAST in a browser, without a python installation on your computer:
-#
-#        - browse to https://github.com/moellhoff/Jupyter-Notebooks
-#        - click on the "launch binder" icon
-#        - wait a few minutes until the repository finished the starting process
-#        - in the folder 'SNCAST' click "sncast-getting-started.ipynb" and follow the instructions
+#           for regional networks - examples from Ireland.
+#           J Seismol 23, 493-504 (2019).
+#           https://doi.org/10.1007/s10950-019-09819-0
 #
 #    Copyright (C) 2019 Martin Möllhoff
 #
@@ -43,6 +37,8 @@
 #   - Functionality to calculate of a depth cross-section
 #   - Outputs model as xarray DataArray, for easier plotting
 #   - Added support for seismic arrays
+# Author: J Asplet
+# email : joseph.asplet@earth.ox.ac.uk
 
 import numpy as np
 import pandas as pd
@@ -54,6 +50,7 @@ import warnings
 
 from gmpes import eval_gmpe
 from magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
+
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     '''
@@ -96,7 +93,7 @@ def _est_min_ML_at_station(noise,
 
     signal = 0
     ml = mag_min - mag_delta
-    while signal < snr*noise: 
+    while signal < snr*noise:
         ml = ml + mag_delta
         if method == 'ML':
             signal = calc_ampl_from_magnitude(ml, distance, region)
@@ -104,7 +101,10 @@ def _est_min_ML_at_station(noise,
             mw = convert_ml_to_mw(ml, region)
             signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)
             ml = convert_mw_to_ml(mw, region)
-
+        if ml > 3:
+            print('Warning: ML > 3, check your input parameters')
+            print(f'{signal} {noise} {snr}')
+            break
     return ml
 
 
@@ -121,7 +121,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     e.g.: -7.5100, 55.0700, 0, 0.53, IDGL
 
     The output file *.grd lists in ASCII xyz format: longitud, latitude, ML
-  
+
     Optional parameters are:
 
     :param  lon0:	minimum longitude of search grid
@@ -143,9 +143,11 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
         kwargs['gmpe_model_type'] = None
     elif kwargs['method'] == 'GMPE':
         if not kwargs['gmpe']:
-            raise ValueError('GMPE model must be specified if GMPE method is selected')
+            raise ValueError('GMPE model must be specified if' +
+                             'GMPE method is selected')
         if not kwargs['gmpe_model_type']:
-            raise ValueError('GMPE model type must be specified if GMPE method is selected')
+            raise ValueError('GMPE model type must be specified if' +
+                             'GMPE method is selected')
     else:
         kwargs['method'] = 'ML'
         warnings.warn('Method not recognised, using ML as default')
@@ -165,14 +167,16 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     stat_lat = stations_df['latitude'].values
     stat_elev = stations_df['elevation_km'].values
     stat = stations_df['station'].values
-    noise = stations_df['noise [nm]'].values
+    try:
+        noise = stations_df['noise [nm]'].values
+    except KeyError:
+        noise = stations_df['noise [cm/s]'].values
     # grid size
     nx = int((lon1 - lon0) / dlon) + 1
     ny = int((lat1 - lat0) / dlat) + 1
     lats = np.linspace(lat1, lat0, ny)
     lons = np.linspace(lon0, lon1, nx)
-    # open output file:
-# ## 9.10.2020    f = open('%s/%s-stat%s-foc%s-snr%s-%s.grd' %(dir_in, filename, stat_num, foc_depth, snr, region), 'wb')
+
     mag = []
     array_mag = []
     obs_mag = []
@@ -185,6 +189,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                 dz = np.abs(foc_depth - stat_elev[j])
                 hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                 # find smallest detectable magnitude
+                print(f'{j}, {jstat}, {noise[j]}')
                 m = _est_min_ML_at_station(noise[j],
                                            mag_min,
                                            mag_delta,
@@ -339,7 +344,7 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                     mag_grid[d, i] = np.min(array_mag)
 
             if obs:
-                for o in range(0, len(obs['longitude'])):              
+                for o in range(0, len(obs['longitude'])):
                     dz = np.abs(obs['elevation_km'][o] - depths[d])
                     dx, dy = util_geo_km(ilon, ilat,
                                          obs['longitude'][o],
