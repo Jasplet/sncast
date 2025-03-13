@@ -11,6 +11,7 @@ SUPPORT_GMPES = ['RE19', 'AK14']
 #       a decade of broadband data. In: SECED 2019 Conference, 2019-9-9 - 2019-9-10,
 #       Greenwich, London.
 #       https://livrepository.liverpool.ac.uk/3060529/1/SECED_2019_paper_Rietbrock_Edwards_FINAL.pdf
+# Using the 10Mpa model for RE19.
 
 # AK14: Akkar, S., Sandıkkaya, M.A., Bommer, J.J., 2014.,
 #       Empirical ground-motion models for point- and extended-source crustal
@@ -18,7 +19,7 @@ SUPPORT_GMPES = ['RE19', 'AK14']
 #       https://doi.org/10.1007/s10518-013-9461-4
 
 
-def eval_gmpe(mw, epic_dist, author, model_type='PGV'):
+def eval_gmpe(mw, epic_dist, author, model_type='PGV', debug=False):
 
     if author not in SUPPORT_GMPES:
         raise ValueError(f'Author {author} not supported')
@@ -28,7 +29,7 @@ def eval_gmpe(mw, epic_dist, author, model_type='PGV'):
 
     coeffs = GMPES[author][model_type]
     if author == 'RE19':
-        y = _eval_re19(coeffs, mw, epic_dist)
+        y = _eval_re19(coeffs, mw, epic_dist, debug=debug)
 
     elif author == 'AK14':
         coeffs_pga = GMPES['AK14']['PGA']
@@ -37,7 +38,7 @@ def eval_gmpe(mw, epic_dist, author, model_type='PGV'):
     return y
 
 
-def _eval_re19(coeffs, mw, epic_dist):
+def _eval_re19(coeffs, mw, epic_dist, debug=False):
     '''
     Implementations of the Rietbrock and Edwards (2019) ground motion
     '''
@@ -46,31 +47,26 @@ def _eval_re19(coeffs, mw, epic_dist):
     #
     # y can be either PGA, PGV or one of the periods if those
     # coefficiants are added.
-    y1 = coeffs['c1'] + coeffs['c2']*mw + coeffs['c3']*mw**2
+    y1 = coeffs['c1'] + coeffs['c2']*mw + coeffs['c3']*(mw**2)
     y2 = f0*(coeffs['c4'] + coeffs['c5']*mw)
     y3 = f1*(coeffs['c6'] + coeffs['c7']*mw)
     y4 = f2*(coeffs['c8'] + coeffs['c9']*mw)
     y5 = coeffs['c10'] * dist
-    y = np.power(y1 + y2 + y3 + y4 + y5, 10)
-    return y
+    log10y = y1 + y2 + y3 + y4 + y5
+    y = np.power(10, log10y)
+    if debug:
+        return (y1, y2, y3, y4, y5)
+    else:
+        return y
 
 
 def _re19_f_terms(dist, r0=10, r1=50, r2=100):
 
-    if dist <= r0:
-        f0 = np.log10(r0/dist)
-    else:
-        f0 = 0
+    dist = np.asarray(dist)
 
-    if dist <= r1:
-        f1 = np.log10(dist/1.0)
-    elif dist > r1:
-        f1 = np.log10(dist/1.0)
-
-    if dist <= r2:
-        f2 = 0
-    elif dist > r2:
-        f2 = np.log10(dist/r2)
+    f0 = np.where(dist <= r0, np.log10(r0 / dist), 0)
+    f1 = np.where(dist <= r1, np.log10(dist/1.0), np.log10(r1/1.0))
+    f2 = np.where(dist <= r2, 0, np.log10(dist / r2))
 
     return f0, f1, f2
 
