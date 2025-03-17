@@ -12,7 +12,7 @@ setup(
 
     # Automatically find all packages (folders with __init__.py)
     # in your project
-    packages=find_packages(),
+    packages=find_packages(include=['sncast.*']),
 
     # Include additional files listed in MANIFEST.in
     include_package_data=True,
