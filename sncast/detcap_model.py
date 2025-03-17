@@ -48,8 +48,8 @@ import pygc
 import xarray
 import warnings
 
-from gmpes import eval_gmpe
-from magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
+from .gmpes import eval_gmpe
+from .magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
 
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
@@ -101,10 +101,10 @@ def _est_min_ML_at_station(noise,
             mw = convert_ml_to_mw(ml, region)
             signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)
             ml = convert_mw_to_ml(mw, region)
-        if ml > 3:
-            print('Warning: ML > 3, check your input parameters')
-            print(f'{signal} {noise} {snr}')
-            break
+            if ml > 3:
+                print('Warning: ML > 3, check your input parameters')
+                print(f'{signal} {noise} {snr}')
+                break
     return ml
 
 
@@ -189,7 +189,6 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                 dz = np.abs(foc_depth - stat_elev[j])
                 hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                 # find smallest detectable magnitude
-                print(f'{j}, {jstat}, {noise[j]}')
                 m = _est_min_ML_at_station(noise[j],
                                            mag_min,
                                            mag_delta,
