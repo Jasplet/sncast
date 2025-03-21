@@ -102,8 +102,8 @@ def _est_min_ML_at_station(noise,
             signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)
             ml = convert_mw_to_ml(mw, region)
             if ml > 3:
-                print('Warning: ML > 3, check your input parameters')
-                print(f'{signal} {noise} {snr}')
+                # print('Warning: ML > 3, check your input parameters')
+                # print(f'{signal} {noise} {snr}')
                 break
     return ml
 
@@ -151,12 +151,13 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     else:
         kwargs['method'] = 'ML'
         warnings.warn('Method not recognised, using ML as default')
-   
+
     if not kwargs['region']:
         kwargs['region'] = 'CAL'
         warnings.warn('Region not specified, using CAL as default')
 
-
+    print(f'Method : {kwargs["method"]}')
+    print(f'Region : {kwargs["region"]}')
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
     if stations_in is str:
         stations_df = pd.read_csv(stations_in)
@@ -224,6 +225,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                                                gmpe_model_type=kwargs['gmpe_model_type'],
                                                region=kwargs['region'])
                     array_mag.append(m)
+  
                 if np.min(array_mag) < mag_grid[iy, ix]:
                     mag_grid[iy, ix] = np.min(array_mag)
 
