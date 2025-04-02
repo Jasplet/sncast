@@ -205,13 +205,13 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
             # add array bit
             mag_grid[iy, ix] = mag[stat_num-1]
 
-            if arrays:
+            if arrays is not None:
                 for a in range(0, len(arrays['lon'])):
                     dx, dy = util_geo_km(lons[ix],
                                          lats[iy],
                                          arrays['lon'][a],
                                          arrays['lat'][a])
-                    dz = np.abs(foc_depth - arrays['elev'][a])
+                    dz = np.abs(foc_depth - arrays['elev_km'][a])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     # estimated noise level on array (rootn or another cleverer
                     # method to get a displaement number)
@@ -225,16 +225,17 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                                                gmpe_model_type=kwargs['gmpe_model_type'],
                                                region=kwargs['region'])
                     array_mag.append(m)
-  
+                    # sort magnitudes in ascending order
+                    array_mag = sorted(array_mag)
                 if np.min(array_mag) < mag_grid[iy, ix]:
                     mag_grid[iy, ix] = np.min(array_mag)
 
-            if obs:
-                for o in range(0, len(obs['longitude'])):
+            if obs is not None:
+                for o in range(0, len(obs['lon'])):
                     dx, dy = util_geo_km(lons[ix], lats[iy],
-                                         obs['longitude'][o],
-                                         obs['latitude'][o])
-                    dz = np.abs(foc_depth - obs['elevation_km'][o])
+                                         obs['lon'][o],
+                                         obs['lat'][o])
+                    dz = np.abs(foc_depth - obs['elev_km'][o])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     # estimated noise level on OBSs
                     m = _est_min_ML_at_station(obs['noise [nm]'][o],
@@ -247,7 +248,10 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                                                gmpe_model_type=kwargs['gmpe_model_type'],
                                                region=kwargs['region'])
                     obs_mag.append(m)
+                    # sort magnitudes in ascending order
+                    obs_mag = sorted(obs_mag)
                 if obs_mag[obs_stat_num-1] < mag_grid[iy, ix]:
+                    print(obs_mag)
                     mag_grid[iy, ix] = obs_mag[obs_stat_num-1]
 
             del array_mag[:]
