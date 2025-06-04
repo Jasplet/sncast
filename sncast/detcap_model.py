@@ -400,15 +400,15 @@ def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
         Number of grid points in the y-direction (latitude).
     """
     if lon0 > lon1:
-        raise ValueError("lon0 must be less than lon1")
+        raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
     if lat0 > lat1:
-        raise ValueError("lat0 must be less than lat1")
+        raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
     if dlon <= 0 or dlat <= 0:
-        raise ValueError("dlon and dlat must be positive values")
+        raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
     if (lon1 - lon0) % dlon != 0:
         raise ValueError("lon1 - lon0 must be a multiple of dlon")
     if (lat1 - lat0) % dlat != 0:
-        raise ValueError("lat1 - lat0 must be a multiple of dlat") 
+        raise ValueError("lat1 - lat0 must be a multiple of dlat")
 
     nx = int((lon1 - lon0) / dlon) + 1
     ny = int((lat1 - lat0) / dlat) + 1
