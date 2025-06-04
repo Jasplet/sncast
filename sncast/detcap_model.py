@@ -113,16 +113,27 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
           dlat=0.2, stat_num=4, snr=3, foc_depth=0, mag_min=-2.0, mag_delta=0.1,
           arrays=None, obs=None, obs_stat_num=3, **kwargs):
     """
-    This routine calculates the geographic distribution of the minimum 
-    detectable local magnitude ML for a given seismic network. Required 
-#### 9.10.2020    input is a file (or a pandas DataFrame) containing four comma separated
-    columns containing for each seismic station:
+    This routine calculates the geographic distribution of the minimum
+    detectable local magnitude ML for a given seismic network.
 
-         longitude, latitude, elevation, noise [nm], station name
-    e.g.: -7.5100, 55.0700, 0, 0.53, IDGL
+    Inputs stations_in is a Pandas DataFrame which contains the following
+    columns:
+    - longitude: longitude of the station in decimal degrees
+    - latitude: latitude of the station in decimal degrees
+    - elevation_km: elevation of the station in km
+    - station: station name
+    - noise [nm]: noise level at the station in nanometres
 
-    The output file *.grd lists in ASCII xyz format: longitud, latitude, ML
+    Example of the input file format:
+        longitude, latitude, elevation, noise [nm], station name
+        -7.5100, 55.0700, 0, 0.53, IDGL
 
+    Model output is a 2D xarray DataArray with the following dimensions:
+    - Latitude: latitude of the grid point in decimal degrees
+    - Longitude: longitude of the grid point in decimal degrees
+    The values in the DataArray are the minimum detectable local magnitude ML
+    at that grid point.
+        
     Optional parameters are:
 
     :param  lon0:	minimum longitude of search grid
