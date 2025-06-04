@@ -25,7 +25,6 @@ setup(
         "xarray>=2025.3.0"    # Specify version ranges, e.g., pandas 1.0 or higher
         "pygc>=1.3.0",
         "pytest>=7.3.1"
-        
     ],
 
     # Classifiers for metadata, useful for PyPI (optional, but recommended)
