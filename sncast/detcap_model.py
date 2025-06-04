@@ -133,7 +133,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     - Longitude: longitude of the grid point in decimal degrees
     The values in the DataArray are the minimum detectable local magnitude ML
     at that grid point.
-        
+   
     Optional parameters are:
 
     :param  lon0:	minimum longitude of search grid
