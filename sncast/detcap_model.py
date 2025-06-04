@@ -176,81 +176,53 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     if len(stations_df) < stat_num:
         raise ValueError(f'Not enough stations ({len(stations_df)}) to calculate minimum ML at {stat_num} stations')
 
-    stat_lon = stations_df['longitude'].values
-    stat_lat = stations_df['latitude'].values
-    stat_elev = stations_df['elevation_km'].values
-    stat = stations_df['station'].values
-    try:
-        noise = stations_df['noise [nm]'].values
-    except KeyError:
-        noise = stations_df['noise [cm/s]'].values
-
     lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
-
-    mag = []
-    array_mag = []
-    obs_mag = []
     mag_grid = np.zeros((ny, nx))
     for ix in range(nx):  # loop through longitude increments
         for iy in range(ny):  # loop through latitude increments
-            
             # add array bit
-            mag_grid[iy, ix] = mag[stat_num-1]
-
+            mag_grid[iy, ix] = calc_min_ML_at_gridpoint(stations_df,
+                                                        lons[ix],
+                                                        lats[iy],
+                                                        foc_depth,
+                                                        stat_num,
+                                                        snr,
+                                                        mag_min,
+                                                        mag_delta,
+                                                        **kwargs)
             if arrays is not None:
-                for a in range(0, len(arrays['lon'])):
-                    dx, dy = util_geo_km(lons[ix],
-                                         lats[iy],
-                                         arrays['lon'][a],
-                                         arrays['lat'][a])
-                    dz = np.abs(foc_depth - arrays['elev_km'][a])
-                    hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                    # estimated noise level on array (rootn or another cleverer
-                    # method to get a displaement number)
-                    m = _est_min_ML_at_station(arrays['noise'][a],
-                                               mag_min,
-                                               mag_delta,
-                                               hypo_dist,
-                                               snr,
-                                               method=kwargs['method'],
-                                               gmpe=kwargs['gmpe'],
-                                               gmpe_model_type=kwargs['gmpe_model_type'],
-                                               region=kwargs['region'])
-                    array_mag.append(m)
-                    # sort magnitudes in ascending order
-                    array_mag = sorted(array_mag)
-                if np.min(array_mag) < mag_grid[iy, ix]:
-                    mag_grid[iy, ix] = np.min(array_mag)
-
+                arrays_df = read_station_data(arrays)
+                # Assume an array will always make a detection
+                if 'array_num' not in kwargs:
+                    kwargs['array_num'] = 1
+                    mag_arrays = calc_min_ML_at_gridpoint(arrays_df,
+                                                          lons[ix],
+                                                          lats[iy],
+                                                          foc_depth,
+                                                          kwargs['array_num'],
+                                                          snr,
+                                                          mag_min,
+                                                          mag_delta,
+                                                          **kwargs)
+                    if mag_arrays < mag_grid[iy, ix]:
+                        mag_grid[iy, ix] = mag_arrays
             if obs is not None:
-                for o in range(0, len(obs['lon'])):
-                    dx, dy = util_geo_km(lons[ix], lats[iy],
-                                         obs['lon'][o],
-                                         obs['lat'][o])
-                    dz = np.abs(foc_depth - obs['elev_km'][o])
-                    hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                    # estimated noise level on OBSs
-                    m = _est_min_ML_at_station(obs['noise [nm]'][o],
-                                               mag_min,
-                                               mag_delta,
-                                               hypo_dist,
-                                               snr,
-                                               method=kwargs['method'],
-                                               gmpe=kwargs['gmpe'],
-                                               gmpe_model_type=kwargs['gmpe_model_type'],
-                                               region=kwargs['region'])
-                    obs_mag.append(m)
-                    # sort magnitudes in ascending order
-                    obs_mag = sorted(obs_mag)
-                if obs_mag[obs_stat_num-1] < mag_grid[iy, ix]:
-                    mag_grid[iy, ix] = obs_mag[obs_stat_num-1]
-
-            del array_mag[:]
-            del mag[:]
-            del obs_mag[:]
-
-    array = xarray.DataArray(mag_grid, coords=[lats,lons], dims=['Latitude','Longitude'])
-
+                obs_df = read_station_data(obs)
+                mag_obs = calc_min_ML_at_gridpoint(obs_df,
+                                                   lons[ix],
+                                                   lats[iy],
+                                                   foc_depth,
+                                                   obs_stat_num,
+                                                   snr,
+                                                   mag_min,
+                                                   mag_delta,
+                                                   **kwargs)
+                if mag_obs < mag_grid[iy, ix]:
+                    mag_grid[iy, ix] = mag_obs
+    # Make xarray grid to output
+    array = xarray.DataArray(mag_grid,
+                             coords=[lats, lons],
+                             dims=['Latitude', 'Longitude'])
     return array
 
 
@@ -437,12 +409,13 @@ def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
         raise ValueError("lon1 - lon0 must be a multiple of dlon")
     if (lat1 - lat0) % dlat != 0:
         raise ValueError("lat1 - lat0 must be a multiple of dlat") 
-    
+
     nx = int((lon1 - lon0) / dlon) + 1
     ny = int((lat1 - lat0) / dlat) + 1
     lats = np.linspace(lat1, lat0, ny)
     lons = np.linspace(lon0, lon1, nx)
     return lons, lats, nx, ny
+
 
 def calc_min_ML_at_gridpoint(stations_df,
                              lon,
@@ -452,10 +425,15 @@ def calc_min_ML_at_gridpoint(stations_df,
                              snr,
                              mag_min,
                              mag_delta,
-                             method,
-                             region):
+                             **kwargs):
+    try:
+        noise = stations_df['noise [nm]'].values
+    except KeyError if kwargs['method'] == 'GMPE' else KeyError:
+        noise = stations_df['noise [cm/s]'].values
 
-    for s in range(len(stations_df)):  # loop through stations
+    mag = []
+    for s in range(len(stations_df)):
+        # loop through stations
         # calculate hypcocentral distance in km
         dx, dy = util_geo_km(lon,
                              lat,
@@ -464,7 +442,7 @@ def calc_min_ML_at_gridpoint(stations_df,
         dz = np.abs(foc_depth - stations_df['elevation_km'][s])
         # calculate hypcocentral distance
         hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-        m = _est_min_ML_at_station(stations_df['noise [nm]'].iloc[s],
+        m = _est_min_ML_at_station(noise[s],
                                    mag_min,
                                    mag_delta,
                                    hypo_dist,
