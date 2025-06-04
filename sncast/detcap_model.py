@@ -171,10 +171,10 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     print(f'Method : {kwargs["method"]}')
     print(f'Region : {kwargs["region"]}')
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
-    if stations_in is str:
-        stations_df = pd.read_csv(stations_in)
-    else:
-        stations_df = stations_in.copy()
+    stations_df = read_station_data(stations_in)
+
+    if len(stations_df) < stat_num:
+        raise ValueError(f'Not enough stations ({len(stations_df)}) to calculate minimum ML at {stat_num} stations')
 
     stat_lon = stations_df['longitude'].values
     stat_lat = stations_df['latitude'].values
@@ -184,11 +184,8 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
         noise = stations_df['noise [nm]'].values
     except KeyError:
         noise = stations_df['noise [cm/s]'].values
-    # grid size
-    nx = int((lon1 - lon0) / dlon) + 1
-    ny = int((lat1 - lat0) / dlat) + 1
-    lats = np.linspace(lat1, lat0, ny)
-    lons = np.linspace(lon0, lon1, nx)
+
+    lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
 
     mag = []
     array_mag = []
@@ -196,24 +193,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     mag_grid = np.zeros((ny, nx))
     for ix in range(nx):  # loop through longitude increments
         for iy in range(ny):  # loop through latitude increments
-            for j, jstat in enumerate(stat):  # loop through stations
-                # calculate hypcocentral distance in km
-                dx, dy = util_geo_km(lons[ix], lats[iy], stat_lon[j], stat_lat[j])
-                dz = np.abs(foc_depth - stat_elev[j])
-                hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                # find smallest detectable magnitude
-                m = _est_min_ML_at_station(noise[j],
-                                           mag_min,
-                                           mag_delta,
-                                           hypo_dist,
-                                           snr,
-                                           method=kwargs['method'],
-                                           gmpe=kwargs['gmpe'],
-                                           gmpe_model_type=kwargs['gmpe_model_type'],
-                                           region=kwargs['region'])
-                mag.append(m)
-            # sort magnitudes in ascending order
-            mag = sorted(mag)
+            
             # add array bit
             mag_grid[iy, ix] = mag[stat_num-1]
 
@@ -290,11 +270,7 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
     ----------
         stations : DataFrame or csv filename
     '''
-
-    if stations_in is str:
-        stations_df = pd.read_csv(stations_in)
-    else:
-        stations_df = stations_in.copy()
+    stations_df = read_station_data(stations_df)
 
     lon = stations_df['longitude'].values
     lat = stations_df['latitude'].values
@@ -393,3 +369,111 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
                              dims=['depth_km',
                                    'distance_along_xsection_km'])
     return array
+
+
+def read_station_data(stations_in):
+    """
+    Read and validate station data from a DataFrame or CSV file.
+    
+    Parameters
+    ----------
+    stations_in : str or pd.DataFrame
+        Path to a CSV file or a DataFrame containing station data.
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the station data with required columns.
+    Raises
+    ------
+    ValueError
+        If required columns are missing from the DataFrame.
+
+    """
+    if isinstance(stations_in, str):
+        stations_df = pd.read_csv(stations_in)
+    else:
+        stations_df = stations_in.copy()
+    required_cols = {'longitude', 'latitude', 'elevation_km', 'noise [nm]', 'station'}
+    if not required_cols.issubset(stations_df.columns):
+        raise ValueError(f"Missing columns: {required_cols - set(stations_df.columns)}")
+    return stations_df
+
+
+def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
+    """
+    Initialize lat/lon grid for SNCAST model.
+    Parameters
+    ----------
+    lon0 : float
+        Minimum longitude of the grid.
+    lon1 : float
+        Maximum longitude of the grid.
+    lat0 : float
+        Minimum latitude of the grid.
+    lat1 : float
+        Maximum latitude of the grid.
+    dlon : float
+        Longitude increment for the grid.
+    dlat : float
+        Latitude increment for the grid.
+    Returns
+    -------
+    lats : np.ndarray
+        Array of latitudes for the grid.
+    lons : np.ndarray
+        Array of longitudes for the grid.
+    nx : int
+        Number of grid points in the x-direction (longitude).
+    ny : int
+        Number of grid points in the y-direction (latitude).
+    """
+    if lon0 > lon1:
+        raise ValueError("lon0 must be less than lon1")
+    if lat0 > lat1:
+        raise ValueError("lat0 must be less than lat1")
+    if dlon <= 0 or dlat <= 0:
+        raise ValueError("dlon and dlat must be positive values")
+    if (lon1 - lon0) % dlon != 0:
+        raise ValueError("lon1 - lon0 must be a multiple of dlon")
+    if (lat1 - lat0) % dlat != 0:
+        raise ValueError("lat1 - lat0 must be a multiple of dlat") 
+    
+    nx = int((lon1 - lon0) / dlon) + 1
+    ny = int((lat1 - lat0) / dlat) + 1
+    lats = np.linspace(lat1, lat0, ny)
+    lons = np.linspace(lon0, lon1, nx)
+    return lons, lats, nx, ny
+
+def calc_min_ML_at_gridpoint(stations_df,
+                             lon,
+                             lat,
+                             foc_depth,
+                             stat_num,
+                             snr,
+                             mag_min,
+                             mag_delta,
+                             method,
+                             region):
+
+    for s in range(len(stations_df)):  # loop through stations
+        # calculate hypcocentral distance in km
+        dx, dy = util_geo_km(lon,
+                             lat,
+                             stations_df['longitude'].iloc[s],
+                             stations_df['latitude'][s])
+        dz = np.abs(foc_depth - stations_df['elevation_km'][s])
+        # calculate hypcocentral distance
+        hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
+        m = _est_min_ML_at_station(stations_df['noise [nm]'].iloc[s],
+                                   mag_min,
+                                   mag_delta,
+                                   hypo_dist,
+                                   snr,
+                                   method=kwargs['method'],
+                                   gmpe=kwargs['gmpe'],
+                                   gmpe_model_type=kwargs['gmpe_model_type'],
+                                   region=kwargs['region'])
+        mag.append(m)
+    # sort magnitudes in ascending order
+    mag = sorted(mag)
+    return mag[stat_num-1]
