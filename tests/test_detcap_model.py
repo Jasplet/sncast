@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from sncast.detcap_model import minML, read_station_data
 
+
 def test_minML_basic():
     # Create a small test DataFrame
     df = pd.DataFrame({
