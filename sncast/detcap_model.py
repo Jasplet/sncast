@@ -172,7 +172,9 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     print(f'Region : {kwargs["region"]}')
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
     stations_df = read_station_data(stations_in)
-
+    # Read in arrays and obs data if provided
+    arrays_df = read_station_data(arrays) if arrays is not None else None
+    obs_df = read_station_data(obs) if obs is not None else None
     if len(stations_df) < stat_num:
         raise ValueError(f'Not enough stations ({len(stations_df)}) to calculate minimum ML at {stat_num} stations')
 
@@ -191,7 +193,6 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                                                         mag_delta,
                                                         **kwargs)
             if arrays is not None:
-                arrays_df = read_station_data(arrays)
                 # Assume an array will always make a detection
                 if 'array_num' not in kwargs:
                     kwargs['array_num'] = 1
@@ -207,7 +208,6 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                     if mag_arrays < mag_grid[iy, ix]:
                         mag_grid[iy, ix] = mag_arrays
             if obs is not None:
-                obs_df = read_station_data(obs)
                 mag_obs = calc_min_ML_at_gridpoint(obs_df,
                                                    lons[ix],
                                                    lats[iy],
