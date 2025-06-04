@@ -38,6 +38,7 @@
 #   - Outputs model as xarray DataArray, for easier plotting
 #   - Added support for seismic arrays
 # Author: J Asplet
+# Copyright (C) 2024 Joseph Asplet, University of Oxford
 # email : joseph.asplet@earth.ox.ac.uk
 
 import numpy as np
