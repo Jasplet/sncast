@@ -31,7 +31,7 @@ def test_convert_mw_to_ml_unsupported_region():
         convert_mw_to_ml(mw, region='US')
 
 
-@patch('sncast.convert_mw_to_ml')
+@patch('sncast.magnitude_conversions.convert_mw_to_ml')
 def test_mock_convert_mw_to_ml(mock_convert):
     mw = np.array([2.0, 3.0, 4.0])
     mock_convert.return_value = np.array([1.0, 2.0, 3.0])
