@@ -251,7 +251,6 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                     # sort magnitudes in ascending order
                     obs_mag = sorted(obs_mag)
                 if obs_mag[obs_stat_num-1] < mag_grid[iy, ix]:
-                    print(obs_mag)
                     mag_grid[iy, ix] = obs_mag[obs_stat_num-1]
 
             del array_mag[:]
