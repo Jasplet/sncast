@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from unittest.mock import patch
-from sncast import convert_mw_to_ml
+from sncast.magnitude_conversions import convert_mw_to_ml
 
 
 def test_convert_mw_to_ml_uk_small_mw():
