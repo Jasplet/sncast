@@ -133,7 +133,7 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
     - Longitude: longitude of the grid point in decimal degrees
     The values in the DataArray are the minimum detectable local magnitude ML
     at that grid point.
-   
+
     Optional parameters are:
 
     :param  lon0:	minimum longitude of search grid
@@ -196,29 +196,28 @@ def minML(stations_in, lon0=-12, lon1=-4, lat0=50.5, lat1=56.6, dlon=0.33,
                 # Assume an array will always make a detection
                 if 'array_num' not in kwargs:
                     kwargs['array_num'] = 1
-                    mag_arrays = calc_min_ML_at_gridpoint(arrays_df,
-                                                          lons[ix],
-                                                          lats[iy],
-                                                          foc_depth,
-                                                          kwargs['array_num'],
-                                                          snr,
-                                                          mag_min,
-                                                          mag_delta,
-                                                          **kwargs)
-                    if mag_arrays < mag_grid[iy, ix]:
-                        mag_grid[iy, ix] = mag_arrays
+                mag_grid[iy, ix] = update_with_arrays(mag_grid[iy, ix],
+                                                      arrays_df,
+                                                      kwargs['array_num'],
+                                                      lons[ix],
+                                                      lats[iy],
+                                                      foc_depth,
+                                                      snr,
+                                                      mag_min,
+                                                      mag_delta,
+                                                      **kwargs)
             if obs is not None:
-                mag_obs = calc_min_ML_at_gridpoint(obs_df,
-                                                   lons[ix],
-                                                   lats[iy],
-                                                   foc_depth,
-                                                   obs_stat_num,
-                                                   snr,
-                                                   mag_min,
-                                                   mag_delta,
-                                                   **kwargs)
-                if mag_obs < mag_grid[iy, ix]:
-                    mag_grid[iy, ix] = mag_obs
+                mag_grid[iy, ix] = update_with_obs(mag_grid[iy, ix],
+                                                  obs_df,
+                                                  lons[ix],
+                                                  lats[iy],
+                                                  foc_depth,
+                                                  obs_stat_num,
+                                                  snr,
+                                                  mag_min,
+                                                  mag_delta,
+                                                  **kwargs)
+
     # Make xarray grid to output
     array = xarray.DataArray(mag_grid,
                              coords=[lats, lons],
@@ -269,25 +268,15 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
         ilon = xsection['longitude'][i]
         # Iterate over depth 
         for d in range(ndepths):
-            for s, _ in enumerate(stat):
-                # loop through stations
-                # calculate hypcocentral distance in km
-                dz = elev[s] - depths[d]
-                dx, dy = util_geo_km(ilon, ilat, lon[s], lat[s])
-                hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
-                # find smallest detectable magnitude
-                m = _est_min_ML_at_station(noise[s],
-                                           mag_min,
-                                           mag_delta,
-                                           hypo_dist,
-                                           snr,
-                                           method=kwargs['method'],
-                                           gmpe=kwargs['gmpe'],
-                                           gmpe_model_type=kwargs['gmpe_model_type'],
-                                           region=kwargs['region'])
-                mag.append(m)
-            # sort magnitudes in ascending order
-            mag = sorted(mag)
+            mag_grid[d, i] = calc_min_ML_at_gridpoint(stations_df,
+                                                      ilon,
+                                                      ilat,
+                                                      depths[d],
+                                                      stat_num,
+                                                      snr,
+                                                      mag_min,
+                                                      mag_delta,
+                                                      **kwargs)
             mag_grid[d, i] = mag[stat_num-1]
             # add array bit
             if arrays:
@@ -455,3 +444,54 @@ def calc_min_ML_at_gridpoint(stations_df,
     # sort magnitudes in ascending order
     mag = sorted(mag)
     return mag[stat_num-1]
+
+
+def update_with_arrays(mag_grid_val,
+                       arrays_df,
+                       array_num,
+                       lon,
+                       lat,
+                       foc_depth,
+                       snr,
+                       mag_min,
+                       mag_delta,
+                       **kwargs):
+    """
+    Update the grid value with the minimum ML from arrays, if lower.
+    """
+    mag_arrays = calc_min_ML_at_gridpoint(arrays_df,
+                                          lon,
+                                          lat,
+                                          foc_depth,
+                                          array_num,
+                                          snr,
+                                          mag_min,
+                                          mag_delta,
+                                          kwargs
+                                          )
+    return min(mag_grid_val, mag_arrays)
+
+
+def update_with_obs(mag_grid_val,
+                    obs_df,
+                    lon,
+                    lat,
+                    foc_depth,
+                    obs_stat_num,
+                    snr,
+                    mag_min,
+                    mag_delta,
+                    **kwargs):
+    """
+    Update the grid value with the minimum ML from OBS, if lower.
+    """
+    mag_obs = calc_min_ML_at_gridpoint(obs_df,
+                                       lon,
+                                       lat,
+                                       foc_depth,
+                                       obs_stat_num,
+                                       snr, mag_min,
+                                       mag_delta,
+                                       **kwargs
+                                       )
+    return min(mag_grid_val, mag_obs)
