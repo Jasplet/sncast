@@ -275,7 +275,7 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
             if arrays:
                 for a in range(0,len(arrays['lon'])):
                     dx, dy = util_geo_km(ilon, ilat, arrays['lon'][a], arrays['lat'][a])
-                    dz = np.abs(arrays['elevation_km'][o] - depths[d])
+                    dz = np.abs(arrays['elevation_km'][a] - depths[d])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     m = _est_min_ML_at_station(arrays['noise'][a],
                                                mag_min,
