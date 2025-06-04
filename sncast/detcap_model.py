@@ -241,14 +241,7 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
     ----------
         stations : DataFrame or csv filename
     '''
-    stations_df = read_station_data(stations_df)
-
-    lon = stations_df['longitude'].values
-    lat = stations_df['latitude'].values
-    elev = stations_df['elevation_km'].values
-    stat = stations_df['station'].values
-    noise = stations_df['noise [nm]'].values
-
+    stations_df = read_station_data(stations_in)
     # Calculate lon/lat co-ordinates for X-section line
     ndists = int((length_km / ddist)+1)
     distance_km = np.linspace(0, length_km, ndists)
@@ -266,7 +259,7 @@ def minML_x_section(stations_in, lon0, lat0, azi, length_km, min_depth=0, max_de
         # get lat/lon of each point on line
         ilat = xsection['latitude'][i]
         ilon = xsection['longitude'][i]
-        # Iterate over depth 
+        # Iterate over depth
         for d in range(ndepths):
             mag_grid[d, i] = calc_min_ML_at_gridpoint(stations_df,
                                                       ilon,
