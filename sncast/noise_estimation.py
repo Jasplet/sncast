@@ -1,3 +1,40 @@
+# ------------------------------------------------------------------
+# Filename: noise_estimation.py
+# Purpose:  Functions to estimate noise displacement and velocity
+#           from probabilistic power spectral densities (PPSDs)
+#           for stations in a given Inventory. Implements equations given in 
+#           Mölhoff et al., (2019).
+# 
+# Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
+#           SN-CAST: seismic network capability assessment software tool
+#           for regional networks - examples from Ireland.
+#           J Seismol 23, 493-504 (2019).
+#           https://doi.org/10.1007/s10950-019-09819-0
+#
+# Author:   Joseph Asplet, University of Oxford
+#
+#    Copyright (C) 2025 Joseph Asplet
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    email:       joseph.asplet@earth.ox.ac.uk
+#    web:         www.jasplet.github.io
+#
+# --------------------------------------------------------------------
+
+
+
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -104,7 +141,7 @@ def psd_db_to_velocity(psd_in_db, f1, f2, f0=None):
 
     return velocity
 
-    
+
 def psd_db_convert(psd_in_db):
     '''
     Convert probsabilistic PSD values from db relative to 1 ((m/s)^2)^2 / Hz
