@@ -32,4 +32,6 @@ setup(
 
     # Minimum Python version requirement (optional)
     python_requires='>=3.11',
+
+    license="GNU General Public License v3.0 (GPLv3)",
 )
