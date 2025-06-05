@@ -461,7 +461,10 @@ def update_with_arrays(mag_grid_val,
                                           snr,
                                           mag_min,
                                           mag_delta,
-                                          kwargs
+                                          method=kwargs['method'],
+                                          gmpe=kwargs['gmpe'],
+                                          gmpe_model_type=kwargs['gmpe_model_type'],
+                                          region=kwargs['region']
                                           )
     return min(mag_grid_val, mag_arrays)
 
