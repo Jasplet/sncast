@@ -62,18 +62,14 @@ def test_read_das_noise_data():
             "fiber_length_m": [1000, 2000, 3000],
             "longitude": [0.01, 0.01, 0.01],
             "latitude": [50.01, 50.02, 50.03],
-            "noise_m": [1e-8, 2e-9, 2.6e-8]
-    }
+            "noise_m": [1e-8, 2e-9, 2.6e-8],
+            "elevation_km": [0.0, 10.0, -3.0],
+        }
     )
     output = read_das_noise_data(df)
-    output_csv = read_das_noise_data("tests/data/das_noise_data.csv")
+    output_csv = read_das_noise_data("tests/data/das_dummy_data.csv")
     assert output.equals(df)
     assert output_csv.equals(df)
-
-
-def test_read_das_noise_data_invalid():
-    
-
 
 
 def test_calc_amplitude_UK():
@@ -156,7 +152,6 @@ def test_est_min_ML_at_station(noise, distance, snr, mag_delta, mag_min):
     assert isinstance(
         result, float
     ), f"Result {result} is {type(result)}, expected float"
-
 
     # Test for CAL region if supported
     def ml_cal(a_s, r):
