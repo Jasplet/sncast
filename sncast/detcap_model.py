@@ -238,6 +238,18 @@ def minML(
         kwargs["region"] = "CAL"
         warnings.warn("Region not specified, using CAL as default")
 
+    print(f'Method : {kwargs["method"]}')
+    print(f'Region : {kwargs["region"]}')
+    # read in data, file format: "LON, LAT, NOISE [nm], STATION"
+    stations_df = read_station_data(stations_in)
+    # Read in arrays and obs data if provided
+    arrays_df = read_station_data(arrays) if arrays is not None else None
+    obs_df = read_station_data(obs) if obs is not None else None
+    if len(stations_df) < stat_num:
+        raise ValueError(
+            f"Not enough stations ({len(stations_df)}) to calculate minimum ML at {stat_num} stations"
+        )
+
     if "das" in kwargs:
         if "detection_length" not in kwargs:
             warnings.warn("Detection length not specified, using default of 1.0 km")
@@ -252,19 +264,8 @@ def minML(
             raise ValueError("No DAS data found in the input file")
         print(f'DAS detection length: {kwargs["detection_length"]} m')
         print(f'DAS slide length: {kwargs["slide_length"]} m')
-
-    print(f'Method : {kwargs["method"]}')
-    print(f'Region : {kwargs["region"]}')
-    # read in data, file format: "LON, LAT, NOISE [nm], STATION"
-    stations_df = read_station_data(stations_in)
-    # Read in arrays and obs data if provided
-    arrays_df = read_station_data(arrays) if arrays is not None else None
-    obs_df = read_station_data(obs) if obs is not None else None
-    if len(stations_df) < stat_num:
-        raise ValueError(
-            f"Not enough stations ({len(stations_df)}) to calculate minimum ML at {stat_num} stations"
-        )
-
+    else:
+        das_df = None
     lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
     mag_grid = np.zeros((ny, nx))
     for ix in range(nx):  # loop through longitude increments
