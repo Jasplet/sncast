@@ -73,13 +73,7 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
         e = -0.2
         ampl = np.power(
             10,
-            (
-                local_mag
-                - a * np.log10(hypo_dist)
-                - b * hypo_dist
-                - c
-                - d * np.exp(e * hypo_dist)
-            ),
+            (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c - d * np.exp(e * hypo_dist)),
         )
 
     elif region == "CAL":
@@ -143,7 +137,7 @@ def _est_min_ML_at_station(
     else:
         raise ValueError(f"Unknown method: {method}")
 
-        
+
 def minML(
     stations_in,
     lon0=-12,
@@ -245,13 +239,9 @@ def minML(
         kwargs["gmpe_model_type"] = None
     elif kwargs["method"] == "GMPE":
         if not kwargs["gmpe"]:
-            raise ValueError(
-                "GMPE model must be specified if" + "GMPE method is selected"
-            )
+            raise ValueError("GMPE model must be specified if" + "GMPE method is selected")
         if not kwargs["gmpe_model_type"]:
-            raise ValueError(
-                "GMPE model type must be specified if" + "GMPE method is selected"
-            )
+            raise ValueError("GMPE model type must be specified if" + "GMPE method is selected")
     else:
         kwargs["method"] = "ML"
         warnings.warn("Method not recognised, using ML as default")
@@ -358,11 +348,9 @@ def minML(
                 )
 
     # Make xarray grid to output
-    mag_det = xarray.DataArray(
-        mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
-    )
+    mag_det = xarray.DataArray(mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"])
     return mag_det
-  
+
 
 def minML_x_section(
     stations_in,
@@ -453,9 +441,7 @@ def minML_x_section(
             if obs:
                 for o in range(0, len(obs["longitude"])):
                     dz = np.abs(obs["elevation_km"][o] - depths[d])
-                    dx, dy = util_geo_km(
-                        ilon, ilat, obs["longitude"][o], obs["latitude"][o]
-                    )
+                    dx, dy = util_geo_km(ilon, ilat, obs["longitude"][o], obs["latitude"][o])
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     # estimated noise level on array
                     # rootn or another cleverer method
@@ -683,9 +669,7 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     return noise_at_sections
 
 
-def calc_min_ML_at_gridpoint_das(
-    fibre, detection_length, lon, lat, foc_depth, snr, **kwargs
-):
+def calc_min_ML_at_gridpoint_das(fibre, detection_length, lon, lat, foc_depth, snr, **kwargs):
     """
     Calculates the minimum local magnitude which can
     de detected along a given detection length of the fibre.

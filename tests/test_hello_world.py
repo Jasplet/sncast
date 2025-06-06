@@ -6,5 +6,5 @@ class TestHelloWorld(unittest.TestCase):
         self.assertEqual("Hello, World!", "Hello, World!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

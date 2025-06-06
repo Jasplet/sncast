@@ -80,18 +80,10 @@ def test_calc_amplitude_UK():
     d = -1.16
     e = -0.2
 
-    for local_mag, hypo_dist in zip(
-        [-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]
-    ):
+    for local_mag, hypo_dist in zip([-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]):
         expect = np.power(
             10,
-            (
-                local_mag
-                - a * np.log10(hypo_dist)
-                - b * hypo_dist
-                - c
-                - d * np.exp(e * hypo_dist)
-            ),
+            (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c - d * np.exp(e * hypo_dist)),
         )
         actual = calc_ampl_from_magnitude(local_mag, hypo_dist, region="UK")
         assert np.isclose(
@@ -105,9 +97,7 @@ def test_calc_amplitude_CAL():
     b = 0.00189
     c = -2.09
 
-    for local_mag, hypo_dist in zip(
-        [-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]
-    ):
+    for local_mag, hypo_dist in zip([-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]):
         expect = np.power(10, (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c))
         actual = calc_ampl_from_magnitude(local_mag, hypo_dist, region="CAL")
         assert np.isclose(
@@ -149,9 +139,7 @@ def test_est_min_ML_at_station(noise, distance, snr, mag_delta, mag_min):
     assert np.isclose(
         expected - result, 0, atol=mag_delta
     ), f"Expected {expected}, got {result}, mag_delta {mag_delta}"
-    assert isinstance(
-        result, float
-    ), f"Result {result} is {type(result)}, expected float"
+    assert isinstance(result, float), f"Result {result} is {type(result)}, expected float"
 
     # Test for CAL region if supported
     def ml_cal(a_s, r):

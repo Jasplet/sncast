@@ -28,8 +28,9 @@
 
 import numpy as np
 
-def convert_mw_to_ml(mw, region='UK'):
-    '''
+
+def convert_mw_to_ml(mw, region="UK"):
+    """
     Converts Moment magntiude to local magnitude
     using an empirical scaling relationship
 
@@ -47,21 +48,21 @@ def convert_mw_to_ml(mw, region='UK'):
         array of moment magnitudes to convert
     region : str
         Region's scaling relationship to use. Defaults to UK
-    '''
+    """
 
-    if region == 'UK':
+    if region == "UK":
         butcher_uk_small_mw = np.vectorize(lambda x: (x - 0.75) / 0.69)
         ottermoller_uk = np.vectorize(lambda x: (x - 0.23) / 0.85)
 
         ml = np.where(mw <= 3, butcher_uk_small_mw(mw), ottermoller_uk(mw))
     else:
-        raise ValueError(f'Unsupported region {region}')
+        raise ValueError(f"Unsupported region {region}")
 
     return ml
 
 
-def convert_ml_to_mw(ml, region='UK'):
-    '''
+def convert_ml_to_mw(ml, region="UK"):
+    """
     Converts Local magnitude to moment magnitude
     using an empirical scaling relationship
 
@@ -79,14 +80,14 @@ def convert_ml_to_mw(ml, region='UK'):
         array of moment magnitudes to convert
     region : str
         Region's scaling relationship to use. Defaults to UK
-    '''
+    """
 
-    if region == 'UK':
-        butcher_uk_small_mw = np.vectorize(lambda x: 0.75*x + 0.69)
-        ottermoller_uk = np.vectorize(lambda x: 0.85*x + 0.23)
+    if region == "UK":
+        butcher_uk_small_mw = np.vectorize(lambda x: 0.75 * x + 0.69)
+        ottermoller_uk = np.vectorize(lambda x: 0.85 * x + 0.23)
 
         mw = np.where(ml <= 3, butcher_uk_small_mw(ml), ottermoller_uk(ml))
     else:
-        raise ValueError(f'Unsupported region {region}')
+        raise ValueError(f"Unsupported region {region}")
 
     return mw
