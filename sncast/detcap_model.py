@@ -104,22 +104,44 @@ def _est_min_ML_at_station(
     gmpe="RE19",
     gmpe_model_type="PGV",
 ):
-
-    signal = 0
-    ml = mag_min - mag_delta
-    while signal < snr * noise:
-        ml = ml + mag_delta
-        if method == "ML":
-            signal = calc_ampl_from_magnitude(ml, distance, region)
-        elif method == "GMPE":
+    required_ampl = snr * noise
+    if method == "ML":
+        if region == "UK":
+            a = 1.11
+            b = 0.00189
+            c = -2.09
+            d = -1.16
+            e = -0.2
+            ml = (
+                np.log10(required_ampl)
+                + a * np.log10(distance)
+                + b * distance
+                + c
+                + d * np.exp(e * distance)
+            )
+        elif region == "CAL":
+            a = 1.11
+            b = 0.00189
+            c = -2.09
+            ml = np.log10(required_ampl) + a * np.log10(distance) + b * distance + c
+        else:
+            raise ValueError(f"Unknown region: {region}")
+        # Snap to nearest mag_delta step above mag_min
+        ml = max(mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min)
+        return ml
+    elif method == "GMPE":
+        signal = 0
+        ml = mag_min - mag_delta
+        while signal < snr * noise:
+            ml = ml + mag_delta
             mw = convert_ml_to_mw(ml, region)
             signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)
             ml = convert_mw_to_ml(mw, region)
             if ml > 3:
-                # print('Warning: ML > 3, check your input parameters')
-                # print(f'{signal} {noise} {snr}')
                 break
-    return ml
+        return ml
+    else:
+        raise ValueError(f"Unknown method: {method}")
 
 
 def minML(
