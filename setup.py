@@ -20,7 +20,11 @@ setup(
     # Project dependencies (install these when the package is installed)
     install_requires=[
         "numpy>=1.26.4",          # Example of a required package
-        "obspy>=1.4.1",    # Specify version ranges, e.g., pandas 1.0 or higher
+        "obspy>=1.4.1",
+        "pandas>=2.1.4",
+        "xarray>=2025.3.0"    # Specify version ranges, e.g., pandas 1.0 or higher
+        "pygc>=1.3.0",
+        "pytest>=7.3.1"
     ],
 
     # Classifiers for metadata, useful for PyPI (optional, but recommended)

@@ -143,7 +143,7 @@ def _est_min_ML_at_station(
     else:
         raise ValueError(f"Unknown method: {method}")
 
-
+        
 def minML(
     stations_in,
     lon0=-12,
@@ -288,6 +288,7 @@ def minML(
         print(f'DAS slide length: {kwargs["slide_length"]} m')
     else:
         das_df = None
+
     lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
     mag_grid = np.zeros((ny, nx))
     for ix in range(nx):  # loop through longitude increments
@@ -361,7 +362,7 @@ def minML(
         mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
     )
     return mag_det
-
+  
 
 def minML_x_section(
     stations_in,
