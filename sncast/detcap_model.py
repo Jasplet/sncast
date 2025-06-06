@@ -590,12 +590,15 @@ def calc_min_ML_at_gridpoint(
         # loop through stations
         # calculate hypcocentral distance in km
         # Use pygc to compute great-circle distance in meters, then convert to km
-        distance_km = pygc.great_distance(
-            start_latitude=lat,
-            end_latitude=stations_df["latitude"].iloc[s],
-            start_longitude=lon,
-            end_longitude=stations_df["longitude"].iloc[s],
-        )["distance"]
+        distance_km = (
+            pygc.great_distance(
+                start_latitude=lat,
+                end_latitude=stations_df["latitude"].iloc[s],
+                start_longitude=lon,
+                end_longitude=stations_df["longitude"].iloc[s],
+            )["distance"]
+            * 1e-3
+        )
         dz = np.abs(foc_depth - stations_df["elevation_km"].iloc[s])
         # calculate hypcocentral distance
         hypo_dist = sqrt(distance_km**2 + dz**2)
