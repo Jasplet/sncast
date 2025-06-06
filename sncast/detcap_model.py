@@ -40,6 +40,7 @@
 # Author: J Asplet
 # Copyright (C) 2024 Joseph Asplet, University of Oxford
 # email : joseph.asplet@earth.ox.ac.uk
+from decimal import Decimal
 from math import sqrt
 import warnings
 import numpy as np
@@ -272,19 +273,25 @@ def minML(
                 )
             # Add DAS detection if 'das' is in kwargs and das_df is not empty
             if das_df is not None and not das_df.empty:
-                if not das_df.empty:
-                    mag_grid[iy, ix] = update_with_das(
-                        mag_grid[iy, ix],
-                        das_df,
-                        kwargs.get("detection_length", 1e3),
-                        lons[ix],
-                        lats[iy],
-                        foc_depth,
-                        snr,
-                        mag_min,
-                        mag_delta,
-                        **kwargs,
-                    )
+                # Remove 'detection_length' from kwargs to avoid multiple values error
+                # kwargs_no_dl = dict(kwargs)
+                # if "detection_length" in kwargs_no_dl:
+                #     del kwargs_no_dl["detection_length"]
+                mag_grid[iy, ix] = update_with_das(
+                    mag_grid[iy, ix],
+                    das_df,
+                    detection_length=kwargs["detection_length"],
+                    lon=lons[ix],
+                    lat=lats[iy],
+                    foc_depth=foc_depth,
+                    snr=snr,
+                    mag_min=mag_min,
+                    mag_delta=mag_delta,
+                    gmpe=kwargs["gmpe"],
+                    gmpe_model_type=kwargs["gmpe_model_type"],
+                    region=kwargs["region"],
+                    method=kwargs["method"],
+                )
 
     # Make xarray grid to output
     array = xarray.DataArray(
@@ -517,10 +524,10 @@ def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
         raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
     if dlon <= 0 or dlat <= 0:
         raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
-    if (lon1 - lon0) % dlon != 0:
-        raise ValueError(f"lon1 - lon0 = {lon1-lon0} must be a multiple of dlon {dlon}")
-    if (lat1 - lat0) % dlat != 0:
-        raise ValueError(f"lat1 - lat0 = {lat1-lat0} must be a multiple of dlat {dlat}")
+    if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
+        raise ValueError(f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}")
+    if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
+        raise ValueError(f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}")
 
     nx = int((lon1 - lon0) / dlon) + 1
     ny = int((lat1 - lat0) / dlat) + 1
