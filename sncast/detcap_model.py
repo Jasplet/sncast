@@ -40,14 +40,16 @@
 # Author: J Asplet
 # Copyright (C) 2024 Joseph Asplet, University of Oxford
 # email : joseph.asplet@earth.ox.ac.uk
-
+from decimal import Decimal
+from math import sqrt
+import warnings
 import numpy as np
 import pandas as pd
 from obspy.signal.util import util_geo_km
-from math import sqrt
+
 import pygc
 import xarray
-import warnings
+
 
 from .gmpes import eval_gmpe
 from .magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
@@ -102,31 +104,53 @@ def _est_min_ML_at_station(
     gmpe="RE19",
     gmpe_model_type="PGV",
 ):
-
-    signal = 0
-    ml = mag_min - mag_delta
-    while signal < snr * noise:
-        ml = ml + mag_delta
-        if method == "ML":
-            signal = calc_ampl_from_magnitude(ml, distance, region)
-        elif method == "GMPE":
+    required_ampl = snr * noise
+    if method == "ML":
+        if region == "UK":
+            a = 1.11
+            b = 0.00189
+            c = -2.09
+            d = -1.16
+            e = -0.2
+            ml = (
+                np.log10(required_ampl)
+                + a * np.log10(distance)
+                + b * distance
+                + c
+                + d * np.exp(e * distance)
+            )
+        elif region == "CAL":
+            a = 1.11
+            b = 0.00189
+            c = -2.09
+            ml = np.log10(required_ampl) + a * np.log10(distance) + b * distance + c
+        else:
+            raise ValueError(f"Unknown region: {region}")
+        # Snap to nearest mag_delta step above mag_min
+        ml = max(mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min)
+        return ml
+    elif method == "GMPE":
+        signal = 0
+        ml = mag_min - mag_delta
+        while signal < snr * noise:
+            ml = ml + mag_delta
             mw = convert_ml_to_mw(ml, region)
             signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)
             ml = convert_mw_to_ml(mw, region)
             if ml > 3:
-                # print('Warning: ML > 3, check your input parameters')
-                # print(f'{signal} {noise} {snr}')
                 break
-    return ml
+        return ml
+    else:
+        raise ValueError(f"Unknown method: {method}")
 
-
+        
 def minML(
     stations_in,
     lon0=-12,
     lon1=-4,
     lat0=50.5,
     lat1=56.6,
-    dlon=0.33,
+    dlon=0.2,
     dlat=0.2,
     stat_num=4,
     snr=3,
@@ -142,38 +166,78 @@ def minML(
     This routine calculates the geographic distribution of the minimum
     detectable local magnitude ML for a given seismic network.
 
-    Inputs stations_in is a Pandas DataFrame which contains the following
-    columns:
-    - longitude: longitude of the station in decimal degrees
-    - latitude: latitude of the station in decimal degrees
-    - elevation_km: elevation of the station in km
-    - station: station name
-    - noise [nm]: noise level at the station in nanometres
+    Inputs stations_in is a Pandas DataFrame or path to a csv file which contains
+    the following columns:
+        - longitude: longitude of the station in decimal degrees
+        - latitude: latitude of the station in decimal degrees
+        - elevation_km: elevation of the station in km
+        - station: station name
+        - noise [nm]: noise level at the station in nanometres
 
     Example of the input file format:
         longitude, latitude, elevation, noise [nm], station name
         -7.5100, 55.0700, 0, 0.53, IDGL
 
-    Model output is a 2D xarray DataArray with the following dimensions:
-    - Latitude: latitude of the grid point in decimal degrees
-    - Longitude: longitude of the grid point in decimal degrees
-    The values in the DataArray are the minimum detectable local magnitude ML
-    at that grid point.
+    Parameters
+    ----------
+    stations_in : str or pd.DataFrame
+        Path to a CSV file or a DataFrame containing station data.
+    lon0 : float, optional
+        Minimum longitude of the region. Default is -12.
+    lon1 : float, optional
+        Maximum longitude of the region. Default is -4.
+    lat0 : float, optional
+        Minimum latitude of the region. Default is 50.5.
+    lat1 : float, optional
+        Maximum latitude of the region. Default is 56.6.
+    dlon : float, optional
+        Longitude increment for the grid. Default is 0.2.
+    dlat : float, optional
+        Latitude increment for the grid. Default is 0.2.
+    stat_num : int, optional
+        Required number of station detections to calculate minimum ML. Default is 4.
+    snr : float, optional
+        Required signal-to-noise ratio for detection. Default is 3.
+    foc_depth : float, optional
+        Assumed earthquake focal depth in km. Default is 0.
+    mag_min : float, optional
+        Minimum local magnitude to consider when modelling detections. Default is -2.0.
+    mag_delta : float, optional
+        Increment for local magnitude. Default is 0.1.
+    arrays : str or pd.DataFrame, optional
+        Path to a CSV file or a DataFrame containing seismic array data.
+        If provided, the model will include detections from arrays.
+        File is in the same format as stations_in
+    array_num : int, optional
+        Number of detections required at an array.
+        Default is 1 if arrays are provided.
+    obs : str or pd.DataFrame, optional
+        Path to a CSV file or a DataFrame containing OBS data.
+        If provided, the model will include detections from OBS.
+        File is in the same format as stations_in
+    obs_stat_num : int, optional
+        Required number of station detections from OBS to calculate minimum ML.
+        Default is 3.
+    **kwargs : dict, optional
+        Additional keyword arguments to control the method and parameters:
+        - method: 'ML' or 'GMPE'. Default is 'ML'.
+        - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
+        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
+        - region: Locality for assumed ML scale parameters ('UK' or 'CAL'). Default is 'CAL'.
+        - das: Path to a CSV file or a DataFrame containing DAS noise data.
+        - detection_length: Length of the fibre over which to calculate the noise level in metres.
+                           Default is 1 km.
+        - slide_length: Length to slide the detection window along the fibre in metres. Default is 1 m.
 
-    Optional parameters are:
+    Returns
+    -------
+    mag_det : xarray.DataArray
+        A 2D xarray DataArray with the following dimensions:
+            - Latitude: latitude of the grid point in decimal degrees
+            - Longitude: longitude of the grid point in decimal degrees
+        The values in the DataArray are the minimum detectable local magnitude ML
+        at that grid point.
 
-    :param  lon0:	minimum longitude of search grid
-    :param  lon1:	maximum longitude of search grid
-    :param  lat0:	minimum latitude of search grid
-    :param  lat1:	maximum latitude of search grid
-    :param  dlon:	longitude increment of search grid
-    :param  dlat:	latitude increment of search grid
-    :param  stat_num:	required number of station detections
-    :param  snr:	required signal-to-noise ratio for detection
-    :param  foc_depth:  assumed focal event depth
-    :param  region:	locality for assumed ML scale parameters ('UK' or 'CAL')
-    :param  mag_min:	minimum ML value for grid search
-    :param  mag_delta:  ML increment used in grid search
     """
 
     if kwargs["method"] == "ML":
@@ -208,6 +272,23 @@ def minML(
             f"Not enough stations ({len(stations_df)}) to calculate minimum ML at {stat_num} stations"
         )
 
+    if "das" in kwargs:
+        if "detection_length" not in kwargs:
+            warnings.warn("Detection length not specified, using default of 1.0 km")
+            kwargs["detection_length"] = 1e3  # Default to 1 km
+        if "slide_length" not in kwargs:
+            warnings.warn("Slide length not specified, using default of 1.0 m")
+            kwargs["slide_length"] = 1.0
+        # Read in DAS noise data
+        das_in = kwargs["das"]
+        das_df = read_das_noise_data(das_in)
+        if len(das_df) == 0:
+            raise ValueError("No DAS data found in the input file")
+        print(f'DAS detection length: {kwargs["detection_length"]} m')
+        print(f'DAS slide length: {kwargs["slide_length"]} m')
+    else:
+        das_df = None
+
     lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
     mag_grid = np.zeros((ny, nx))
     for ix in range(nx):  # loop through longitude increments
@@ -224,8 +305,8 @@ def minML(
                 mag_delta,
                 **kwargs,
             )
-            if arrays is not None:
-                # Assume an array will always make a detection
+            # Add array detection if arrays_df is provided and not empty
+            if arrays_df is not None and not arrays_df.empty:
                 if "array_num" not in kwargs:
                     kwargs["array_num"] = 1
                 mag_grid[iy, ix] = update_with_arrays(
@@ -240,7 +321,8 @@ def minML(
                     mag_delta,
                     **kwargs,
                 )
-            if obs is not None:
+            # Add OBS detection if obs_df is provided and not empty
+            if obs_df is not None and not obs_df.empty:
                 mag_grid[iy, ix] = update_with_obs(
                     mag_grid[iy, ix],
                     obs_df,
@@ -253,13 +335,34 @@ def minML(
                     mag_delta,
                     **kwargs,
                 )
+            # Add DAS detection if 'das' is in kwargs and das_df is not empty
+            if das_df is not None and not das_df.empty:
+                # Remove 'detection_length' from kwargs to avoid multiple values error
+                # kwargs_no_dl = dict(kwargs)
+                # if "detection_length" in kwargs_no_dl:
+                #     del kwargs_no_dl["detection_length"]
+                mag_grid[iy, ix] = update_with_das(
+                    mag_grid[iy, ix],
+                    das_df,
+                    detection_length=kwargs["detection_length"],
+                    lon=lons[ix],
+                    lat=lats[iy],
+                    foc_depth=foc_depth,
+                    snr=snr,
+                    mag_min=mag_min,
+                    mag_delta=mag_delta,
+                    gmpe=kwargs["gmpe"],
+                    gmpe_model_type=kwargs["gmpe_model_type"],
+                    region=kwargs["region"],
+                    method=kwargs["method"],
+                )
 
     # Make xarray grid to output
-    array = xarray.DataArray(
+    mag_det = xarray.DataArray(
         mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
     )
-    return array
-
+    return mag_det
+  
 
 def minML_x_section(
     stations_in,
@@ -414,6 +517,43 @@ def read_station_data(stations_in):
     return stations_df
 
 
+def read_das_noise_data(das_in):
+    """
+    Read and validate DAS noise data from a DataFrame or CSV file.
+
+    Parameters
+    ----------
+    das_in : str or pd.DataFrame
+        Path to a CSV file or a DataFrame containing DAS noise data.
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the DAS noise data with required columns.
+    Raises
+    ------
+    ValueError
+        If required columns are missing from the DataFrame.
+    """
+    if isinstance(das_in, str):
+        das_df = pd.read_csv(das_in)
+    else:
+        das_df = das_in.copy()
+    required_cols = {
+        "channel_index",
+        "fiber_length_m",
+        "longitude",
+        "latitude",
+        "noise_m",
+    }
+    if not required_cols.issubset(das_df.columns):
+        raise ValueError(f"Missing columns: {required_cols - set(das_df.columns)}")
+    if "elevation_km" not in das_df.columns:
+        # If elevation is not provided, set it to zero
+        das_df["elevation_km"] = 0.0
+
+    return das_df
+
+
 def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
     """
     Initialize lat/lon grid for SNCAST model.
@@ -448,10 +588,10 @@ def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
         raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
     if dlon <= 0 or dlat <= 0:
         raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
-    if (lon1 - lon0) % dlon != 0:
-        raise ValueError("lon1 - lon0 must be a multiple of dlon")
-    if (lat1 - lat0) % dlat != 0:
-        raise ValueError("lat1 - lat0 must be a multiple of dlat")
+    if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
+        raise ValueError(f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}")
+    if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
+        raise ValueError(f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}")
 
     nx = int((lon1 - lon0) / dlon) + 1
     ny = int((lat1 - lat0) / dlat) + 1
@@ -472,12 +612,19 @@ def calc_min_ML_at_gridpoint(
     for s in range(len(stations_df)):
         # loop through stations
         # calculate hypcocentral distance in km
-        dx, dy = util_geo_km(
-            lon, lat, stations_df["longitude"].iloc[s], stations_df["latitude"][s]
+        # Use pygc to compute great-circle distance in meters, then convert to km
+        distance_km = (
+            pygc.great_distance(
+                start_latitude=lat,
+                end_latitude=stations_df["latitude"].iloc[s],
+                start_longitude=lon,
+                end_longitude=stations_df["longitude"].iloc[s],
+            )["distance"]
+            * 1e-3
         )
-        dz = np.abs(foc_depth - stations_df["elevation_km"][s])
+        dz = np.abs(foc_depth - stations_df["elevation_km"].iloc[s])
         # calculate hypcocentral distance
-        hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
+        hypo_dist = sqrt(distance_km**2 + dz**2)
         m = _est_min_ML_at_station(
             noise[s],
             mag_min,
@@ -493,6 +640,132 @@ def calc_min_ML_at_gridpoint(
     # sort magnitudes in ascending order
     mag = sorted(mag)
     return mag[stat_num - 1]
+
+
+def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
+    """
+    Gets the maximum seismic noise level (in displacement) along
+    a given continuous fibre length.
+    Parameters
+    ----------
+    channel_pos : np.ndarray
+        position of channels along the fibre in metres.
+    noise : float
+        Noise level of the fibre in metres.
+    detection_length : float
+        Length of the fibre over which to calculate the noise level in metres.
+    slide_length : float, optional
+        Length to slide the detection window along the fibre in metres.
+        Default is 1 metre.
+    Returns
+    -------
+    np.ndarray
+        Array of noise levels for each section of the fibre.
+    """
+    fibre_legth = channel_pos[-1] - channel_pos[0]
+    if detection_length > fibre_legth:
+        raise ValueError(
+            f"detection_length {detection_length} must be less than fibre_legth {fibre_legth}"
+        )
+    if detection_length <= 0:
+        raise ValueError(f"detection_length {detection_length} must be positive")
+
+    start_length = channel_pos[0]
+    # Calculate the number of sections along the fibre
+    noise_at_sections = np.zeros(channel_pos.shape)
+    for i in range(len(channel_pos)):
+        idx = np.argwhere(
+            (channel_pos >= start_length + i * slide_length)
+            & (channel_pos < start_length + detection_length + i * slide_length)
+        ).flatten()
+        noise_at_sections[i] = np.max(noise[idx])
+
+    return noise_at_sections
+
+
+def calc_min_ML_at_gridpoint_das(
+    fibre, detection_length, lon, lat, foc_depth, snr, **kwargs
+):
+    """
+    Calculates the minimum local magnitude which can
+    de detected along a given detection length of the fibre.
+    Parameters
+    ----------
+    fibre : pd.DataFrame
+        DataFrame containing the fibre data with columns:
+        - 'channel_index': index of the channel
+        - 'fiber_length_m': length of the fibre in metres
+        - 'longitude': longitude of the fibre in decimal degrees
+        - 'latitude': latitude of the fibre in decimal degrees
+        - 'noise_m': noise level of the fibre in metres
+    detection_length : float
+        Length of the fibre over which to calculate the noise level in metres.
+    lon : float
+        Longitude of the grid point in decimal degrees.
+    lat : float
+        Latitude of the grid point in decimal degrees.
+    foc_depth : float
+        Focal depth of the event in kilometres.
+    snr : float
+        Signal-to-noise ratio required for detection.
+    kwargs : dict
+        Additional keyword arguments, including:
+        - 'mag_min': minimum local magnitude to consider
+        - 'mag_delta': increment for local magnitude
+        - 'method': method to use for calculation ('ML' or 'GMPE')
+        - 'gmpe': GMPE model to use if method is 'GMPE'
+        - 'gmpe_model_type': type of GMPE model to use if method is 'GMPE'
+        - 'region': region for the local magnitude scale ('UK' or 'CAL')
+    Returns
+    -------
+    float
+        Minimum local magnitude that can be detected by a continuous section of fibre
+        of the input detection length.
+    """
+    if "slide_length" not in kwargs:
+        slide_length = 1.0
+    else:
+        slide_length = kwargs["slide_length"]
+    # Get the noise levels for the given lengths of fibre
+    noise_at_sections = get_das_noise_levels(
+        fibre["fiber_length_m"].values,
+        fibre["noise_m"].values,
+        detection_length,
+        slide_length,
+    )
+    # Covert noise from metres to nanometres
+    noise_at_sections *= 1e9  # Convert from metres to nanometres
+    # Precompute the hypocoentral distances using pygc
+    # pygc gives distances in metres so convert to km
+    distances_km = (
+        pygc.great_distance(
+            start_latitude=fibre["latitude"].values,
+            end_latitude=lat,
+            start_longitude=fibre["longitude"].values,
+            end_longitude=lon,
+        )["distance"]
+        * 1e-3
+    )
+    dz = np.abs(foc_depth - fibre["elevation_km"].values)
+    hypo_distances = np.sqrt(distances_km**2 + dz**2)
+    # Calculate the minimum local magnitude for each section of the fibre
+    # Vectorize _est_min_ML_at_station if possible
+    # Otherwise, use a generator expression for min
+    mags = [
+        _est_min_ML_at_station(
+            noise_at_sections[d],
+            kwargs["mag_min"],
+            kwargs["mag_delta"],
+            hypo_distances[d],
+            snr,
+            method=kwargs["method"],
+            gmpe=kwargs["gmpe"],
+            gmpe_model_type=kwargs["gmpe_model_type"],
+            region=kwargs["region"],
+        )
+        for d in range(len(hypo_distances))
+    ]
+    return min(mags)
 
 
 def update_with_arrays(
@@ -546,3 +819,32 @@ def update_with_obs(
         obs_df, lon, lat, foc_depth, obs_stat_num, snr, mag_min, mag_delta, **kwargs
     )
     return min(mag_grid_val, mag_obs)
+
+
+def update_with_das(
+    mag_grid_val,
+    das_df,
+    detection_length,
+    lon,
+    lat,
+    foc_depth,
+    snr,
+    mag_min,
+    mag_delta,
+    **kwargs,
+):
+    """
+    Update the grid value with the minimum ML from DAS, if lower.
+    """
+    mag_das = calc_min_ML_at_gridpoint_das(
+        das_df,
+        detection_length,
+        lon,
+        lat,
+        foc_depth,
+        snr,
+        mag_min=mag_min,
+        mag_delta=mag_delta,
+        **kwargs,
+    )
+    return min(mag_grid_val, mag_das)
