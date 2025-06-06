@@ -136,6 +136,7 @@ def test_est_min_ML_at_station(noise, distance, snr, mag_delta, mag_min):
         result, float
     ), f"Result {result} is {type(result)}, expected float"
 
+
     # Test for CAL region if supported
     def ml_cal(a_s, r):
         a = 1.11
