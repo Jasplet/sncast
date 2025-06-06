@@ -128,7 +128,7 @@ def minML(
     lon1=-4,
     lat0=50.5,
     lat1=56.6,
-    dlon=0.33,
+    dlon=0.2,
     dlat=0.2,
     stat_num=4,
     snr=3,
@@ -144,38 +144,78 @@ def minML(
     This routine calculates the geographic distribution of the minimum
     detectable local magnitude ML for a given seismic network.
 
-    Inputs stations_in is a Pandas DataFrame which contains the following
-    columns:
-    - longitude: longitude of the station in decimal degrees
-    - latitude: latitude of the station in decimal degrees
-    - elevation_km: elevation of the station in km
-    - station: station name
-    - noise [nm]: noise level at the station in nanometres
+    Inputs stations_in is a Pandas DataFrame or path to a csv file which contains
+    the following columns:
+        - longitude: longitude of the station in decimal degrees
+        - latitude: latitude of the station in decimal degrees
+        - elevation_km: elevation of the station in km
+        - station: station name
+        - noise [nm]: noise level at the station in nanometres
 
     Example of the input file format:
         longitude, latitude, elevation, noise [nm], station name
         -7.5100, 55.0700, 0, 0.53, IDGL
 
-    Model output is a 2D xarray DataArray with the following dimensions:
-    - Latitude: latitude of the grid point in decimal degrees
-    - Longitude: longitude of the grid point in decimal degrees
-    The values in the DataArray are the minimum detectable local magnitude ML
-    at that grid point.
+    Parameters
+    ----------
+    stations_in : str or pd.DataFrame
+        Path to a CSV file or a DataFrame containing station data.
+    lon0 : float, optional
+        Minimum longitude of the region. Default is -12.
+    lon1 : float, optional
+        Maximum longitude of the region. Default is -4.
+    lat0 : float, optional
+        Minimum latitude of the region. Default is 50.5.
+    lat1 : float, optional
+        Maximum latitude of the region. Default is 56.6.
+    dlon : float, optional
+        Longitude increment for the grid. Default is 0.2.
+    dlat : float, optional
+        Latitude increment for the grid. Default is 0.2.
+    stat_num : int, optional
+        Required number of station detections to calculate minimum ML. Default is 4.
+    snr : float, optional
+        Required signal-to-noise ratio for detection. Default is 3.
+    foc_depth : float, optional
+        Assumed earthquake focal depth in km. Default is 0.
+    mag_min : float, optional
+        Minimum local magnitude to consider when modelling detections. Default is -2.0.
+    mag_delta : float, optional
+        Increment for local magnitude. Default is 0.1.
+    arrays : str or pd.DataFrame, optional
+        Path to a CSV file or a DataFrame containing seismic array data.
+        If provided, the model will include detections from arrays.
+        File is in the same format as stations_in
+    array_num : int, optional
+        Number of detections required at an array.
+        Default is 1 if arrays are provided.
+    obs : str or pd.DataFrame, optional
+        Path to a CSV file or a DataFrame containing OBS data.
+        If provided, the model will include detections from OBS.
+        File is in the same format as stations_in
+    obs_stat_num : int, optional
+        Required number of station detections from OBS to calculate minimum ML.
+        Default is 3.
+    **kwargs : dict, optional
+        Additional keyword arguments to control the method and parameters:
+        - method: 'ML' or 'GMPE'. Default is 'ML'.
+        - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
+        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
+        - region: Locality for assumed ML scale parameters ('UK' or 'CAL'). Default is 'CAL'.
+        - das: Path to a CSV file or a DataFrame containing DAS noise data.
+        - detection_length: Length of the fibre over which to calculate the noise level in metres.
+                           Default is 1 km.
+        - slide_length: Length to slide the detection window along the fibre in metres. Default is 1 m.
 
-    Optional parameters are:
+    Returns
+    -------
+    mag_det : xarray.DataArray
+        A 2D xarray DataArray with the following dimensions:
+            - Latitude: latitude of the grid point in decimal degrees
+            - Longitude: longitude of the grid point in decimal degrees
+        The values in the DataArray are the minimum detectable local magnitude ML
+        at that grid point.
 
-    :param  lon0:	minimum longitude of search grid
-    :param  lon1:	maximum longitude of search grid
-    :param  lat0:	minimum latitude of search grid
-    :param  lat1:	maximum latitude of search grid
-    :param  dlon:	longitude increment of search grid
-    :param  dlat:	latitude increment of search grid
-    :param  stat_num:	required number of station detections
-    :param  snr:	required signal-to-noise ratio for detection
-    :param  foc_depth:  assumed focal event depth
-    :param  region:	locality for assumed ML scale parameters ('UK' or 'CAL')
-    :param  mag_min:	minimum ML value for grid search
-    :param  mag_delta:  ML increment used in grid search
     """
 
     if kwargs["method"] == "ML":
@@ -294,10 +334,10 @@ def minML(
                 )
 
     # Make xarray grid to output
-    array = xarray.DataArray(
+    mag_det = xarray.DataArray(
         mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
     )
-    return array
+    return mag_det
 
 
 def minML_x_section(
