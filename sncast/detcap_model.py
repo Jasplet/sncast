@@ -661,7 +661,8 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     np.ndarray
         Array of noise levels for each section of the fibre.
     """
-    if detection_length > (channel_pos[-1] - channel_pos[0]):
+    fibre_legth = channel_pos[-1] - channel_pos[0]
+    if detection_length > fibre_legth:
         raise ValueError(
             f"detection_length {detection_length} must be less than fibre_legth {fibre_legth}"
         )

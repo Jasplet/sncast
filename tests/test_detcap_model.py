@@ -3,7 +3,8 @@ import pandas as pd
 import pytest
 from unittest.mock import patch
 from sncast.detcap_model import update_with_arrays
-from sncast.detcap_model import minML, read_station_data
+from sncast.detcap_model import minML
+from sncast.detcap_model import read_station_data, read_das_noise_data
 from sncast.detcap_model import _est_min_ML_at_station
 from sncast.detcap_model import calc_ampl_from_magnitude
 
@@ -53,6 +54,28 @@ def test_read_station_data():
     assert output_csv.equals(df)
 
 
+def test_read_das_noise_data():
+    # Make a test DataFrame
+    df = pd.DataFrame(
+        {
+            "channel_index": [10010, 10020, 10030],
+            "fiber_length_m": [1000, 2000, 3000],
+            "longitude": [0.01, 0.01, 0.01],
+            "latitude": [50.01, 50.02, 50.03],
+            "noise_m": [1e-8, 2e-9, 2.6e-8]
+    }
+    )
+    output = read_das_noise_data(df)
+    output_csv = read_das_noise_data("tests/data/das_noise_data.csv")
+    assert output.equals(df)
+    assert output_csv.equals(df)
+
+
+def test_read_das_noise_data_invalid():
+    
+
+
+
 def test_calc_amplitude_UK():
 
     a = 1.11
@@ -85,8 +108,6 @@ def test_calc_amplitude_CAL():
     a = 1.11
     b = 0.00189
     c = -2.09
-    d = -1.16
-    e = -0.2
 
     for local_mag, hypo_dist in zip(
         [-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]
