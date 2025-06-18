@@ -73,7 +73,13 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
         e = -0.2
         ampl = np.power(
             10,
-            (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c - d * np.exp(e * hypo_dist)),
+            (
+                local_mag
+                - a * np.log10(hypo_dist)
+                - b * hypo_dist
+                - c
+                - d * np.exp(e * hypo_dist)
+            ),
         )
 
     elif region == "CAL":
@@ -239,9 +245,13 @@ def minML(
         kwargs["gmpe_model_type"] = None
     elif kwargs["method"] == "GMPE":
         if not kwargs["gmpe"]:
-            raise ValueError("GMPE model must be specified if" + "GMPE method is selected")
+            raise ValueError(
+                "GMPE model must be specified if" + "GMPE method is selected"
+            )
         if not kwargs["gmpe_model_type"]:
-            raise ValueError("GMPE model type must be specified if" + "GMPE method is selected")
+            raise ValueError(
+                "GMPE model type must be specified if" + "GMPE method is selected"
+            )
     else:
         kwargs["method"] = "ML"
         warnings.warn("Method not recognised, using ML as default")
@@ -348,7 +358,9 @@ def minML(
                 )
 
     # Make xarray grid to output
-    mag_det = xarray.DataArray(mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"])
+    mag_det = xarray.DataArray(
+        mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
+    )
     return mag_det
 
 
@@ -441,7 +453,9 @@ def minML_x_section(
             if obs:
                 for o in range(0, len(obs["longitude"])):
                     dz = np.abs(obs["elevation_km"][o] - depths[d])
-                    dx, dy = util_geo_km(ilon, ilat, obs["longitude"][o], obs["latitude"][o])
+                    dx, dy = util_geo_km(
+                        ilon, ilat, obs["longitude"][o], obs["latitude"][o]
+                    )
                     hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
                     # estimated noise level on array
                     # rootn or another cleverer method
@@ -632,7 +646,7 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     """
     Gets the maximum seismic noise level (in displacement) along
     a given continuous fibre length.
-    Parameters
+    Ppos)):arameters
     ----------
     channel_pos : np.ndarray
         position of channels along the fibre in metres.
@@ -648,8 +662,8 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     np.ndarray
         Array of noise levels for each section of the fibre.
     """
-    fibre_legth = channel_pos[-1] - channel_pos[0]
-    if detection_length > fibre_legth:
+    fibre_length = channel_pos[-1] - channel_pos[0]
+    if detection_length > fibre_length:
         raise ValueError(
             f"detection_length {detection_length} must be less than fibre_legth {fibre_legth}"
         )
@@ -669,7 +683,59 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     return noise_at_sections
 
 
-def calc_min_ML_at_gridpoint_das(fibre, detection_length, lon, lat, foc_depth, snr, **kwargs):
+def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length=1):
+    """
+    Gets the earthquake magntiude which is detectable across a given
+    continuous fibre length (detection_length).
+    Parameters
+    ----------
+    channel_pos : np.ndarray
+        position of channels along the fibre in metres.
+    mags : array
+        Noise level of the fibre in metres.
+    detection_length : float
+        Length of the fibre over which to calculate the noise level in metres.
+    slide_length : float, optional
+        Length to slide the detection window along the fibre in metres.
+        Default is 1 metre.
+    Returns
+    -------
+    np.ndarray
+        Array of noise levels for each section of the fibre.
+    """
+    fibre_length = channel_pos[-1] - channel_pos[0]
+    if detection_length > fibre_length:
+        raise ValueError(
+            f"detection_length {detection_length} must be less than fibre_legth {fibre_legth}"
+        )
+    if detection_length <= 0:
+        raise ValueError(f"detection_length {detection_length} must be positive")
+
+    # Calculate the number of windows along the fibre
+    n_windows = (
+        int(
+            np.floor(
+                (channel_pos[-1] - channel_pos[0] - detection_length) / slide_length
+            )
+        )
+        + 1
+    )
+    ml_at_windows = np.zeros(n_windows)
+    for i in range(n_windows):
+        window_start = channel_pos[0] + i * slide_length
+        window_end = window_start + detection_length
+        idx = np.where((channel_pos >= window_start) & (channel_pos < window_end))[0]
+        if len(idx) > 0:
+            ml_at_windows[i] = np.max(mags[idx])
+        else:
+            ml_at_windows[i] = np.nan  # or another fill value if no channels in window
+
+    return np.min(ml_at_windows)
+
+
+def calc_min_ML_at_gridpoint_das(
+    fibre, detection_length, lon, lat, foc_depth, snr, **kwargs
+):
     """
     Calculates the minimum local magnitude which can
     de detected along a given detection length of the fibre.
@@ -711,14 +777,14 @@ def calc_min_ML_at_gridpoint_das(fibre, detection_length, lon, lat, foc_depth, s
     else:
         slide_length = kwargs["slide_length"]
     # Get the noise levels for the given lengths of fibre
-    noise_at_sections = get_das_noise_levels(
-        fibre["fiber_length_m"].values,
-        fibre["noise_m"].values,
-        detection_length,
-        slide_length,
-    )
+    # noise_at_sections = get_das_noise_levels(
+    #     fibre["fiber_length_m"].values,
+    #     fibre["noise_m"].values,
+    #     detection_length,
+    #     slide_length,
+    # )
     # Covert noise from metres to nanometres
-    noise_at_sections *= 1e9  # Convert from metres to nanometres
+    noise_nm = fibre["noise_m"].values * 1e9
     # Precompute the hypocoentral distances using pygc
     # pygc gives distances in metres so convert to km
     distances_km = (
@@ -737,7 +803,7 @@ def calc_min_ML_at_gridpoint_das(fibre, detection_length, lon, lat, foc_depth, s
     # Otherwise, use a generator expression for min
     mags = [
         _est_min_ML_at_station(
-            noise_at_sections[d],
+            noise_nm[d],
             kwargs["mag_min"],
             kwargs["mag_delta"],
             hypo_distances[d],
@@ -749,7 +815,10 @@ def calc_min_ML_at_gridpoint_das(fibre, detection_length, lon, lat, foc_depth, s
         )
         for d in range(len(hypo_distances))
     ]
-    return min(mags)
+    min_windowed_mag = get_min_ML_for_das_section(
+        fibre["fiber_length_m"].values, mags, detection_length, slide_length
+    )
+    return min_windowed_mag
 
 
 def update_with_arrays(
