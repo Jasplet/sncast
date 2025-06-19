@@ -46,6 +46,7 @@ import numpy as np
 import pandas as pd
 from multiprocessing import Pool
 from obspy.signal.util import util_geo_km
+from scipy.ndimage import maximum_filter1d
 
 import pygc
 import xarray
@@ -827,14 +828,7 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
     )
     ml_at_windows = np.zeros(n_windows)
     mags = np.array(mags)  # Convert to NumPy array for advanced indexing
-    for i in range(n_windows):
-        window_start = channel_pos[0] + i * slide_length
-        window_end = window_start + detection_length
-        idx = np.where((channel_pos >= window_start) & (channel_pos < window_end))[0]
-        if len(idx) > 0:
-            ml_at_windows[i] = np.max(mags[idx])
-        else:
-            ml_at_windows[i] = np.nan  # or another fill value if no channels in window
+    window_size = int(detection_length / slide_length)
 
     return np.min(ml_at_windows)
 
@@ -921,9 +915,13 @@ def calc_min_ML_at_gridpoint_das(
         )
         for d in range(len(hypo_distances))
     ]
-    min_windowed_mag = get_min_ML_for_das_section(
-        fibre["fiber_length_m"].values, mags, detection_length, slide_length
-    )
+    ch_spacing = np.median(np.diff(fibre["fiber_length_m"]))
+    window_size = int(np.ceil((detection_length / ch_spacing)))
+    # slide_len_idx = int(np.ceil((slide_length / ch_spacing)))
+    min_windowed_mag = maximum_filter1d(mags, size=window_size)
+    # min_windowed_mag = get_min_ML_for_das_section(
+    #     fibre["fiber_length_m"].values, mags, detection_length, slide_length
+    # )
     return min_windowed_mag
 
 
