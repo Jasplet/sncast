@@ -1,12 +1,12 @@
 import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import patch
 from sncast.detcap_model import update_with_arrays
 from sncast.detcap_model import minML
 from sncast.detcap_model import read_station_data, read_das_noise_data
 from sncast.detcap_model import _est_min_ML_at_station
 from sncast.detcap_model import calc_ampl_from_magnitude
+from sncast.detcap_model import calc_local_magnitude
 
 
 def test_minML_basic():
@@ -80,10 +80,18 @@ def test_calc_amplitude_UK():
     d = -1.16
     e = -0.2
 
-    for local_mag, hypo_dist in zip([-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]):
+    for local_mag, hypo_dist in zip(
+        [-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]
+    ):
         expect = np.power(
             10,
-            (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c - d * np.exp(e * hypo_dist)),
+            (
+                local_mag
+                - a * np.log10(hypo_dist)
+                - b * hypo_dist
+                - c
+                - d * np.exp(e * hypo_dist)
+            ),
         )
         actual = calc_ampl_from_magnitude(local_mag, hypo_dist, region="UK")
         assert np.isclose(
@@ -97,7 +105,9 @@ def test_calc_amplitude_CAL():
     b = 0.00189
     c = -2.09
 
-    for local_mag, hypo_dist in zip([-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]):
+    for local_mag, hypo_dist in zip(
+        [-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]
+    ):
         expect = np.power(10, (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c))
         actual = calc_ampl_from_magnitude(local_mag, hypo_dist, region="CAL")
         assert np.isclose(
@@ -106,7 +116,38 @@ def test_calc_amplitude_CAL():
 
 
 @pytest.mark.parametrize(
-    "noise, distance, snr, mag_delta, mag_min",
+    "amplitude, distance, region",
+    [
+        (10.0, 10, "UK"),
+        (10, 10, "CAL"),
+    ],
+)
+def test_calc_local_mag_scalar(
+    amplitude,
+    distance,
+    region,
+):
+    ml = calc_local_magnitude(amplitude, distance, region, -2, 0.1)
+    assert isinstance(ml, float) or isinstance(ml, np.floating)
+
+
+@pytest.mark.parametrize(
+    "region",
+    [
+        ("UK"),
+        ("CAL"),
+    ],
+)
+def test_ml_magnitude_array(region):
+    amps = np.array([1e-9, 2e-9])
+    dists = np.array([10, 20])
+    ml = calc_local_magnitude(amps, dists, region, -2, 0.1)
+    assert ml.shape == (2,)
+    assert np.all(ml > -2)
+
+
+@pytest.mark.parametrize(
+    "ampl, distance, snr, mag_delta, mag_min",
     [
         (10.0, 1.0, 1, 0.1, -2.0),
         (0.5, 2.0, 2, 0.5, -4),
@@ -114,7 +155,7 @@ def test_calc_amplitude_CAL():
         (1, 0.01, 10, 0.05, -5),
     ],
 )
-def test_est_min_ML_at_station(noise, distance, snr, mag_delta, mag_min):
+def test_calc_local_magnitude_UK(ampl, distance, snr, mag_delta, mag_min):
     def ml_uk(a_s, r, mag_min):
         """UK Local Magnitude Scale"""
         a = 1.11
@@ -128,18 +169,20 @@ def test_est_min_ML_at_station(noise, distance, snr, mag_delta, mag_min):
         else:
             return ml
 
-    expected = ml_uk(noise * snr, distance, mag_min)
+    expected = ml_uk(ampl * snr, distance, mag_min)
 
     # Test with default parameters
-    result = _est_min_ML_at_station(
-        noise, mag_min, mag_delta, distance, snr, method="ML", region="UK"
+    result = calc_local_magnitude(
+        ampl, mag_min, mag_delta, distance, snr, method="ML", region="UK"
     )
     # Difference between ML calculated for a given noise and distance
     # and the modelled min ML should be less than the mag_delta
     assert np.isclose(
         expected - result, 0, atol=mag_delta
     ), f"Expected {expected}, got {result}, mag_delta {mag_delta}"
-    assert isinstance(result, float), f"Result {result} is {type(result)}, expected float"
+    assert isinstance(
+        result, float
+    ), f"Result {result} is {type(result)}, expected float"
 
     # Test for CAL region if supported
     def ml_cal(a_s, r):
@@ -152,25 +195,32 @@ def test_est_min_ML_at_station(noise, distance, snr, mag_delta, mag_min):
         else:
             return ml
 
-    expected = ml_cal(noise * snr, distance)
-    result = _est_min_ML_at_station(
-        noise, mag_min, mag_delta, distance, snr, method="ML", region="CAL"
+    expected = ml_cal(ampl * snr, distance)
+    result = calc_local_magnitude(
+        ampl, mag_min, mag_delta, distance, snr, method="ML", region="CAL"
     )
     assert np.isclose(
         expected - result, 0, atol=mag_delta
     ), f"Failed for CAL region: expected {expected}, got {result}"
 
 
-def test_calc_min_ML_gridpoint():
-    df = pd.DataFrame(
-        {
-            "longitude": [0.0, 0.5],
-            "latitude": [49.0, 49.0],
-            "elevation_km": [0.0, 0.0],
-            "noise [nm]": [10.0, 10.0],
-            "station": ["STA1", "STA2"],
-        }
-    )
+def test_calc_local_magnitude_raises_on_unknown_region():
+    with pytest.raises(ValueError):
+        calc_local_magnitude(1.0, 10.0, "MARS", -2, 0.1)
+
+
+@pytest.mark.parametrize("ampl", [0, -10])
+def test_calc_local_magnitude_raise_on_bad_ampl(ampl):
+    with pytest.raises(ValueError):
+        calc_ampl_from_magnitude(ampl, 1, "CAL", -2, 0.1)
+
+
+def test_est_min_ML_at_station_raises_unsupported():
+    for mode in ["ML", "foo", "bar"]:
+        with pytest.raises(ValueError):
+            _est_min_ML_at_station(
+                noise=10, mag_min=-2, mag_delta=0.1, distance=50, snr=3, method=mode
+            )
 
 
 def test_update_with_arrays_lower():
