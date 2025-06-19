@@ -662,51 +662,6 @@ def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
     return lons, lats, nx, ny
 
 
-def calc_min_ML_at_gridpoint(
-    stations_df, lon, lat, foc_depth, stat_num, snr, mag_min, mag_delta, **kwargs
-):
-    try:
-        noise = stations_df["noise [nm]"].values
-    except KeyError if kwargs["method"] == "GMPE" else KeyError:
-        noise = stations_df["noise [cm/s]"].values
-
-    mag = []
-
-    distances_km = (
-        pygc.great_distance(
-            start_latitude=lat,
-            end_latitude=stations_df["latitude"].values,
-            start_longitude=lon,
-            end_longitude=stations_df["longitude"].values,
-        )["distance"]
-        * 1e-3
-    )
-    dz = np.abs(foc_depth - stations_df["elevation_km"].values)
-    # calculate hypcocentral distance
-    hypo_dist = np.sqrt(distances_km**2 + dz**2)
-
-    for s in range(len(stations_df)):
-        # loop through stations
-        # calculate hypcocentral distance in km
-        # Use pygc to compute great-circle distance in meters, then convert to km
-
-        m = _est_min_ML_at_station(
-            noise[s],
-            mag_min,
-            mag_delta,
-            hypo_dist[s],
-            snr,
-            method=kwargs["method"],
-            gmpe=kwargs["gmpe"],
-            gmpe_model_type=kwargs["gmpe_model_type"],
-            region=kwargs["region"],
-        )
-        mag.append(m)
-    # sort magnitudes in ascending order
-    mag = sorted(mag)
-    return mag[stat_num - 1]
-
-
 def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     """
     Gets the maximum seismic noise level (in displacement) along
@@ -790,6 +745,76 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
     window_size = int(detection_length / slide_length)
 
     return np.min(ml_at_windows)
+
+
+def calc_min_ML_at_gridpoint(
+    stations_df, lon, lat, foc_depth, stat_num, snr, mag_min, mag_delta, **kwargs
+):
+    method = kwargs.get("method", "ML")
+    region = kwargs.get("region", "CAL")
+
+    if method == "ML":
+
+        noise = stations_df["noise [nm]"].values
+        distances_km = (
+            pygc.great_distance(
+                start_latitude=lat,
+                end_latitude=stations_df["latitude"].values,
+                start_longitude=lon,
+                end_longitude=stations_df["longitude"].values,
+            )["distance"]
+            * 1e-3
+        )
+        dz = np.abs(foc_depth - stations_df["elevation_km"].values)
+        # calculate hypcocentral distance
+        hypo_dist = np.sqrt(distances_km**2 + dz**2)
+        required_ampls = snr * noise
+        mags = ml_magnitude(
+            required_ampls,
+            hypo_dist,
+            region=region,
+            mag_min=mag_min,
+            mag_delta=mag_delta,
+        )
+        sorted_mags = np.sort(mags)
+        return sorted_mags[stat_num - 1]
+
+    elif method == "GMPE":
+        noise = stations_df["noise [cm/s]"].values
+        distances_km = (
+            pygc.great_distance(
+                start_latitude=lat,
+                end_latitude=stations_df["latitude"].values,
+                start_longitude=lon,
+                end_longitude=stations_df["longitude"].values,
+            )["distance"]
+            * 1e-3
+        )
+        dz = np.abs(foc_depth - stations_df["elevation_km"].values)
+        # calculate hypcocentral distance
+        hypo_dist = np.sqrt(distances_km**2 + dz**2)
+        # loop through stations
+        # calculate hypcocentral distance in km
+        # Use pygc to compute great-circle distance in meters, then convert to km
+        mag = [
+            _est_min_ML_at_station(
+                noise[s],
+                mag_min,
+                mag_delta,
+                hypo_dist[s],
+                snr,
+                method=kwargs["method"],
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"],
+                region=kwargs["region"],
+            )
+            for s in range(len(stations_df))
+        ]
+        # sort magnitudes in ascending order
+        mag = sorted(mag)
+        return mag[stat_num - 1]
+    else:
+        raise ValueError(f"Unsupported Method {methid}")
 
 
 def calc_min_ML_at_gridpoint_das(
