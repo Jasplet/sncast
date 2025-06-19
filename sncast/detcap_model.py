@@ -99,37 +99,51 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     return ampl
 
 
+def ml_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
+    """
+    Compute local magnitude (ML) for a given region.
+    Vectorized for numpy arrays.
+    """
+
+    if region == "UK":
+        coeffs = ML_COEFFS[region]
+        a = coeffs["a"]
+        b = coeffs["b"]
+        c = coeffs["c"]
+        d = coeffs["d"]
+        e = coeffs["e"]
+        ml = (
+            np.log10(required_ampl)
+            + a * np.log10(hypo_dist)
+            + b * hypo_dist
+            + c
+            + d * np.exp(e * hypo_dist)
+        )
+    elif region == "CAL":
+        coeffs = ML_COEFFS[region]
+        a = coeffs["a"]
+        b = coeffs["b"]
+        c = coeffs["c"]
+        ml = np.log10(required_ampl) + a * np.log10(hypo_dist) + b * hypo_dist + c
+    else:
+        raise ValueError(f"Unknown region: {region}")
+
+    # Snap to nearest mag_delta step above mag_min
+    ml = np.maximum(mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min)
+    return ml
+
+
 def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
+    """
+    Estimates minimum detectable magntiude at a given station
+
+    For using
+    """
     method = kwargs.get("method", "ML")
     region = kwargs.get("region", "CAL")
     gmpe = kwargs.get("gmpe", None)
     gmpe_model_type = kwargs.get("gmpe_model_type", None)
-    required_ampl = snr * noise
-    if method == "ML":
-        if region == "UK":
-            a = 1.11
-            b = 0.00189
-            c = -2.09
-            d = -1.16
-            e = -0.2
-            ml = (
-                np.log10(required_ampl)
-                + a * np.log10(distance)
-                + b * distance
-                + c
-                + d * np.exp(e * distance)
-            )
-        elif region == "CAL":
-            a = 1.11
-            b = 0.00189
-            c = -2.09
-            ml = np.log10(required_ampl) + a * np.log10(distance) + b * distance + c
-        else:
-            raise ValueError(f"Unknown region: {region}")
-        # Snap to nearest mag_delta step above mag_min
-        ml = max(mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min)
-        return ml
-    elif method == "GMPE":
+    if method == "GMPE":
         signal = 0
         ml = mag_min - mag_delta
         while signal < snr * noise:
@@ -140,6 +154,8 @@ def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
             if ml > 3:
                 break
         return ml
+    elif method == "ML":
+        raise ValueError("ML no longer supported, use vectorised function")
     else:
         raise ValueError(f"Unknown method: {method}")
 
