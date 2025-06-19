@@ -892,7 +892,7 @@ def calc_min_ML_at_gridpoint_das(
     ch_spacing = np.median(np.diff(fibre["fiber_length_m"]))
     window_size = int(np.ceil((detection_length / ch_spacing)))
     # slide_len_idx = int(np.ceil((slide_length / ch_spacing)))
-    min_windowed_mag = maximum_filter1d(mags, size=window_size)
+    min_windowed_mag = maximum_filter1d(mags, size=window_size, mode="nearest")
     # min_windowed_mag = get_min_ML_for_das_section(
     #     fibre["fiber_length_m"].values, mags, detection_length, slide_length
     # )
