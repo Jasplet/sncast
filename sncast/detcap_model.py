@@ -55,6 +55,11 @@ import xarray
 from .gmpes import eval_gmpe
 from .magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
 
+ML_COEFFS = {
+    "UK": {"a": 1.11, "b": 0.00189, "c": -2.09, "d": -1.16, "e": -0.2},
+    "CAL": {"a": 1.11, "b": 0.00189, "c": -2.09},
+}
+
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     """
