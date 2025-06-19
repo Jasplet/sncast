@@ -721,6 +721,7 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
         + 1
     )
     ml_at_windows = np.zeros(n_windows)
+    mags = np.array(mags)  # Convert to NumPy array for advanced indexing
     for i in range(n_windows):
         window_start = channel_pos[0] + i * slide_length
         window_end = window_start + detection_length
