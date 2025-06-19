@@ -41,10 +41,10 @@
 # Copyright (C) 2024 Joseph Asplet, University of Oxford
 # email : joseph.asplet@earth.ox.ac.uk
 from decimal import Decimal
-from math import sqrt
 import warnings
 import numpy as np
 import pandas as pd
+from multiprocessing import Pool
 from obspy.signal.util import util_geo_km
 
 import pygc
@@ -93,17 +93,11 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     return ampl
 
 
-def _est_min_ML_at_station(
-    noise,
-    mag_min,
-    mag_delta,
-    distance,
-    snr,
-    method="ML",
-    region="UK",
-    gmpe="RE19",
-    gmpe_model_type="PGV",
-):
+def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
+    method = kwargs.get("method", "ML")
+    region = kwargs.get("region", "CAL")
+    gmpe = kwargs.get("gmpe", None)
+    gmpe_model_type = kwargs.get("gmpe_model_type", None)
     required_ampl = snr * noise
     if method == "ML":
         if region == "UK":
@@ -260,6 +254,8 @@ def minML(
         kwargs["region"] = "CAL"
         warnings.warn("Region not specified, using CAL as default")
 
+    nproc = kwargs.get("nproc", 1)
+
     print(f'Method : {kwargs["method"]}')
     print(f'Region : {kwargs["region"]}')
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
@@ -290,7 +286,32 @@ def minML(
         das_df = None
 
     lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
+    args_list = [
+        (
+            ix,
+            iy,
+            lons,
+            lats,
+            stations_df,
+            foc_depth,
+            stat_num,
+            snr,
+            mag_min,
+            mag_delta,
+            arrays_df,
+            obs_df,
+            obs_stat_num,
+            das_df,
+            kwargs,
+        )
+        for ix in range(nx)
+        for iy in range(ny)
+    ]
     mag_grid = np.zeros((ny, nx))
+
+    with Pool(processes=nproc) as pool:
+        for iy, ix, val in pool.imap_unordered(_minML_worker, args_list):
+            mag_grid[iy, ix] = val
     for ix in range(nx):  # loop through longitude increments
         for iy in range(ny):  # loop through latitude increments
             # add array bit
@@ -364,6 +385,87 @@ def minML(
     return mag_det
 
 
+def _minML_worker(args):
+    """
+    Worker function for minML which allows the magntiude grid to be parallelised
+    """
+    # Unpack args
+    (
+        ix,
+        iy,
+        lons,
+        lats,
+        stations_df,
+        foc_depth,
+        stat_num,
+        snr,
+        mag_min,
+        mag_delta,
+        arrays_df,
+        obs_df,
+        obs_stat_num,
+        das_df,
+        kwargs,
+    ) = args
+    min_mag = calc_min_ML_at_gridpoint(
+        stations_df,
+        lons[ix],
+        lats[iy],
+        foc_depth,
+        stat_num,
+        snr,
+        mag_min,
+        mag_delta,
+        **kwargs,
+    )
+    # Add arrays/obs/das as in your main loop if needed
+    if arrays_df is not None and not arrays_df.empty:
+        if "array_num" not in kwargs:
+            kwargs["array_num"] = 1
+        min_mag = update_with_arrays(
+            min_mag,
+            arrays_df,
+            kwargs["array_num"],
+            lons[ix],
+            lats[iy],
+            foc_depth,
+            snr,
+            mag_min,
+            mag_delta,
+            **kwargs,
+        )
+    if obs_df is not None and not obs_df.empty:
+        min_mag = update_with_obs(
+            min_mag,
+            obs_df,
+            lons[ix],
+            lats[iy],
+            foc_depth,
+            obs_stat_num,
+            snr,
+            mag_min,
+            mag_delta,
+            **kwargs,
+        )
+    if das_df is not None and not das_df.empty:
+        min_mag = update_with_das(
+            min_mag,
+            das_df,
+            detection_length=kwargs["detection_length"],
+            lon=lons[ix],
+            lat=lats[iy],
+            foc_depth=foc_depth,
+            snr=snr,
+            mag_min=mag_min,
+            mag_delta=mag_delta,
+            gmpe=kwargs["gmpe"],
+            gmpe_model_type=kwargs["gmpe_model_type"],
+            region=kwargs["region"],
+            method=kwargs["method"],
+        )
+    return (iy, ix, min_mag)
+
+
 def minML_x_section(
     stations_in,
     lon0,
@@ -434,7 +536,7 @@ def minML_x_section(
                 for a in range(0, len(arrays["lon"])):
                     dx, dy = util_geo_km(ilon, ilat, arrays["lon"][a], arrays["lat"][a])
                     dz = np.abs(arrays["elevation_km"][a] - depths[d])
-                    hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
+                    hypo_dist = np.sqrt(dx**2 + dy**2 + dz**2)
                     m = _est_min_ML_at_station(
                         arrays["noise"][a],
                         mag_min,
@@ -456,7 +558,7 @@ def minML_x_section(
                     dx, dy = util_geo_km(
                         ilon, ilat, obs["longitude"][o], obs["latitude"][o]
                     )
-                    hypo_dist = sqrt(dx**2 + dy**2 + dz**2)
+                    hypo_dist = np.sqrt(dx**2 + dy**2 + dz**2)
                     # estimated noise level on array
                     # rootn or another cleverer method
                     # to get a displaement number)
@@ -609,27 +711,30 @@ def calc_min_ML_at_gridpoint(
         noise = stations_df["noise [cm/s]"].values
 
     mag = []
+
+    distances_km = (
+        pygc.great_distance(
+            start_latitude=lat,
+            end_latitude=stations_df["latitude"].values,
+            start_longitude=lon,
+            end_longitude=stations_df["longitude"].values,
+        )["distance"]
+        * 1e-3
+    )
+    dz = np.abs(foc_depth - stations_df["elevation_km"].values)
+    # calculate hypcocentral distance
+    hypo_dist = np.sqrt(distances_km**2 + dz**2)
+
     for s in range(len(stations_df)):
         # loop through stations
         # calculate hypcocentral distance in km
         # Use pygc to compute great-circle distance in meters, then convert to km
-        distance_km = (
-            pygc.great_distance(
-                start_latitude=lat,
-                end_latitude=stations_df["latitude"].iloc[s],
-                start_longitude=lon,
-                end_longitude=stations_df["longitude"].iloc[s],
-            )["distance"]
-            * 1e-3
-        )
-        dz = np.abs(foc_depth - stations_df["elevation_km"].iloc[s])
-        # calculate hypcocentral distance
-        hypo_dist = sqrt(distance_km**2 + dz**2)
+
         m = _est_min_ML_at_station(
             noise[s],
             mag_min,
             mag_delta,
-            hypo_dist,
+            hypo_dist[s],
             snr,
             method=kwargs["method"],
             gmpe=kwargs["gmpe"],
