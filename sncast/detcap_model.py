@@ -856,6 +856,13 @@ def calc_min_ML_at_gridpoint_das(
         Minimum local magnitude that can be detected by a continuous section of fibre
         of the input detection length.
     """
+    method = kwargs.get("method", "ML")
+    region = kwargs.get("region", "CAL")
+    mag_min = kwargs.get("mag_min", -2)
+    mag_delta = kwargs.get("mag_delta", 0.1)
+
+    if method != "ML":
+        raise ValueError(f"Method: {method} not supported for DAS at this time")
     # Covert noise from metres to nanometres
     noise_nm = fibre["noise_m"].values * 1e9
     # Precompute the hypocoentral distances using pygc
@@ -874,20 +881,14 @@ def calc_min_ML_at_gridpoint_das(
     # Calculate the minimum local magnitude for each section of the fibre
     # Vectorize _est_min_ML_at_station if possible
     # Otherwise, use a generator expression for min
-    mags = [
-        _est_min_ML_at_station(
-            noise_nm[d],
-            kwargs["mag_min"],
-            kwargs["mag_delta"],
-            hypo_distances[d],
-            snr,
-            method=kwargs["method"],
-            gmpe=kwargs["gmpe"],
-            gmpe_model_type=kwargs["gmpe_model_type"],
-            region=kwargs["region"],
-        )
-        for d in range(len(hypo_distances))
-    ]
+    required_ampls = snr * noise_nm
+    mags = ml_magnitude(
+        required_ampls,
+        hypo_distances,
+        region=region,
+        mag_min=mag_min,
+        mag_delta=mag_delta,
+    )
     ch_spacing = np.median(np.diff(fibre["fiber_length_m"]))
     window_size = int(np.ceil((detection_length / ch_spacing)))
     # slide_len_idx = int(np.ceil((slide_length / ch_spacing)))
