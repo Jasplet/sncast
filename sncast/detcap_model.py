@@ -219,7 +219,7 @@ def minML(
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
         - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
         - region: Locality for assumed ML scale parameters ('UK' or 'CAL'). Default is 'CAL'.
-        - das: Path to a CSV file or a DataFrame containing DAS noise data.
+        - das: Path to a CSV file or a DataFrame containing DAS noise data. Can also be a list or tuple of DataFrames
         - detection_length: Length of the fibre over which to calculate the noise level in metres.
                            Default is 1 km.
         - slide_length: Length to slide the detection window along the fibre in metres. Default is 1 m.
@@ -273,18 +273,19 @@ def minML(
         if "detection_length" not in kwargs:
             warnings.warn("Detection length not specified, using default of 1.0 km")
             kwargs["detection_length"] = 1e3  # Default to 1 km
-        if "slide_length" not in kwargs:
-            warnings.warn("Slide length not specified, using default of 1.0 m")
-            kwargs["slide_length"] = 1.0
         # Read in DAS noise data
         das_in = kwargs["das"]
-        das_df = read_das_noise_data(das_in)
-        if len(das_df) == 0:
-            raise ValueError("No DAS data found in the input file")
+        if isinstance(das_in, (list, tuple)):
+            das_dfs = [read_das_noise_data(d) for d in das_in]
+        else:
+            das_dfs = [read_das_noise_data(das_in)]
+
+        for df in das_dfs:
+            if len(df) == 0:
+                raise ValueError("No DAS data found in one of the input files")
         print(f'DAS detection length: {kwargs["detection_length"]} m')
-        print(f'DAS slide length: {kwargs["slide_length"]} m')
     else:
-        das_df = None
+        das_dfs = []
 
     lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
     args_list = [
@@ -302,7 +303,7 @@ def minML(
             arrays_df,
             obs_df,
             obs_stat_num,
-            das_df,
+            das_dfs,
             kwargs,
         )
         for ix in range(nx)
@@ -313,73 +314,8 @@ def minML(
     with Pool(processes=nproc) as pool:
         for iy, ix, val in pool.imap_unordered(_minML_worker, args_list):
             mag_grid[iy, ix] = val
-    for ix in range(nx):  # loop through longitude increments
-        for iy in range(ny):  # loop through latitude increments
-            # add array bit
-            mag_grid[iy, ix] = calc_min_ML_at_gridpoint(
-                stations_df,
-                lons[ix],
-                lats[iy],
-                foc_depth,
-                stat_num,
-                snr,
-                mag_min,
-                mag_delta,
-                **kwargs,
-            )
-            # Add array detection if arrays_df is provided and not empty
-            if arrays_df is not None and not arrays_df.empty:
-                if "array_num" not in kwargs:
-                    kwargs["array_num"] = 1
-                mag_grid[iy, ix] = update_with_arrays(
-                    mag_grid[iy, ix],
-                    arrays_df,
-                    kwargs["array_num"],
-                    lons[ix],
-                    lats[iy],
-                    foc_depth,
-                    snr,
-                    mag_min,
-                    mag_delta,
-                    **kwargs,
-                )
-            # Add OBS detection if obs_df is provided and not empty
-            if obs_df is not None and not obs_df.empty:
-                mag_grid[iy, ix] = update_with_obs(
-                    mag_grid[iy, ix],
-                    obs_df,
-                    lons[ix],
-                    lats[iy],
-                    foc_depth,
-                    obs_stat_num,
-                    snr,
-                    mag_min,
-                    mag_delta,
-                    **kwargs,
-                )
-            # Add DAS detection if 'das' is in kwargs and das_df is not empty
-            if das_df is not None and not das_df.empty:
-                # Remove 'detection_length' from kwargs to avoid multiple values error
-                # kwargs_no_dl = dict(kwargs)
-                # if "detection_length" in kwargs_no_dl:
-                #     del kwargs_no_dl["detection_length"]
-                mag_grid[iy, ix] = update_with_das(
-                    mag_grid[iy, ix],
-                    das_df,
-                    detection_length=kwargs["detection_length"],
-                    lon=lons[ix],
-                    lat=lats[iy],
-                    foc_depth=foc_depth,
-                    snr=snr,
-                    mag_min=mag_min,
-                    mag_delta=mag_delta,
-                    gmpe=kwargs["gmpe"],
-                    gmpe_model_type=kwargs["gmpe_model_type"],
-                    region=kwargs["region"],
-                    method=kwargs["method"],
-                )
 
-    # Make xarray grid to output
+    # # Make xarray grid to output
     mag_det = xarray.DataArray(
         mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
     )
@@ -405,7 +341,7 @@ def _minML_worker(args):
         arrays_df,
         obs_df,
         obs_stat_num,
-        das_df,
+        das_dfs,
         kwargs,
     ) = args
     min_mag = calc_min_ML_at_gridpoint(
@@ -448,22 +384,24 @@ def _minML_worker(args):
             mag_delta,
             **kwargs,
         )
-    if das_df is not None and not das_df.empty:
-        min_mag = update_with_das(
-            min_mag,
-            das_df,
-            detection_length=kwargs["detection_length"],
-            lon=lons[ix],
-            lat=lats[iy],
-            foc_depth=foc_depth,
-            snr=snr,
-            mag_min=mag_min,
-            mag_delta=mag_delta,
-            gmpe=kwargs["gmpe"],
-            gmpe_model_type=kwargs["gmpe_model_type"],
-            region=kwargs["region"],
-            method=kwargs["method"],
-        )
+
+    for das_df in das_dfs:
+        if das_df is not None and not das_df.empty:
+            min_mag = update_with_das(
+                min_mag,
+                das_df,
+                detection_length=kwargs.get("detection_length", 1000),
+                lon=lons[ix],
+                lat=lats[iy],
+                foc_depth=foc_depth,
+                snr=snr,
+                mag_min=mag_min,
+                mag_delta=mag_delta,
+                gmpe=kwargs.get("gmpe", None),
+                gmpe_model_type=kwargs.get("gmpe_model_type", None),
+                region=kwargs.get("region", "CAL"),
+                method=kwargs.get("method", "ML"),
+            )
     return (iy, ix, min_mag)
 
 
@@ -872,17 +810,6 @@ def calc_min_ML_at_gridpoint_das(
         Minimum local magnitude that can be detected by a continuous section of fibre
         of the input detection length.
     """
-    if "slide_length" not in kwargs:
-        slide_length = 1.0
-    else:
-        slide_length = kwargs["slide_length"]
-    # Get the noise levels for the given lengths of fibre
-    # noise_at_sections = get_das_noise_levels(
-    #     fibre["fiber_length_m"].values,
-    #     fibre["noise_m"].values,
-    #     detection_length,
-    #     slide_length,
-    # )
     # Covert noise from metres to nanometres
     noise_nm = fibre["noise_m"].values * 1e9
     # Precompute the hypocoentral distances using pygc
