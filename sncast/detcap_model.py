@@ -99,7 +99,7 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     return ampl
 
 
-def ml_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
+def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
     """
     Compute local magnitude (ML) for a given region.
     Vectorized for numpy arrays.
@@ -769,7 +769,7 @@ def calc_min_ML_at_gridpoint(
         # calculate hypcocentral distance
         hypo_dist = np.sqrt(distances_km**2 + dz**2)
         required_ampls = snr * noise
-        mags = ml_magnitude(
+        mags = calc_local_magnitude(
             required_ampls,
             hypo_dist,
             region=region,
@@ -882,7 +882,7 @@ def calc_min_ML_at_gridpoint_das(
     # Vectorize _est_min_ML_at_station if possible
     # Otherwise, use a generator expression for min
     required_ampls = snr * noise_nm
-    mags = ml_magnitude(
+    mags = calc_local_magnitude(
         required_ampls,
         hypo_distances,
         region=region,
