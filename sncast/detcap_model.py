@@ -849,7 +849,7 @@ def calc_min_ML_at_gridpoint_das(
     # min_windowed_mag = get_min_ML_for_das_section(
     #     fibre["fiber_length_m"].values, mags, detection_length, slide_length
     # )
-    return min_windowed_mag
+    return np.min(min_windowed_mag)
 
 
 def update_with_arrays(
