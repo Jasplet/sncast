@@ -104,6 +104,8 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
     Compute local magnitude (ML) for a given region.
     Vectorized for numpy arrays.
     """
+    if np.min(required_ampl <= 0):
+        raise ValueError("At least one amplitude <=0!")
 
     if region == "UK":
         coeffs = ML_COEFFS[region]
@@ -280,6 +282,7 @@ def minML(
 
     print(f'Method : {kwargs["method"]}')
     print(f'Region : {kwargs["region"]}')
+    print(f"Using {nproc} cores")
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
     stations_df = read_station_data(stations_in)
     # Read in arrays and obs data if provided
@@ -378,12 +381,11 @@ def _minML_worker(args):
     )
     # Add arrays/obs/das as in your main loop if needed
     if arrays_df is not None and not arrays_df.empty:
-        if "array_num" not in kwargs:
-            kwargs["array_num"] = 1
+        array_num = kwargs.get("array_num", 1)
         min_mag = update_with_arrays(
             min_mag,
             arrays_df,
-            kwargs["array_num"],
+            array_num,
             lons[ix],
             lats[iy],
             foc_depth,
@@ -573,6 +575,9 @@ def read_station_data(stations_in):
         stations_df = pd.read_csv(stations_in)
     else:
         stations_df = stations_in.copy()
+    if "elevation_m" in stations_df.columns:
+        stations_df["elevation_m"] *= 1e-3
+        stations_df.rename(columns={"elevation_m": "elevation_km"}, inplace=True)
     required_cols = {"longitude", "latitude", "elevation_km", "noise [nm]", "station"}
     if not required_cols.issubset(stations_df.columns):
         raise ValueError(f"Missing columns: {required_cols - set(stations_df.columns)}")
@@ -742,7 +747,6 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
     )
     ml_at_windows = np.zeros(n_windows)
     mags = np.array(mags)  # Convert to NumPy array for advanced indexing
-    window_size = int(detection_length / slide_length)
 
     return np.min(ml_at_windows)
 
@@ -863,8 +867,18 @@ def calc_min_ML_at_gridpoint_das(
 
     if method != "ML":
         raise ValueError(f"Method: {method} not supported for DAS at this time")
+    
+    
+    gauge_len = kwargs.get("gauge_length", 20)
+    window_size = int(np.ceil((detection_length / gauge_len)))
+    print("~"*50)
+    print(f"There are {window_size} channels in the sliding window.")
     # Covert noise from metres to nanometres
     noise_nm = fibre["noise_m"].values * 1e9
+    print(f"This improves mean noise level from {noise_nm.mean():4.2.f}")
+    noise_nm = noise_nm / np.sqrt(window_size)
+    print(f"To a mean noise level of {noise_nm.mean():4.2.f} ")\
+    print("~"*50)
     # Precompute the hypocoentral distances using pygc
     # pygc gives distances in metres so convert to km
     distances_km = (
@@ -889,8 +903,6 @@ def calc_min_ML_at_gridpoint_das(
         mag_min=mag_min,
         mag_delta=mag_delta,
     )
-    ch_spacing = np.median(np.diff(fibre["fiber_length_m"]))
-    window_size = int(np.ceil((detection_length / ch_spacing)))
     # slide_len_idx = int(np.ceil((slide_length / ch_spacing)))
     min_windowed_mag = maximum_filter1d(mags, size=window_size, mode="nearest")
     # min_windowed_mag = get_min_ML_for_das_section(
