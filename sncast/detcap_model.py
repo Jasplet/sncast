@@ -690,7 +690,7 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     fibre_length = channel_pos[-1] - channel_pos[0]
     if detection_length > fibre_length:
         raise ValueError(
-            f"detection_length {detection_length} must be less than fibre_legth {fibre_legth}"
+            f"detection_length {detection_length} must be less than fibre_legth {fibre_length}"
         )
     if detection_length <= 0:
         raise ValueError(f"detection_length {detection_length} must be positive")
@@ -818,7 +818,7 @@ def calc_min_ML_at_gridpoint(
         mag = sorted(mag)
         return mag[stat_num - 1]
     else:
-        raise ValueError(f"Unsupported Method {methid}")
+        raise ValueError(f"Unsupported Method {method}")
 
 
 def calc_min_ML_at_gridpoint_das(
