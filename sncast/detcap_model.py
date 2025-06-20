@@ -867,18 +867,17 @@ def calc_min_ML_at_gridpoint_das(
 
     if method != "ML":
         raise ValueError(f"Method: {method} not supported for DAS at this time")
-    
-    
+
     gauge_len = kwargs.get("gauge_length", 20)
     window_size = int(np.ceil((detection_length / gauge_len)))
-    print("~"*50)
+    print("~" * 50)
     print(f"There are {window_size} channels in the sliding window.")
     # Covert noise from metres to nanometres
     noise_nm = fibre["noise_m"].values * 1e9
     print(f"This improves mean noise level from {noise_nm.mean():4.2.f}")
     noise_nm = noise_nm / np.sqrt(window_size)
-    print(f"To a mean noise level of {noise_nm.mean():4.2.f} ")\
-    print("~"*50)
+    print(f"To a mean noise level of {noise_nm.mean():4.2.f} ")
+    print("~" * 50)
     # Precompute the hypocoentral distances using pygc
     # pygc gives distances in metres so convert to km
     distances_km = (
