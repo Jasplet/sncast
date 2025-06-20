@@ -55,6 +55,11 @@ import xarray
 from .gmpes import eval_gmpe
 from .magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
 
+ML_COEFFS = {
+    "UK": {"a": 1.11, "b": 0.00189, "c": -2.09, "d": -1.16, "e": -0.2},
+    "CAL": {"a": 1.11, "b": 0.00189, "c": -2.09},
+}
+
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     """
@@ -94,37 +99,53 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     return ampl
 
 
+def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
+    """
+    Compute local magnitude (ML) for a given region.
+    Vectorized for numpy arrays.
+    """
+    if np.min(required_ampl <= 0):
+        raise ValueError("At least one amplitude <=0!")
+
+    if region == "UK":
+        coeffs = ML_COEFFS[region]
+        a = coeffs["a"]
+        b = coeffs["b"]
+        c = coeffs["c"]
+        d = coeffs["d"]
+        e = coeffs["e"]
+        ml = (
+            np.log10(required_ampl)
+            + a * np.log10(hypo_dist)
+            + b * hypo_dist
+            + c
+            + d * np.exp(e * hypo_dist)
+        )
+    elif region == "CAL":
+        coeffs = ML_COEFFS[region]
+        a = coeffs["a"]
+        b = coeffs["b"]
+        c = coeffs["c"]
+        ml = np.log10(required_ampl) + a * np.log10(hypo_dist) + b * hypo_dist + c
+    else:
+        raise ValueError(f"Unknown region: {region}")
+
+    # Snap to nearest mag_delta step above mag_min
+    ml = np.maximum(mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min)
+    return ml
+
+
 def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
+    """
+    Estimates minimum detectable magntiude at a given station
+
+    For using
+    """
     method = kwargs.get("method", "ML")
     region = kwargs.get("region", "CAL")
     gmpe = kwargs.get("gmpe", None)
     gmpe_model_type = kwargs.get("gmpe_model_type", None)
-    required_ampl = snr * noise
-    if method == "ML":
-        if region == "UK":
-            a = 1.11
-            b = 0.00189
-            c = -2.09
-            d = -1.16
-            e = -0.2
-            ml = (
-                np.log10(required_ampl)
-                + a * np.log10(distance)
-                + b * distance
-                + c
-                + d * np.exp(e * distance)
-            )
-        elif region == "CAL":
-            a = 1.11
-            b = 0.00189
-            c = -2.09
-            ml = np.log10(required_ampl) + a * np.log10(distance) + b * distance + c
-        else:
-            raise ValueError(f"Unknown region: {region}")
-        # Snap to nearest mag_delta step above mag_min
-        ml = max(mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min)
-        return ml
-    elif method == "GMPE":
+    if method == "GMPE":
         signal = 0
         ml = mag_min - mag_delta
         while signal < snr * noise:
@@ -135,6 +156,8 @@ def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
             if ml > 3:
                 break
         return ml
+    elif method == "ML":
+        raise ValueError("ML no longer supported, use vectorised function")
     else:
         raise ValueError(f"Unknown method: {method}")
 
@@ -259,6 +282,7 @@ def minML(
 
     print(f'Method : {kwargs["method"]}')
     print(f'Region : {kwargs["region"]}')
+    print(f"Using {nproc} cores")
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
     stations_df = read_station_data(stations_in)
     # Read in arrays and obs data if provided
@@ -357,12 +381,11 @@ def _minML_worker(args):
     )
     # Add arrays/obs/das as in your main loop if needed
     if arrays_df is not None and not arrays_df.empty:
-        if "array_num" not in kwargs:
-            kwargs["array_num"] = 1
+        array_num = kwargs.get("array_num", 1)
         min_mag = update_with_arrays(
             min_mag,
             arrays_df,
-            kwargs["array_num"],
+            array_num,
             lons[ix],
             lats[iy],
             foc_depth,
@@ -552,6 +575,9 @@ def read_station_data(stations_in):
         stations_df = pd.read_csv(stations_in)
     else:
         stations_df = stations_in.copy()
+    if "elevation_m" in stations_df.columns:
+        stations_df["elevation_m"] *= 1e-3
+        stations_df.rename(columns={"elevation_m": "elevation_km"}, inplace=True)
     required_cols = {"longitude", "latitude", "elevation_km", "noise [nm]", "station"}
     if not required_cols.issubset(stations_df.columns):
         raise ValueError(f"Missing columns: {required_cols - set(stations_df.columns)}")
@@ -641,51 +667,6 @@ def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
     return lons, lats, nx, ny
 
 
-def calc_min_ML_at_gridpoint(
-    stations_df, lon, lat, foc_depth, stat_num, snr, mag_min, mag_delta, **kwargs
-):
-    try:
-        noise = stations_df["noise [nm]"].values
-    except KeyError if kwargs["method"] == "GMPE" else KeyError:
-        noise = stations_df["noise [cm/s]"].values
-
-    mag = []
-
-    distances_km = (
-        pygc.great_distance(
-            start_latitude=lat,
-            end_latitude=stations_df["latitude"].values,
-            start_longitude=lon,
-            end_longitude=stations_df["longitude"].values,
-        )["distance"]
-        * 1e-3
-    )
-    dz = np.abs(foc_depth - stations_df["elevation_km"].values)
-    # calculate hypcocentral distance
-    hypo_dist = np.sqrt(distances_km**2 + dz**2)
-
-    for s in range(len(stations_df)):
-        # loop through stations
-        # calculate hypcocentral distance in km
-        # Use pygc to compute great-circle distance in meters, then convert to km
-
-        m = _est_min_ML_at_station(
-            noise[s],
-            mag_min,
-            mag_delta,
-            hypo_dist[s],
-            snr,
-            method=kwargs["method"],
-            gmpe=kwargs["gmpe"],
-            gmpe_model_type=kwargs["gmpe_model_type"],
-            region=kwargs["region"],
-        )
-        mag.append(m)
-    # sort magnitudes in ascending order
-    mag = sorted(mag)
-    return mag[stat_num - 1]
-
-
 def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     """
     Gets the maximum seismic noise level (in displacement) along
@@ -709,7 +690,7 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     fibre_length = channel_pos[-1] - channel_pos[0]
     if detection_length > fibre_length:
         raise ValueError(
-            f"detection_length {detection_length} must be less than fibre_legth {fibre_legth}"
+            f"detection_length {detection_length} must be less than fibre_length {fibre_length}"
         )
     if detection_length <= 0:
         raise ValueError(f"detection_length {detection_length} must be positive")
@@ -750,7 +731,7 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
     fibre_length = channel_pos[-1] - channel_pos[0]
     if detection_length > fibre_length:
         raise ValueError(
-            f"detection_length {detection_length} must be less than fibre_legth {fibre_legth}"
+            f"detection_length {detection_length} must be less than fibre_length {fibre_length}"
         )
     if detection_length <= 0:
         raise ValueError(f"detection_length {detection_length} must be positive")
@@ -766,9 +747,78 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
     )
     ml_at_windows = np.zeros(n_windows)
     mags = np.array(mags)  # Convert to NumPy array for advanced indexing
-    window_size = int(detection_length / slide_length)
 
     return np.min(ml_at_windows)
+
+
+def calc_min_ML_at_gridpoint(
+    stations_df, lon, lat, foc_depth, stat_num, snr, mag_min, mag_delta, **kwargs
+):
+    method = kwargs.get("method", "ML")
+    region = kwargs.get("region", "CAL")
+
+    if method == "ML":
+
+        noise = stations_df["noise [nm]"].values
+        distances_km = (
+            pygc.great_distance(
+                start_latitude=lat,
+                end_latitude=stations_df["latitude"].values,
+                start_longitude=lon,
+                end_longitude=stations_df["longitude"].values,
+            )["distance"]
+            * 1e-3
+        )
+        dz = np.abs(foc_depth - stations_df["elevation_km"].values)
+        # calculate hypcocentral distance
+        hypo_dist = np.sqrt(distances_km**2 + dz**2)
+        required_ampls = snr * noise
+        mags = calc_local_magnitude(
+            required_ampls,
+            hypo_dist,
+            region=region,
+            mag_min=mag_min,
+            mag_delta=mag_delta,
+        )
+        sorted_mags = np.sort(mags)
+        return sorted_mags[stat_num - 1]
+
+    elif method == "GMPE":
+        noise = stations_df["noise [cm/s]"].values
+        distances_km = (
+            pygc.great_distance(
+                start_latitude=lat,
+                end_latitude=stations_df["latitude"].values,
+                start_longitude=lon,
+                end_longitude=stations_df["longitude"].values,
+            )["distance"]
+            * 1e-3
+        )
+        dz = np.abs(foc_depth - stations_df["elevation_km"].values)
+        # calculate hypcocentral distance
+        hypo_dist = np.sqrt(distances_km**2 + dz**2)
+        # loop through stations
+        # calculate hypcocentral distance in km
+        # Use pygc to compute great-circle distance in meters, then convert to km
+        mag = [
+            _est_min_ML_at_station(
+                noise[s],
+                mag_min,
+                mag_delta,
+                hypo_dist[s],
+                snr,
+                method=kwargs["method"],
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"],
+                region=kwargs["region"],
+            )
+            for s in range(len(stations_df))
+        ]
+        # sort magnitudes in ascending order
+        mag = sorted(mag)
+        return mag[stat_num - 1]
+    else:
+        raise ValueError(f"Unsupported Method {method}")
 
 
 def calc_min_ML_at_gridpoint_das(
@@ -810,8 +860,24 @@ def calc_min_ML_at_gridpoint_das(
         Minimum local magnitude that can be detected by a continuous section of fibre
         of the input detection length.
     """
+    method = kwargs.get("method", "ML")
+    region = kwargs.get("region", "CAL")
+    mag_min = kwargs.get("mag_min", -2)
+    mag_delta = kwargs.get("mag_delta", 0.1)
+
+    if method != "ML":
+        raise ValueError(f"Method: {method} not supported for DAS at this time")
+
+    gauge_len = kwargs.get("gauge_length", 20)
+    window_size = int(np.ceil((detection_length / gauge_len)))
+    # print("~" * 50)
+    # print(f"There are {window_size} channels in the sliding window.")
     # Covert noise from metres to nanometres
     noise_nm = fibre["noise_m"].values * 1e9
+    # print(f"This improves mean noise level from {noise_nm.mean():4.2f}")
+    # noise_nm = noise_nm / np.sqrt(window_size)
+    # print(f"To a mean noise level of {noise_nm.mean():4.2f} ")
+    # print("~" * 50)
     # Precompute the hypocoentral distances using pygc
     # pygc gives distances in metres so convert to km
     distances_km = (
@@ -828,24 +894,16 @@ def calc_min_ML_at_gridpoint_das(
     # Calculate the minimum local magnitude for each section of the fibre
     # Vectorize _est_min_ML_at_station if possible
     # Otherwise, use a generator expression for min
-    mags = [
-        _est_min_ML_at_station(
-            noise_nm[d],
-            kwargs["mag_min"],
-            kwargs["mag_delta"],
-            hypo_distances[d],
-            snr,
-            method=kwargs["method"],
-            gmpe=kwargs["gmpe"],
-            gmpe_model_type=kwargs["gmpe_model_type"],
-            region=kwargs["region"],
-        )
-        for d in range(len(hypo_distances))
-    ]
-    ch_spacing = np.median(np.diff(fibre["fiber_length_m"]))
-    window_size = int(np.ceil((detection_length / ch_spacing)))
+    required_ampls = snr * noise_nm
+    mags = calc_local_magnitude(
+        required_ampls,
+        hypo_distances,
+        region=region,
+        mag_min=mag_min,
+        mag_delta=mag_delta,
+    )
     # slide_len_idx = int(np.ceil((slide_length / ch_spacing)))
-    min_windowed_mag = maximum_filter1d(mags, size=window_size)
+    min_windowed_mag = maximum_filter1d(mags, size=window_size, mode="nearest")
     # min_windowed_mag = get_min_ML_for_das_section(
     #     fibre["fiber_length_m"].values, mags, detection_length, slide_length
     # )
