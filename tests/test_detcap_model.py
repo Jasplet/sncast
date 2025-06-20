@@ -139,7 +139,7 @@ def test_calc_local_mag_scalar(
     ],
 )
 def test_ml_magnitude_array(region):
-    amps = np.array([1e-9, 2e-9])
+    amps = np.array([10, 20])
     dists = np.array([10, 20])
     ml = calc_local_magnitude(amps, dists, region, -2, 0.1)
     assert ml.shape == (2,)
@@ -152,7 +152,7 @@ def test_ml_magnitude_array(region):
         (10.0, 1.0, 1, 0.1, -2.0),
         (0.5, 2.0, 2, 0.5, -4),
         (0.01, 100, 1, 0.2, 0.0),
-        (1, 0.01, 10, 0.05, -5),
+        (1, 0.01, 10, 0.05, -2),
     ],
 )
 def test_calc_local_magnitude_UK(ampl, distance, snr, mag_delta, mag_min):
@@ -164,6 +164,9 @@ def test_calc_local_magnitude_UK(ampl, distance, snr, mag_delta, mag_min):
         d = -1.16
         e = -0.2
         ml = np.log10(a_s) + a * np.log10(r) + b * r + c + d * np.exp(e * r)
+        ml = np.maximum(
+            mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min
+        )
         if ml < mag_min:
             return mag_min
         else:
@@ -173,7 +176,7 @@ def test_calc_local_magnitude_UK(ampl, distance, snr, mag_delta, mag_min):
 
     # Test with default parameters
     result = calc_local_magnitude(
-        ampl, mag_min, mag_delta, distance, snr, method="ML", region="UK"
+        ampl * snr, distance, region="UK", mag_min=mag_min, mag_delta=mag_delta
     )
     # Difference between ML calculated for a given noise and distance
     # and the modelled min ML should be less than the mag_delta
@@ -184,12 +187,25 @@ def test_calc_local_magnitude_UK(ampl, distance, snr, mag_delta, mag_min):
         result, float
     ), f"Result {result} is {type(result)}, expected float"
 
-    # Test for CAL region if supported
+
+@pytest.mark.parametrize(
+    "ampl, distance, snr, mag_delta, mag_min",
+    [
+        (10.0, 1.0, 1, 0.1, -2.0),
+        (0.5, 2.0, 2, 0.5, -4),
+        (0.01, 100, 1, 0.2, 0.0),
+        (1.0, 0.01, 2.0, 0.05, -2),
+    ],
+)
+def test_calc_local_magnitude_CAL(ampl, distance, snr, mag_delta, mag_min):
     def ml_cal(a_s, r):
         a = 1.11
         b = 0.00189
         c = -2.09
         ml = np.log10(a_s) + a * np.log10(r) + b * r + c
+        ml = np.maximum(
+            mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min
+        )
         if ml < mag_min:
             return mag_min
         else:
@@ -197,7 +213,7 @@ def test_calc_local_magnitude_UK(ampl, distance, snr, mag_delta, mag_min):
 
     expected = ml_cal(ampl * snr, distance)
     result = calc_local_magnitude(
-        ampl, mag_min, mag_delta, distance, snr, method="ML", region="CAL"
+        ampl * snr, distance, region="CAL", mag_min=mag_min, mag_delta=mag_delta
     )
     assert np.isclose(
         expected - result, 0, atol=mag_delta
@@ -212,7 +228,7 @@ def test_calc_local_magnitude_raises_on_unknown_region():
 @pytest.mark.parametrize("ampl", [0, -10])
 def test_calc_local_magnitude_raise_on_bad_ampl(ampl):
     with pytest.raises(ValueError):
-        calc_ampl_from_magnitude(ampl, 1, "CAL", -2, 0.1)
+        calc_local_magnitude(ampl, 1, "CAL", -2, 0.1)
 
 
 def test_est_min_ML_at_station_raises_unsupported():
