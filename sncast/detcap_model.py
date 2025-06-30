@@ -875,7 +875,7 @@ def calc_min_ML_at_gridpoint_das(
     # Covert noise from metres to nanometres
     noise_nm = fibre["noise_m"].values * 1e9
     # print(f"This improves mean noise level from {noise_nm.mean():4.2f}")
-    # noise_nm = noise_nm / np.sqrt(window_size)
+    noise_nm = noise_nm / np.sqrt(window_size)
     # print(f"To a mean noise level of {noise_nm.mean():4.2f} ")
     # print("~" * 50)
     # Precompute the hypocoentral distances using pygc
@@ -902,11 +902,9 @@ def calc_min_ML_at_gridpoint_das(
         mag_min=mag_min,
         mag_delta=mag_delta,
     )
-    # slide_len_idx = int(np.ceil((slide_length / ch_spacing)))
+    # Take a rolling maximum filter along fiber
     min_windowed_mag = maximum_filter1d(mags, size=window_size, mode="nearest")
-    # min_windowed_mag = get_min_ML_for_das_section(
-    #     fibre["fiber_length_m"].values, mags, detection_length, slide_length
-    # )
+    # Get smallest ML detected at any one window along the fiber
     return np.min(min_windowed_mag)
 
 
