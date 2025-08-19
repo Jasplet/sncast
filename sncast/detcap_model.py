@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2019 Martin Möllhoff
+# SPDX-FileCopyrightText: 2024–2025 Joseph Asplet, University of Oxford
 # ------------------------------------------------------------------
-# Filename: sncast.py
+# Filename: detcap_model.py
 # Purpose:  Seismic Network Capability Assessment Software Tool (SNCAST)
 # Author:   Martin Möllhoff, DIAS
 # Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
@@ -11,6 +14,7 @@
 #           https://doi.org/10.1007/s10950-019-09819-0
 #
 #    Copyright (C) 2019 Martin Möllhoff
+#    Copyright (C) 2024 Joseph Asplet, University of Oxford
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -25,21 +29,19 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-#    email:       martin@dias.ie
-#    snail mail:  Martin Möllhoff, DIAS, 5 Merrion Square, Dublin 2, Ireland
-#    web:         www.dias.ie/martin  www.insn.ie
-#
 # --------------------------------------------------------------------
-# This version of SNCAST has been refactored and extended
-# to add various additional functionality such as:
-#   - Implementation of BGS Local magnitude
-#   - Implementation of GMPE based method
-#   - Functionality to calculate of a depth cross-section
-#   - Outputs model as xarray DataArray, for easier plotting
-#   - Added support for seismic arrays
-# Author: J Asplet
-# Copyright (C) 2024 Joseph Asplet, University of Oxford
-# email : joseph.asplet@earth.ox.ac.uk
+#    Changes
+#     - Refactor and re-write of enitre codebase, [Joseph Asplet, 2025]
+#     - Added support for DAS deployments [Joseph Asplet, 2025]
+#     - Implementation of GMPE based method (still in development [Jospeh Asplet, 2025]
+#     - Implementation of BGS Local magnitude scale, [Joseph Asplet, 2024]
+#     - Functionality to calculate of a depth cross-section [Joseph Asplet, 2024]
+#     - Outputting of models as xarray.DataArray objects for easier plotting with PyGMT [Joseph Asplet, 2024]
+#     - Added support for seismic arrays and OBS with separate detection requirements [Joseph Asplet, 2024]
+
+#      Author: J Asplet
+#      email : joseph.asplet@earth.ox.ac.uk
+
 from decimal import Decimal
 import warnings
 import numpy as np
