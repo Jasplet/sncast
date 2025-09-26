@@ -212,6 +212,10 @@ def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
         - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
                            Default is 'CAL'.
     """
+    warnings.warn(
+        "_est_min_ML_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude",
+        DeprecationWarning,
+    )
     method = kwargs.get("method", "ML")
     region = kwargs.get("region", "CAL")
     gmpe = kwargs.get("gmpe", None)
