@@ -784,6 +784,7 @@ def read_das_noise_data(das_in):
 def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
     """
     Initialize lat/lon grid for SNCAST model.
+
     Parameters
     ----------
     lon0 : float
@@ -831,6 +832,7 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     """
     Gets the maximum seismic noise level (in displacement) along
     a given continuous fibre length.
+
     Parameters
     ----------
     channel_pos : np.ndarray
@@ -925,6 +927,8 @@ def calc_min_ML_at_gridpoint(
     **kwargs,
 ):
     """
+    Calculates the minimum local magnitude which can be detected by a
+    set of seismic stations at a given grid point.
 
     Parameters
     ----------
@@ -1048,9 +1052,9 @@ def calc_min_ML_at_gridpoint_das(
     detection_length : float
         Length of the fibre over which to calculate the noise level in metres.
     lon : float
-        Longitude of the grid point in decimal degrees.
+        Grid point longitude in decimal degrees.
     lat : float
-        Latitude of the grid point in decimal degrees.
+        Grid point latitude in decimal degrees.
     foc_depth : float
         Focal depth of the event in kilometres.
     snr : float
@@ -1129,7 +1133,46 @@ def update_with_arrays(
     **kwargs,
 ):
     """
-    Update the grid value with the minimum ML from arrays, if lower.
+    Update the grid value with the minimum ML from arrays, if lower than
+    the current grid value.
+
+    Parameters
+    ----------
+    mag_grid_val : float
+        Current minimum local magnitude at the grid point.
+    arrays_df : pd.DataFrame
+        DataFrame containing array data with columns:
+        - 'longitude': longitude of the array in decimal degrees
+        - 'latitude': latitude of the array in decimal degrees
+        - 'elevation_km': elevation of the array in km
+        - 'noise [nm]': noise level at the array in nanometres
+        - 'station': array name
+    lon : float
+        Grid point longitude in decimal degrees.
+    lat : float
+        Grid point latitude in decimal degrees.
+    foc_depth : float
+        Focal depth of the event in kilometres.
+    snr : float
+        Signal-to-noise ratio required for detection.
+    mag_min : float
+        Minimum local magnitude to consider when modelling detections.
+    mag_delta : float
+        Increment for local magnitude.
+    kwargs : dict
+        Additional keyword arguments, including:
+        - 'array_num': number of stations required for a detection on an array.
+                       Default is 1.
+        - 'method': 'ML' or 'GMPE'. Default is 'ML'.
+        - 'gmpe': GMPE model to use if method is 'GMPE'. Default is None.
+        - 'gmpe_model_type': Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
+                  Default is 'CAL'.
+    Returns
+    -------
+    float
+        Minimum local magnitude at the grid point including the arrays.
     """
 
     mag_arrays = calc_min_ML_at_gridpoint(
@@ -1161,7 +1204,42 @@ def update_with_obs(
     **kwargs,
 ):
     """
-    Update the grid value with the minimum ML from OBS, if lower.
+    Update the grid value with the minimum ML from OBS, if lower than
+    the current grid value.
+
+    Parameters
+    ----------
+    mag_grid_val : float
+        Current minimum local magnitude at the grid point.
+    obs_df : pd.DataFrame
+        DataFrame containing OBS stations with columns:
+        - 'longitude': longitude of the OBS in decimal degrees
+        - 'latitude': latitude of the OBS in decimal degrees
+        - 'elevation_km': elevation of the OBS in km
+        - 'noise [nm]': noise level at the OBS in nanometres
+        - 'station': OBS station name
+    lon : float
+        Grid point longitude in decimal degrees.
+    lat : float
+        Grid point latitude in decimal degrees.
+    foc_depth : float
+        Focal depth of the event in kilometres.
+    snr : float
+        Signal-to-noise ratio required for detection.
+    mag_min : float
+        Minimum local magnitude to consider when modelling detections.
+    mag_delta : float
+        Increment for local magnitude.
+    kwargs : dict
+        Additional keyword arguments, including:
+        - 'obs_stat_num': number of stations required for a detection on an OBS.
+                       Default is 3.
+        - 'method': 'ML' or 'GMPE'. Default is 'ML'.
+        - 'gmpe': GMPE model to use if method is 'GMPE'. Default is None.
+        - 'gmpe_model_type': Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
+                  Default is 'CAL'.
     """
     mag_obs = calc_min_ML_at_gridpoint(
         obs_df,
@@ -1190,7 +1268,44 @@ def update_with_das(
     **kwargs,
 ):
     """
-    Update the grid value with the minimum ML from DAS, if lower.
+    Update the grid value with the minimum ML from DAS,
+    if lower than the current grid value.
+
+    Parameters
+    ----------
+    mag_grid_val : float
+        Current minimum local magnitude at the grid point.
+    das_df : pd.DataFrame
+        DataFrame containing DAS noise data with columns:
+        - 'channel_index': index of the channel
+        - 'fiber_length_m': length of the fibre in metres
+        - 'longitude': longitude of the fibre in decimal degrees
+        - 'latitude': latitude of the fibre in decimal degrees
+        - 'noise_m': noise level of the fibre in metres
+    detection_length : float
+        Length of the fibre over which to calculate the noise level in metres.
+    lon : float
+        Grid point longitude in decimal degrees.
+    lat : float
+        Grid point latitude in decimal degrees.
+    foc_depth : float
+        Focal depth of the event in kilometres.
+    snr : float
+        Signal-to-noise ratio required for detection.
+    mag_min : float
+        Minimum local magnitude to consider when modelling detections.
+    mag_delta : float
+        Increment for local magnitude.
+    kwargs : dict
+        Additional keyword arguments, including:
+        - 'array_num': number of stations required for a detection on an array.
+                       Default is 1.
+        - 'method': 'ML' or 'GMPE'. Default is 'ML'.
+        - 'gmpe': GMPE model to use if method is 'GMPE'. Default is None.
+        - 'gmpe_model_type': Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
+                  Default is 'CAL'.
     """
     mag_das = calc_min_ML_at_gridpoint_das(
         das_df,
