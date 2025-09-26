@@ -185,9 +185,32 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
 
 def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
     """
-    Estimates minimum detectable magntiude at a given station
+    Estimates minimum detectable magnitude at a given station
 
-    For using
+    Function deprecated for noise displacement input, use calc_local_magnitude
+    with vectorised numpy arrays instead. This function will be removed/replaced in future
+    when work on GMPE method is complete.
+
+    Parameters
+    ----------
+    noise : float
+        Noise level at the station in nm.
+    mag_min : float
+        Minimum local magnitude.
+    mag_delta : float
+        Magnitude increment. Returned magnitude will be rounded up this increment.
+    distance : float
+        Hypocentral distance in km.
+    snr : float
+        Required signal-to-noise ratio for detection.
+    **kwargs : dict
+        Additional keyword arguments to control the method and parameters:
+        - method: 'ML' or 'GMPE'. Default is 'ML'.
+        - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
+        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
+                           Default is 'CAL'.
     """
     method = kwargs.get("method", "ML")
     region = kwargs.get("region", "CAL")
