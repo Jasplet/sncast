@@ -337,7 +337,6 @@ def minML(
         for iy in range(ny)
     ]
     mag_grid = np.zeros((ny, nx))
-    print(args_list)
     with Pool(processes=nproc) as pool:
         for iy, ix, val in pool.imap_unordered(_minML_worker, args_list):
             mag_grid[iy, ix] = val
