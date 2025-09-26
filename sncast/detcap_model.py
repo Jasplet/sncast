@@ -36,8 +36,10 @@
 #     - Implementation of GMPE based method (still in development [Jospeh Asplet, 2025]
 #     - Implementation of BGS Local magnitude scale, [Joseph Asplet, 2024]
 #     - Functionality to calculate of a depth cross-section [Joseph Asplet, 2024]
-#     - Outputting of models as xarray.DataArray objects for easier plotting with PyGMT [Joseph Asplet, 2024]
-#     - Added support for seismic arrays and OBS with separate detection requirements [Joseph Asplet, 2024]
+#     - Outputting of models as xarray.DataArray objects for easier plotting with
+#       PyGMT [Joseph Asplet, 2024]
+#     - Added support for seismic arrays and OBS with separate
+#       detection requirements [Joseph Asplet, 2024]
 
 #      Author: J Asplet
 #      email : joseph.asplet@earth.ox.ac.uk
@@ -73,7 +75,8 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     if region == "UK":
         #   UK Scale uses new ML equation from Luckett et al., (2019)
         #   https://doi.org/10.1093/gji/ggy484
-        #   Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist + d*exp(e * hypo-dist) + c
+        #   Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist
+        #                          + d*exp(e * hypo-dist) + c
         a = 1.11
         b = 0.00189
         c = -2.09
@@ -244,12 +247,17 @@ def minML(
         Additional keyword arguments to control the method and parameters:
         - method: 'ML' or 'GMPE'. Default is 'ML'.
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
-        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
-        - region: Locality for assumed ML scale parameters ('UK' or 'CAL'). Default is 'CAL'.
-        - das: Path to a CSV file or a DataFrame containing DAS noise data. Can also be a list or tuple of DataFrames
-        - detection_length: Length of the fibre over which to calculate the noise level in metres.
+        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
+                           Default is 'CAL'.
+        - das: Path to a CSV file or a DataFrame containing DAS noise data.
+                           Can also be a list or tuple of DataFrames
+        - detection_length: Length of the fibre over which to calculate the noise
+                            level in metres.
                            Default is 1 km.
-        - slide_length: Length to slide the detection window along the fibre in metres. Default is 1 m.
+        - slide_length: Length to slide the detection window along the fibre in metres.
+                        Default is 1 m.
 
     Returns
     -------
@@ -294,7 +302,8 @@ def minML(
     obs_df = read_station_data(obs) if obs is not None else None
     if len(stations_df) < stat_num:
         raise ValueError(
-            f"Not enough stations ({len(stations_df)}) to calculate minimum ML at {stat_num} stations"
+            f"Not enough stations ({len(stations_df)}) "
+            + f"to calculate minimum ML at {stat_num} stations"
         )
 
     if "das" in kwargs:
@@ -456,7 +465,8 @@ def minML_x_section(
 ):
     """
     Function to calculate a 2-D cross section of a SNCAST model.
-    X-section line defined by start lat/lon and the azimuth and length (in km) of the line
+    X-section line defined by start lat/lon and the azimuth and length (in km)
+    of the line.
 
     Input should be a csv file (or Pandas DataFrame)
       longitude, latitude, noise [nm], station name
@@ -702,7 +712,8 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     fibre_length = channel_pos[-1] - channel_pos[0]
     if detection_length > fibre_length:
         raise ValueError(
-            f"detection_length {detection_length} must be less than fibre_length {fibre_length}"
+            f"detection_length {detection_length:4.2f} must be less "
+            + f"than fibre_length {fibre_length:4.2f}"
         )
     if detection_length <= 0:
         raise ValueError(f"detection_length {detection_length} must be positive")
@@ -743,7 +754,8 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
     fibre_length = channel_pos[-1] - channel_pos[0]
     if detection_length > fibre_length:
         raise ValueError(
-            f"detection_length {detection_length} must be less than fibre_length {fibre_length}"
+            f"detection_length {detection_length} must be less"
+            + f" than fibre_length {fibre_length}"
         )
     if detection_length <= 0:
         raise ValueError(f"detection_length {detection_length} must be positive")
@@ -803,8 +815,10 @@ def calc_min_ML_at_gridpoint(
         Additional keyword arguments to control the method and parameters:
         - method: 'ML' or 'GMPE'. Default is 'ML'.
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
-        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
-        - region: Locality for assumed ML scale parameters ('UK' or 'CAL'). Default is 'CAL'.
+        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
+                  Default is 'CAL'.
     Returns
     -------
     float
