@@ -430,7 +430,19 @@ def minML(
 
 def _minML_worker(args):
     """
-    Worker function for minML which allows the magntiude grid to be parallelised
+    Worker function for minML which allows the magnitude grid to be parallelised
+    over multiple processors using multiprocessing.Pool
+
+    Parameters
+    ----------
+    args : tuple
+        Tuple of arguments to unpack for the worker function.
+        See the args_list in minML function for details.
+
+    Returns
+    -------
+    tuple
+        Tuple containing the y-index, x-index, and minimum magnitude for the grid point.
     """
     # Unpack args
     (
@@ -526,12 +538,10 @@ def minML_x_section(
     ddepth=0.5,
     stat_num=4,
     snr=3,
-    region="CAL",
     mag_min=-3.0,
     mag_delta=0.1,
     arrays=None,
     obs=None,
-    obs_stat_num=3,
     **kwargs,
 ):
     """
@@ -545,7 +555,64 @@ def minML_x_section(
 
     Parameters
     ----------
-        stations : DataFrame or csv filename
+        stations_in : DataFrame or csv filename
+            Station information including lat/lon and noise levels
+        lon0 : float
+            Longitude of the start of the cross-section line
+        lat0 : float
+            Latitude of the start of the cross-section line
+        azi : float
+            Azimuth of cross-section in degrees from north
+        length_km : float
+            Cross-section length in km
+        min_depth : float, optional
+            Minimum depth of cross-section in km. Default is 0.
+        max_depth : float, optional
+            Maximum depth of cross-section in km. Default is 20.
+        ddist : float, optional
+            Distance increment along the cross-section in km. Default is 5.
+        ddepth : float, optional
+            Depth increment along the cross-section in km. Default is 0.5.
+        stat_num : int, optional
+            Number of stations required for a detection. Default is 4.
+        snr : float, optional
+            Required signal-to-noise ratio for detection. Default is 3.
+        region : str, optional
+            Locality for assumed ML scale parameters ('UK' or 'CAL').
+            Default is 'CAL'.
+        mag_min : float, optional
+            Minimum local magnitude to consider when modelling detections.
+            Default is -3.0.
+        mag_delta : float, optional
+            Increment for local magnitude. Default is 0.1.
+        arrays : DataFrame or csv filename, optional
+            Station information for seismic arrays including lat/lon and noise levels.
+            If provided, the model will include detections from arrays.
+            File is in the same format as stations_in
+        obs : DataFrame or csv filename, optional
+            Station information for OBS including lat/lon and noise levels.
+            If provided, the model will include detections from OBS.
+            File is in the same format as stations_in
+        **kwargs : dict
+            Additional keyword arguments to control the method and parameters:
+            - method: 'ML' or 'GMPE'. Default is 'ML'.
+            - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
+            - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                               Default is None.
+            - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
+                               Default is 'CAL'.
+            - array_num: Number of stations required for a detection on an array.
+                            Default is 1.
+            - obs_stat_num: Number of stations required for a detection on an OBS.
+                            Default is 3.
+    Returns
+    -------
+        array : xarray.DataArray
+            A 2D xarray DataArray with the following dimensions:
+                - depth_km: depth in km
+                - distance_along_xsection_km: distance along the cross-section in km
+            The values in the DataArray are the minimum detectable local magnitude ML
+            at that grid point.
     """
     stations_df = read_station_data(stations_in)
     # Calculate lon/lat co-ordinates for X-section line
@@ -623,8 +690,8 @@ def minML_x_section(
                         region=kwargs["region"],
                     )
                     obs_mag.append(m)
-                if obs_mag[obs_stat_num - 1] < mag_grid[d, i]:
-                    mag_grid[d, i] = obs_mag[obs_stat_num - 1]
+                if obs_mag[kwargs["obs_stat_num"] - 1] < mag_grid[d, i]:
+                    mag_grid[d, i] = obs_mag[kwargs["obs_stat_num"] - 1]
 
             del array_mag[:]
             del mag[:]
