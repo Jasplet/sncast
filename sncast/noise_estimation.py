@@ -1,38 +1,36 @@
-# ------------------------------------------------------------------
-# Filename: noise_estimation.py
-# Purpose:  Functions to estimate noise displacement and velocity
-#           from probabilistic power spectral densities (PPSDs)
-#           for stations in a given Inventory. Implements equations given in
-#           Mölhoff et al., (2019).
-#
-# Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
-#           SN-CAST: seismic network capability assessment software tool
-#           for regional networks - examples from Ireland.
-#           J Seismol 23, 493-504 (2019).
-#           https://doi.org/10.1007/s10950-019-09819-0
-#
-# Author:   Joseph Asplet, University of Oxford
-#
-#    Copyright (C) 2025 Joseph Asplet
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-#    email:       joseph.asplet@earth.ox.ac.uk
-#    web:         www.jasplet.github.io
-#
-# --------------------------------------------------------------------
+"""
+Filename: noise_estimation.py
+Purpose:  Functions to estimate noise displacement and velocity
+          from probabilistic power spectral densities (PPSDs)
+          for stations in a given Inventory. Implements equations given in
+          Mölhoff et al., (2019).
 
+Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
+          SN-CAST: seismic network capability assessment software tool
+          for regional networks - examples from Ireland.
+          J Seismol 23, 493-504 (2019).
+          https://doi.org/10.1007/s10950-019-09819-0
+
+Author:   Joseph Asplet, University of Oxford
+
+   Copyright (C) 2025 Joseph Asplet
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+   email:       joseph.asplet@earth.ox.ac.uk
+   web:         www.jasplet.github.io
+"""
 
 import numpy as np
 import pandas as pd
@@ -42,9 +40,10 @@ from obspy.signal import PPSD
 
 def estimate_noise_displacement(station_ppsd, f0=5, n=0.5, case="worst", verbose=False):
     """
-    Implements equation 5 from Mölhoff et al., (2019) to estiamte noise displacement within a narrow frequency band of interest.
+    Implements equation 5 from Mölhoff et al., (2019) to estimate noise displacement
+    within a narrow frequency band of interest.
 
-    Adapted from equations in Haskov and Alguacil (2006)
+    Adapted from equations in Haskov and Alguacil (2016)
 
     See:
     Havskov and Alguacil (2016), Instrumentation in Earthquake
@@ -54,6 +53,27 @@ def estimate_noise_displacement(station_ppsd, f0=5, n=0.5, case="worst", verbose
     regional networks - examples from Ireland. Journal of Seismology,
     23, 493-504.
 
+    Parameters
+    ----------
+    station_ppsd : obspy.signal.PPSD station_ppsd : obspy.signal.PPSD
+        PPSD object for a seismic station.
+    f0 : float
+        Centre frequency of the band of interest in Hz. Default is 5 Hz.
+    n : float
+        Width of the frequency band in octaves. Default is 0.5 octaves, which
+        gives an octave range cnetered on f0.
+    case : str or int
+        Case for the noise estimate. Can be 'worst' (95th percentile),
+        'mode' (mode of the distribution) or an integer giving the desired
+        percentile (e.g. 50 for median). Default is 'worst'.
+    verbose : bool
+        If True, prints information about the noise estimate being made.
+        Default is False.
+
+    Returns
+    -------
+    displacement : float
+        Estimated noise in displacement [m].
     """
 
     f1, f2 = get_freq_range_from_centre(f0, n)
@@ -77,7 +97,33 @@ def estimate_noise_displacement(station_ppsd, f0=5, n=0.5, case="worst", verbose
 
 
 def estimate_noise_velocity(station_ppsd, f0=5, n=0.5, case="worst", verbose=False):
+    """
+    Estimates 95-percentile noise values in velocity [m/s] in a frequency band
+    centered on f0. Similar to estimate_noise_displacement but we are only integrating
+    the PPSD (which is in acceleration) once.
 
+    Parameters
+    ----------
+    station_ppsd : obspy.signal.PPSD
+        PPSD object for a seismic station.
+    f0 : float
+        Centre frequency of the band of interest in Hz. Default is 5 Hz.
+    n : float
+        Width of the frequency band in octaves. Default is 0.5 octaves, which
+        gives an octave range cnetered on f0.
+    case : str or int
+        Case for the noise estimate. Can be 'worst' (95th percentile),
+        'mode' (mode of the distribution) or an integer giving the desired
+        percentile (e.g. 50 for median). Default is 'worst'.
+    verbose : bool
+        If True, prints information about the noise estimate being made.
+        Default is False.
+
+    Returns
+    -------
+    velocity : float
+        Estimated noise in velocity [m/s].
+    """
     f1, f2 = get_freq_range_from_centre(f0, n)
     if verbose:
         print(f"{case} noise estimate. f0={f0:4.2f}, n={n:2.1f}")
@@ -182,13 +228,17 @@ def make_noise_estimate_for_ppsds(Inventory, case, kind="displ", **kwargs):
 
                 if kind == "displ":
                     if "f0" in kwargs:
-                        displ_m = estimate_noise_displacement(ppsd, case=case, f0=kwargs["f0"])
+                        displ_m = estimate_noise_displacement(
+                            ppsd, case=case, f0=kwargs["f0"]
+                        )
                     else:
                         displ_m = estimate_noise_displacement(ppsd, case=case)
                     noise = displ_m * 1e9  # disp in nm
                 elif kind == "vel":
                     if "f0" in kwargs:
-                        vel_ms = estimate_noise_velocity(ppsd, case=case, f0=kwargs["f0"])
+                        vel_ms = estimate_noise_velocity(
+                            ppsd, case=case, f0=kwargs["f0"]
+                        )
                     else:
                         vel_ms = estimate_noise_velocity(ppsd, case=case)
                     noise = vel_ms * 1e2  # vel in cm/s
