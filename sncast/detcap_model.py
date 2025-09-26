@@ -239,20 +239,19 @@ def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
 
 def minML(
     stations_in,
-    lon0=-12,
-    lon1=-4,
-    lat0=50.5,
-    lat1=56.6,
-    dlon=0.2,
-    dlat=0.2,
-    stat_num=4,
-    snr=3,
-    foc_depth=0,
+    lon0,
+    lon1,
+    lat0,
+    lat1,
+    dlon,
+    dlat,
+    stat_num,
+    snr,
+    foc_depth=2,
     mag_min=-2.0,
     mag_delta=0.1,
     arrays=None,
     obs=None,
-    obs_stat_num=3,
     **kwargs,
 ):
     """
@@ -301,17 +300,12 @@ def minML(
         Path to a CSV file or a DataFrame containing seismic array data.
         If provided, the model will include detections from arrays.
         File is in the same format as stations_in
-    array_num : int, optional
-        Number of detections required at an array.
-        Default is 1 if arrays are provided.
     obs : str or pd.DataFrame, optional
         Path to a CSV file or a DataFrame containing OBS data.
         If provided, the model will include detections from OBS.
         File is in the same format as stations_in
-    obs_stat_num : int, optional
-        Required number of station detections from OBS to calculate minimum ML.
-        Default is 3.
-    **kwargs : dict, optional
+
+    **kwargs : dict
         Additional keyword arguments to control the method and parameters:
         - method: 'ML' or 'GMPE'. Default is 'ML'.
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
@@ -319,13 +313,23 @@ def minML(
                            Default is None.
         - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
                            Default is 'CAL'.
-        - das: Path to a CSV file or a DataFrame containing DAS noise data.
-                           Can also be a list or tuple of DataFrames
-        - detection_length: Length of the fibre over which to calculate the noise
-                            level in metres.
-                           Default is 1 km.
-        - slide_length: Length to slide the detection window along the fibre in metres.
-                        Default is 1 m.
+        - array_num: Number of stations required for a detection on an array.
+                        Default is 1.
+        - obs_stat_num: Number of stations required for a detection on an OBS.
+                        Default is 3.
+        - nproc: Number of processors to use for parallel processing. Default is 1.
+        - das: str or pd.DataFrame, optional
+            Path to a CSV file or a DataFrame containing DAS noise data.
+            If provided, the model will include detections from DAS.
+            File must contain the following columns:
+                - channel_index: Index of the DAS channel
+                - fiber_length_m: Length of the fiber in meters
+                - longitude: Longitude of the channel in decimal degrees
+                - latitude: Latitude of the channel in decimal degrees
+                - noise_m: Noise level at the channel in meters
+            If elevation_km is not provided, it will be set to zero.
+        - detection_length: float, optional
+            Length of fiber (in meters) required for a detection. Default is 1000 m.
 
     Returns
     -------
@@ -337,7 +341,6 @@ def minML(
         at that grid point.
 
     """
-
     if kwargs["method"] == "ML":
         kwargs["gmpe"] = None
         kwargs["gmpe_model_type"] = None
