@@ -145,6 +145,25 @@ def estimate_noise_velocity(station_ppsd, f0=5, n=0.5, case="worst", verbose=Fal
 
 
 def get_freq_range_from_centre(f0, n=0.5):
+    """
+    Calculates a 2n octave frequency range centred on f0
+
+    Parameters
+    ----------
+    f0 : float
+        Centre frequency in Hz
+    n : float
+        Width of the frequency band in octaves. Default is 0.5 octaves, which
+        gives an octave range centered on f0.
+
+    Returns
+    -------
+    f1 : float
+        Lower bound of the frequency range in Hz
+    f2 : float
+        Upper bound of the frequency range in Hz
+
+    """
     f1 = f0 * 2 ** (-n / 2)  # lower bound of frequency span
     f2 = f0 * 2 ** (n / 2)  # upper bound of frequency span
     return f1, f2
