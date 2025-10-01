@@ -418,7 +418,7 @@ def find_min_ml(
     ]
     mag_grid = np.zeros((ny, nx))
     with Pool(processes=nproc) as pool:
-        for iy, ix, val in pool.imap_unordered(_minML_worker, args_list):
+        for iy, ix, val in pool.imap_unordered(_minml_worker, args_list):
             mag_grid[iy, ix] = val
 
     # # Make xarray grid to output
