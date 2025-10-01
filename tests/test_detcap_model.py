@@ -2,14 +2,14 @@ import numpy as np
 import pandas as pd
 import pytest
 from sncast.detcap_model import update_with_arrays
-from sncast.detcap_model import minML
+from sncast.detcap_model import find_min_ml
 from sncast.detcap_model import read_station_data, read_das_noise_data
-from sncast.detcap_model import _est_min_ML_at_station
+from sncast.detcap_model import _est_min_ml_at_station
 from sncast.detcap_model import calc_ampl_from_magnitude
 from sncast.detcap_model import calc_local_magnitude
 
 
-def test_minML_basic():
+def test_find_min_ml_basic():
     # Create a small test DataFrame
     df = pd.DataFrame(
         {
@@ -20,7 +20,7 @@ def test_minML_basic():
             "station": ["STA1", "STA2"],
         }
     )
-    result = minML(
+    result = find_min_ml(
         df,
         lon0=0,
         lon1=1,
@@ -231,10 +231,10 @@ def test_calc_local_magnitude_raise_on_bad_ampl(ampl):
         calc_local_magnitude(ampl, 1, "CAL", -2, 0.1)
 
 
-def test_est_min_ML_at_station_raises_unsupported():
+def test_est_min_ml_at_station_raises_unsupported():
     for mode in ["ML", "foo", "bar"]:
         with pytest.raises(ValueError):
-            _est_min_ML_at_station(
+            _est_min_ml_at_station(
                 noise=10, mag_min=-2, mag_delta=0.1, distance=50, snr=3, method=mode
             )
 
@@ -250,9 +250,14 @@ def test_update_with_arrays_lower():
         }
     )
     # Use a dummy kwargs dict for ML method
-    kwargs = {"method": "ML", "gmpe": None, "gmpe_model_type": None, "region": "UK"}
-    # mag_grid_val is higher than what the array will return
-    result = update_with_arrays(5.0, df, 1, 0.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
+    kwargs = {
+        "method": "ML",
+        "region": "UK",
+        "gmpe": None,
+        "gmpe_model_type": None,
+        "array_num": 1,
+    }  # mag_grid_val is higher than what the array will return
+    result = update_with_arrays(5.0, df, 2.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
     assert result < 5.0
 
 
@@ -266,9 +271,15 @@ def test_update_with_arrays_higher():
             "station": ["STA1"],
         }
     )
-    kwargs = {"method": "ML", "gmpe": None, "gmpe_model_type": None, "region": "UK"}
+    kwargs = {
+        "method": "ML",
+        "region": "UK",
+        "gmpe": None,
+        "gmpe_model_type": None,
+        "array_num": 1,
+    }
     # mag_grid_val is lower than what the array will return
-    result = update_with_arrays(1.0, df, 1, 1.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
+    result = update_with_arrays(1.0, df, 1.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
     assert result == 1.0
 
 
@@ -282,9 +293,15 @@ def test_update_with_arrays_missing_column():
             "station": ["STA1"],
         }
     )
-    kwargs = {"method": "ML", "gmpe": None, "gmpe_model_type": None, "region": "UK"}
+    kwargs = {
+        "method": "ML",
+        "region": "UK",
+        "gmpe": None,
+        "gmpe_model_type": None,
+        "array_num": 1,
+    }
     try:
-        update_with_arrays(1.0, df, 1, 0.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
+        update_with_arrays(1.0, df, 1.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
         assert False, "Should raise ValueError"
     except Exception:
         pass
