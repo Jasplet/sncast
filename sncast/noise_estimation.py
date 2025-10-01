@@ -175,8 +175,30 @@ def get_freq_range_from_centre(f0, n=0.5):
 
 def psd_db_to_displacement_amplitude(psd_in_db, f1, f2, f0=None):
     """
-    Take acceleration power density (in dB relative to 1 ((m/s)^2)^2 / Hz) and calculates
-    Displacement in meters
+    Take acceleration power density (in dB relative to 1 ((m/s)^2)^2 / Hz)
+    and calculates displacement in meters.
+
+    Intended use is to estimate seismic station noise in displacement from
+    probabilistic power spectral densities (PPSDs).
+
+    Implentation is based on equation 5 from Mölhoff et al., (2019).
+
+    Parameters
+    ----------
+    psd_in_db : float
+        Acceleration power spectral density in dB relative to 1 ((m/s)^2)^2 / Hz
+    f1 : float
+        Lower bound of the frequency range in Hz
+    f2 : float
+        Upper bound of the frequency range in Hz
+    f0 : float, optional
+        Centre frequency of the band of interest in Hz. If None, it is
+        calculated as the geometric mean of f1 and f2. Default is None.
+
+    Returns
+    -------
+    displ : float
+        Estimated PSD in frequency range converted to displacement [m].
     """
     if f0 is None:
         f0 = np.sqrt(f1 * f2)  # find centre frequency
@@ -188,8 +210,26 @@ def psd_db_to_displacement_amplitude(psd_in_db, f1, f2, f0=None):
 
 def psd_db_to_velocity(psd_in_db, f1, f2, f0=None):
     """
-    Take acceleration power density (in dB relative to 1 ((m/s)^2)^2 / Hz) and calculates
-    velocity in meter/second
+    Take acceleration power density (in dB relative to 1 ((m/s)^2)^2 / Hz)
+    and calculates velocity in m/s.
+
+    Intended use is to estimate seismic station noise in velocity from
+    probabilistic power spectral densities (PPSDs).
+
+    Implementation inspired by equation 5 from Mölhoff et al., (2019), but instead of converting
+    to displacement, we only integrate once and convert to velocity.
+
+    Parameters
+    ----------
+    psd_in_db : float
+        Acceleration power spectral density in dB relative to 1 ((m/s)^2)^2 / Hz
+    f1 : float
+        Lower bound of the frequency range in Hz
+    f2 : float
+        Upper bound of the frequency range in Hz
+    f0 : float, optional
+        Centre frequency of the band of interest in Hz. If None, it is
+        calculated as the geometric mean of f1 and f2. Default is None.
     """
     if f0 is None:
         f0 = np.sqrt(f1 * f2)  # find centre frequency
@@ -206,7 +246,16 @@ def psd_db_to_velocity(psd_in_db, f1, f2, f0=None):
 
 def psd_db_convert(psd_in_db):
     """
-    Convert probsabilistic PSD values from db relative to 1 ((m/s)^2)^2 / Hz
+    Convert probsabilistic PSD values from decibels to linear units.
+
+    Parameters
+    ----------
+    psd_in_db : float
+        Power spectral density in dB relative to 1 ((m/s)^2)^2 / Hz
+    Returns
+    -------
+    psd : float
+        Power spectral density in linear units [((m/s)^2)^2 / Hz]
     """
     return np.power(10, psd_in_db / 10)
 
@@ -219,7 +268,32 @@ def make_noise_estimate_for_ppsds(Inventory, case, kind="displ", **kwargs):
 
     Can return estimated noise displacement amplitude or
     estimated noise velocity amplitude. Velocity estimates
-    are still a bit provisional
+    are still a bit provisional.
+
+    Parameters
+    ----------
+    Inventory : obspy.core.inventory.Inventory
+        Inventory object containing stations to make noise estimates for.
+    case : str or int
+        Case for the noise estimate. Can be 'worst' (95th percentile),
+        'mode' (mode of the distribution) or an integer giving the desired
+        percentile (e.g. 50 for median). Default is 'worst'.
+    kind : str
+        Type of noise estimate to make. Can be 'displ' for displacement
+        estimates in nm, or 'vel' for velocity estimates in cm/s. Default is 'displ'.
+
+    Returns
+    -------
+    station_noise_df : pandas.DataFrame
+        DataFrame containing station metadata and estimated noise values.
+        Columns are: ['longitude', 'latitude', 'elevation_km', 'noise [nm]', 'station']
+        or ['longitude', 'latitude', 'elevation_km', 'noise [cm/s]', 'station']
+        depending on the value of `kind`.
+    -----------
+
+    Notes:
+    - This function assumes that the PPSD files are stored in a specific directory structure.
+      This needs to be fixed before release.
     """
     if kind not in ["displ", "vel"]:
         raise ValueError(f'kind must be one of ["displ", "vel"] not {kind}')
