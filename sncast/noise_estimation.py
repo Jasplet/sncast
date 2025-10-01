@@ -1,35 +1,39 @@
 """
 Filename: noise_estimation.py
-Purpose:  Functions to estimate noise displacement and velocity
-          from probabilistic power spectral densities (PPSDs)
-          for stations in a given Inventory. Implements equations given in
-          Mölhoff et al., (2019).
 
-Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
-          SN-CAST: seismic network capability assessment software tool
-          for regional networks - examples from Ireland.
-          J Seismol 23, 493-504 (2019).
-          https://doi.org/10.1007/s10950-019-09819-0
+Author:     Joseph Asplet, University of Oxford
+Email:      joseph.asplet@earth.ox.ac.uk
+Web:        www.jasplet.github.io
+Github:     www.github.com/jasplet
+Address:    Department of Earth Sciences, University of Oxford,
+            South Parks Road, Oxford, OX1 3AN, UK
+orcidID:    https://orcid.org/0000-0002-0375-011X
 
-Author:   Joseph Asplet, University of Oxford
+Purpose:    Functions to estimate noise displacement and velocity
+            from probabilistic power spectral densities (PPSDs)
+            for stations in a given Inventory. Implements equations given in
+            Mölhoff et al., (2019).
 
-   Copyright (C) 2025 Joseph Asplet
+Citation:   Möllhoff, M., Bean, C.J. & Baptie, B.J.,
+            SN-CAST: seismic network capability assessment software tool
+            for regional networks - examples from Ireland.
+            J Seismol 23, 493-504 (2019).
+            https://doi.org/10.1007/s10950-019-09819-0
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
+Copyright (C) 2025 Joseph Asplet
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-   email:       joseph.asplet@earth.ox.ac.uk
-   web:         www.jasplet.github.io
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import numpy as np
