@@ -1,6 +1,11 @@
 """
 Filename: noise_estimation.py
 
+Purpose:    Functions to estimate noise displacement and velocity
+            from probabilistic power spectral densities (PPSDs)
+            for stations in a given Inventory. Implements equations given in
+            Mölhoff et al., (2019).
+
 Author:     Joseph Asplet, University of Oxford
 Email:      joseph.asplet@earth.ox.ac.uk
 Web:        www.jasplet.github.io
@@ -8,11 +13,6 @@ Github:     www.github.com/jasplet
 Address:    Department of Earth Sciences, University of Oxford,
             South Parks Road, Oxford, OX1 3AN, UK
 orcidID:    https://orcid.org/0000-0002-0375-011X
-
-Purpose:    Functions to estimate noise displacement and velocity
-            from probabilistic power spectral densities (PPSDs)
-            for stations in a given Inventory. Implements equations given in
-            Mölhoff et al., (2019).
 
 Citation:   Möllhoff, M., Bean, C.J. & Baptie, B.J.,
             SN-CAST: seismic network capability assessment software tool
