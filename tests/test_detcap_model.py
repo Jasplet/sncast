@@ -256,8 +256,9 @@ def test_update_with_arrays_lower():
         "gmpe": None,
         "gmpe_model_type": None,
         "array_num": 1,
-    }  # mag_grid_val is higher than what the array will return
-    result = update_with_arrays(5.0, df, 2.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
+    }
+    # mag_grid_val is higher than what the array will return
+    result = update_with_arrays(5.0, df, 0.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
     assert result < 5.0
 
 
@@ -279,6 +280,7 @@ def test_update_with_arrays_higher():
         "array_num": 1,
     }
     # mag_grid_val is lower than what the array will return
+    # params: mag_grid_val, arrays_df, lon, lat, foc_depth, snr, mag_min, mag_delta,
     result = update_with_arrays(1.0, df, 1.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
     assert result == 1.0
 
@@ -301,7 +303,7 @@ def test_update_with_arrays_missing_column():
         "array_num": 1,
     }
     try:
-        update_with_arrays(1.0, df, 1.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
+        update_with_arrays(1.0, df, 0.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
         assert False, "Should raise ValueError"
     except Exception:
         pass
