@@ -1240,6 +1240,10 @@ def update_with_obs(
                            Default is None.
         - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
                   Default is 'CAL'.
+    Returns
+    -------
+    float
+        Minimum local magnitude at the grid point including the OBS.
     """
     mag_obs = calc_min_ml_at_gridpoint(
         obs_df,
@@ -1306,6 +1310,10 @@ def update_with_das(
                            Default is None.
         - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
                   Default is 'CAL'.
+    Returns
+    -------
+    float
+        Minimum local magnitude at the grid point including DAS.
     """
     mag_das = calc_min_ml_at_gridpoint_das(
         das_df,
