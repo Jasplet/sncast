@@ -3,6 +3,13 @@ Filename: gmpes.py
 Purpose:  Augementing SNCAST by adding functionality to
           use ground motion prediction equations (GMPEs)
 Author:   Joseph Asplet, University of Oxford
+Email:       joseph.asplet@earth.ox.ac.uk
+Web:         www.jasplet.github.io
+Github:      www.github.com/jasplet
+Address:     Department of Earth Sciences, University of Oxford,
+            South Parks Road, Oxford, OX1 3AN, UK
+orcidID:       https://orcid.org/0000-0002-0375-011X
+
 
 Copyright (C) 2025 Joseph Asplet
 
@@ -18,13 +25,6 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-email:       joseph.asplet@earth.ox.ac.uk
-web:         www.jasplet.github.io
-github:      www.github.com/jasplet
-address:     Department of Earth Sciences, University of Oxford,
-            South Parks Road, Oxford, OX1 3AN, UK
-orcid:       https://orcid.org/0000-0002-0375-011X
 
 Supported GMPES:
 
