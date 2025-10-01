@@ -1,12 +1,12 @@
 import numpy as np
 import pandas as pd
 import pytest
-from sncast.detcap_model import update_with_arrays
-from sncast.detcap_model import find_min_ml
-from sncast.detcap_model import read_station_data, read_das_noise_data
-from sncast.detcap_model import _est_min_ml_at_station
-from sncast.detcap_model import calc_ampl_from_magnitude
-from sncast.detcap_model import calc_local_magnitude
+from sncast.model_detection_capability import update_with_arrays
+from sncast.model_detection_capability import find_min_ml
+from sncast.model_detection_capability import read_station_data, read_das_noise_data
+from sncast.model_detection_capability import _est_min_ml_at_station
+from sncast.model_detection_capability import calc_ampl_from_magnitude
+from sncast.model_detection_capability import calc_local_magnitude
 
 
 def test_find_min_ml_basic():

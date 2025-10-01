@@ -5,7 +5,7 @@
 # SPDX-FileCopyrightText: 2024–2025 Joseph Asplet, University of Oxford
 # ------------------------------------------------------------------
 """
-Filename: detcap_model.py
+Filename: model_detection_capability.py
 Purpose:  Seismic Network Capability Assessment Software Tool (SNCAST)
 Author:   Martin Möllhoff, DIAS
 Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
