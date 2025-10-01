@@ -47,6 +47,11 @@ def convert_mw_to_ml(mw, region="UK"):
         array of moment magnitudes to convert
     region : str
         Region's scaling relationship to use. Defaults to UK
+
+    Returns:
+    ----------
+    ml : numpy.Array
+        empirically converted local magnitudes
     """
 
     if region == "UK":
@@ -75,10 +80,15 @@ def convert_ml_to_mw(ml, region="UK"):
 
     Parameters:
     ----------
-    mw : numpy.Array
-        array of moment magnitudes to convert
+    ml : numpy.Array
+        array of local magnitudes to convert
     region : str
         Region's scaling relationship to use. Defaults to UK
+
+    Returns:
+    ----------
+    mw : numpy.Array
+        empirically converted moment magnitudes
     """
 
     if region == "UK":
