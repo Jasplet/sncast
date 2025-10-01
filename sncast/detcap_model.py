@@ -4,43 +4,47 @@
 # SPDX-FileCopyrightText: 2019 Martin Möllhoff
 # SPDX-FileCopyrightText: 2024–2025 Joseph Asplet, University of Oxford
 # ------------------------------------------------------------------
-# Filename: detcap_model.py
-# Purpose:  Seismic Network Capability Assessment Software Tool (SNCAST)
-# Author:   Martin Möllhoff, DIAS
-# Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
-#           SN-CAST: seismic network capability assessment software tool
-#           for regional networks - examples from Ireland.
-#           J Seismol 23, 493-504 (2019).
-#           https://doi.org/10.1007/s10950-019-09819-0
-#
-#    Copyright (C) 2019 Martin Möllhoff
-#    Copyright (C) 2024 Joseph Asplet, University of Oxford
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# --------------------------------------------------------------------
-#    Changes
-#     - Refactor and re-write of enitre codebase, [Joseph Asplet, 2025]
-#     - Added support for DAS deployments [Joseph Asplet, 2025]
-#     - Implementation of GMPE based method (still in development [Jospeh Asplet, 2025]
-#     - Implementation of BGS Local magnitude scale, [Joseph Asplet, 2024]
-#     - Functionality to calculate of a depth cross-section [Joseph Asplet, 2024]
-#     - Outputting of models as xarray.DataArray objects for easier plotting with PyGMT [Joseph Asplet, 2024]
-#     - Added support for seismic arrays and OBS with separate detection requirements [Joseph Asplet, 2024]
+"""
+Filename: detcap_model.py
+Purpose:  Seismic Network Capability Assessment Software Tool (SNCAST)
+Author:   Martin Möllhoff, DIAS
+Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
+          SN-CAST: seismic network capability assessment software tool
+          for regional networks - examples from Ireland.
+          J Seismol 23, 493-504 (2019).
+          https://doi.org/10.1007/s10950-019-09819-0
 
-#      Author: J Asplet
-#      email : joseph.asplet@earth.ox.ac.uk
+   Copyright (C) 2019 Martin Möllhoff
+   Copyright (C) 2024 Joseph Asplet, University of Oxford
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------
+   Changes
+    - Refactor and re-write of enitre codebase, [Joseph Asplet, 2025]
+    - Added support for DAS deployments [Joseph Asplet, 2025]
+    - Implementation of GMPE based method (still in development [Jospeh Asplet, 2025]
+    - Implementation of BGS Local magnitude scale, [Joseph Asplet, 2024]
+    - Functionality to calculate of a depth cross-section [Joseph Asplet, 2024]
+    - Outputting of models as xarray.DataArray objects for easier plotting with
+      PyGMT [Joseph Asplet, 2024]
+    - Added support for seismic arrays and OBS with separate
+      detection requirements [Joseph Asplet, 2024]
+
+     Author: J Asplet
+     email : joseph.asplet@earth.ox.ac.uk
+"""
 
 from decimal import Decimal
 import warnings
@@ -66,19 +70,37 @@ ML_COEFFS = {
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     """
     Calculate the amplitude of a seismic signal given a local magnitude
-    and hypocentral distance. The empirical local magnitude
-    scales from the UK and California regions are supported.
+    and hypocentral distance. Local magnitude scales for the UK and California
+    (Hutton and Boore, 1987) are supported. The Hutton and Boore (1987) scale is
+    the default ML scale reccomended by the IASPEI working group on earthquake magnitude
+    determination and is consistent with the magnitude of Richter (1935).
+
+    Parameters
+    ----------
+    local_mag : float, np.ndarray
+        Local magnitude to calculate displacement amplitude for.
+    hypo_dist : float, np.ndarray
+        Hypocentral distance in km.
+    region : str
+        Seismic region. "UK" for Luckett et al. (2019) scale, "CAL" for
+        Hutton and Boore (1987) scale.
+
+    Returns
+    -------
+    ampl : float, np.ndarray
+        Displacement amplitude in nm.
     """
     #   region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
     if region == "UK":
         #   UK Scale uses new ML equation from Luckett et al., (2019)
         #   https://doi.org/10.1093/gji/ggy484
-        #   Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist + d*exp(e * hypo-dist) + c
-        a = 1.11
-        b = 0.00189
-        c = -2.09
-        d = -1.16
-        e = -0.2
+        #   Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist
+        #                          + d*exp(e * hypo-dist) + c
+        a = ML_COEFFS[region]["a"]
+        b = ML_COEFFS[region]["b"]
+        c = ML_COEFFS[region]["c"]
+        d = ML_COEFFS[region]["d"]
+        e = ML_COEFFS[region]["e"]
         ampl = np.power(
             10,
             (
@@ -93,9 +115,10 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     elif region == "CAL":
         # South. California scale, IASPEI (2005),
         # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
-        a = 1.11
-        b = 0.00189
-        c = -2.09
+        a = ML_COEFFS[region]["a"]
+        b = ML_COEFFS[region]["b"]
+        c = ML_COEFFS[region]["c"]
+
         ampl = np.power(10, (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c))
 
     return ampl
@@ -103,8 +126,29 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
 
 def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
     """
-    Compute local magnitude (ML) for a given region.
-    Vectorized for numpy arrays.
+    Compute local magnitude (ML) for a given region for a set of amplitudes (in displacement)
+    and hypocentral distances.
+
+    Vectorized for numpy arrays. Magnitudes are snapped to the nearest interval <mag_delta>.
+
+    Parameters
+    ----------
+    required_ampl : float or np.ndarray
+        Displacement amplitude in nm.
+    hypo_dist : float or np.ndarray
+        Hypocentral distance in km.
+    region : str
+        Seismic region. "UK" for Luckett et al. (2019) scale, "CAL" for
+        Hutton and Boore (1987) scale.
+    mag_min : float
+        Minimum magnitude to consider.
+    mag_delta : float
+        Magnitude bin width.
+
+    Returns
+    -------
+    ml: np.ndarray
+        Local magnitudes (ML) for the given amplitudes and distances.
     """
     if np.min(required_ampl <= 0):
         raise ValueError("At least one amplitude <=0!")
@@ -139,12 +183,39 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
     return ml
 
 
-def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
+def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
     """
-    Estimates minimum detectable magntiude at a given station
+    Estimates minimum detectable magnitude at a given station
 
-    For using
+    Function deprecated for noise displacement input, use calc_local_magnitude
+    with vectorised numpy arrays instead. This function will be removed/replaced in future
+    when work on GMPE method is complete.
+
+    Parameters
+    ----------
+    noise : float
+        Noise level at the station in nm.
+    mag_min : float
+        Minimum local magnitude.
+    mag_delta : float
+        Magnitude increment. Returned magnitude will be rounded up this increment.
+    distance : float
+        Hypocentral distance in km.
+    snr : float
+        Required signal-to-noise ratio for detection.
+    **kwargs : dict
+        Additional keyword arguments to control the method and parameters:
+        - method: 'ML' or 'GMPE'. Default is 'ML'.
+        - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
+        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
+                           Default is 'CAL'.
     """
+    warnings.warn(
+        "_est_min_ml_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude",
+        DeprecationWarning,
+    )
     method = kwargs.get("method", "ML")
     region = kwargs.get("region", "CAL")
     gmpe = kwargs.get("gmpe", None)
@@ -166,22 +237,21 @@ def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
         raise ValueError(f"Unknown method: {method}")
 
 
-def minML(
+def find_min_ml(
     stations_in,
-    lon0=-12,
-    lon1=-4,
-    lat0=50.5,
-    lat1=56.6,
-    dlon=0.2,
-    dlat=0.2,
-    stat_num=4,
-    snr=3,
-    foc_depth=0,
+    lon0,
+    lon1,
+    lat0,
+    lat1,
+    dlon,
+    dlat,
+    stat_num,
+    snr,
+    foc_depth=2,
     mag_min=-2.0,
     mag_delta=0.1,
     arrays=None,
     obs=None,
-    obs_stat_num=3,
     **kwargs,
 ):
     """
@@ -230,26 +300,36 @@ def minML(
         Path to a CSV file or a DataFrame containing seismic array data.
         If provided, the model will include detections from arrays.
         File is in the same format as stations_in
-    array_num : int, optional
-        Number of detections required at an array.
-        Default is 1 if arrays are provided.
     obs : str or pd.DataFrame, optional
         Path to a CSV file or a DataFrame containing OBS data.
         If provided, the model will include detections from OBS.
         File is in the same format as stations_in
-    obs_stat_num : int, optional
-        Required number of station detections from OBS to calculate minimum ML.
-        Default is 3.
-    **kwargs : dict, optional
+
+    **kwargs : dict
         Additional keyword arguments to control the method and parameters:
         - method: 'ML' or 'GMPE'. Default is 'ML'.
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
-        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
-        - region: Locality for assumed ML scale parameters ('UK' or 'CAL'). Default is 'CAL'.
-        - das: Path to a CSV file or a DataFrame containing DAS noise data. Can also be a list or tuple of DataFrames
-        - detection_length: Length of the fibre over which to calculate the noise level in metres.
-                           Default is 1 km.
-        - slide_length: Length to slide the detection window along the fibre in metres. Default is 1 m.
+        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
+                           Default is 'CAL'.
+        - array_num: Number of stations required for a detection on an array.
+                        Default is 1.
+        - obs_stat_num: Number of stations required for a detection on an OBS.
+                        Default is 3.
+        - nproc: Number of processors to use for parallel processing. Default is 1.
+        - das: str or pd.DataFrame, optional
+            Path to a CSV file or a DataFrame containing DAS noise data.
+            If provided, the model will include detections from DAS.
+            File must contain the following columns:
+                - channel_index: Index of the DAS channel
+                - fiber_length_m: Length of the fiber in meters
+                - longitude: Longitude of the channel in decimal degrees
+                - latitude: Latitude of the channel in decimal degrees
+                - noise_m: Noise level at the channel in meters
+            If elevation_km is not provided, it will be set to zero.
+        - detection_length: float, optional
+            Length of fiber (in meters) required for a detection. Default is 1000 m.
 
     Returns
     -------
@@ -261,7 +341,6 @@ def minML(
         at that grid point.
 
     """
-
     if kwargs["method"] == "ML":
         kwargs["gmpe"] = None
         kwargs["gmpe_model_type"] = None
@@ -294,7 +373,8 @@ def minML(
     obs_df = read_station_data(obs) if obs is not None else None
     if len(stations_df) < stat_num:
         raise ValueError(
-            f"Not enough stations ({len(stations_df)}) to calculate minimum ML at {stat_num} stations"
+            f"Not enough stations ({len(stations_df)}) "
+            + f"to calculate minimum ML at {stat_num} stations"
         )
 
     if "das" in kwargs:
@@ -338,7 +418,7 @@ def minML(
     ]
     mag_grid = np.zeros((ny, nx))
     with Pool(processes=nproc) as pool:
-        for iy, ix, val in pool.imap_unordered(_minML_worker, args_list):
+        for iy, ix, val in pool.imap_unordered(_minml_worker, args_list):
             mag_grid[iy, ix] = val
 
     # # Make xarray grid to output
@@ -348,9 +428,21 @@ def minML(
     return mag_det
 
 
-def _minML_worker(args):
+def _minml_worker(args):
     """
-    Worker function for minML which allows the magntiude grid to be parallelised
+    Worker function for minML which allows the magnitude grid to be parallelised
+    over multiple processors using multiprocessing.Pool
+
+    Parameters
+    ----------
+    args : tuple
+        Tuple of arguments to unpack for the worker function.
+        See the args_list in minML function for details.
+
+    Returns
+    -------
+    tuple
+        Tuple containing the y-index, x-index, and minimum magnitude for the grid point.
     """
     # Unpack args
     (
@@ -369,7 +461,7 @@ def _minML_worker(args):
         das_dfs,
         kwargs,
     ) = args
-    min_mag = calc_min_ML_at_gridpoint(
+    min_mag = calc_min_ml_at_gridpoint(
         stations_df,
         lons[ix],
         lats[iy],
@@ -434,7 +526,7 @@ def _minML_worker(args):
     return (iy, ix, min_mag)
 
 
-def minML_x_section(
+def find_min_ml_x_section(
     stations_in,
     lon0,
     lat0,
@@ -446,17 +538,16 @@ def minML_x_section(
     ddepth=0.5,
     stat_num=4,
     snr=3,
-    region="CAL",
     mag_min=-3.0,
     mag_delta=0.1,
     arrays=None,
     obs=None,
-    obs_stat_num=3,
     **kwargs,
 ):
     """
     Function to calculate a 2-D cross section of a SNCAST model.
-    X-section line defined by start lat/lon and the azimuth and length (in km) of the line
+    X-section line defined by start lat/lon and the azimuth and length (in km)
+    of the line.
 
     Input should be a csv file (or Pandas DataFrame)
       longitude, latitude, noise [nm], station name
@@ -464,7 +555,64 @@ def minML_x_section(
 
     Parameters
     ----------
-        stations : DataFrame or csv filename
+        stations_in : DataFrame or csv filename
+            Station information including lat/lon and noise levels
+        lon0 : float
+            Longitude of the start of the cross-section line
+        lat0 : float
+            Latitude of the start of the cross-section line
+        azi : float
+            Azimuth of cross-section in degrees from north
+        length_km : float
+            Cross-section length in km
+        min_depth : float, optional
+            Minimum depth of cross-section in km. Default is 0.
+        max_depth : float, optional
+            Maximum depth of cross-section in km. Default is 20.
+        ddist : float, optional
+            Distance increment along the cross-section in km. Default is 5.
+        ddepth : float, optional
+            Depth increment along the cross-section in km. Default is 0.5.
+        stat_num : int, optional
+            Number of stations required for a detection. Default is 4.
+        snr : float, optional
+            Required signal-to-noise ratio for detection. Default is 3.
+        region : str, optional
+            Locality for assumed ML scale parameters ('UK' or 'CAL').
+            Default is 'CAL'.
+        mag_min : float, optional
+            Minimum local magnitude to consider when modelling detections.
+            Default is -3.0.
+        mag_delta : float, optional
+            Increment for local magnitude. Default is 0.1.
+        arrays : DataFrame or csv filename, optional
+            Station information for seismic arrays including lat/lon and noise levels.
+            If provided, the model will include detections from arrays.
+            File is in the same format as stations_in
+        obs : DataFrame or csv filename, optional
+            Station information for OBS including lat/lon and noise levels.
+            If provided, the model will include detections from OBS.
+            File is in the same format as stations_in
+        **kwargs : dict
+            Additional keyword arguments to control the method and parameters:
+            - method: 'ML' or 'GMPE'. Default is 'ML'.
+            - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
+            - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                               Default is None.
+            - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
+                               Default is 'CAL'.
+            - array_num: Number of stations required for a detection on an array.
+                            Default is 1.
+            - obs_stat_num: Number of stations required for a detection on an OBS.
+                            Default is 3.
+    Returns
+    -------
+        array : xarray.DataArray
+            A 2D xarray DataArray with the following dimensions:
+                - depth_km: depth in km
+                - distance_along_xsection_km: distance along the cross-section in km
+            The values in the DataArray are the minimum detectable local magnitude ML
+            at that grid point.
     """
     stations_df = read_station_data(stations_in)
     # Calculate lon/lat co-ordinates for X-section line
@@ -487,7 +635,7 @@ def minML_x_section(
         ilon = xsection["longitude"][i]
         # Iterate over depth
         for d in range(ndepths):
-            mag_grid[d, i] = calc_min_ML_at_gridpoint(
+            mag_grid[d, i] = calc_min_ml_at_gridpoint(
                 stations_df,
                 ilon,
                 ilat,
@@ -505,7 +653,7 @@ def minML_x_section(
                     dx, dy = util_geo_km(ilon, ilat, arrays["lon"][a], arrays["lat"][a])
                     dz = np.abs(arrays["elevation_km"][a] - depths[d])
                     hypo_dist = np.sqrt(dx**2 + dy**2 + dz**2)
-                    m = _est_min_ML_at_station(
+                    m = _est_min_ml_at_station(
                         arrays["noise"][a],
                         mag_min,
                         mag_delta,
@@ -530,7 +678,7 @@ def minML_x_section(
                     # estimated noise level on array
                     # rootn or another cleverer method
                     # to get a displaement number)
-                    m = _est_min_ML_at_station(
+                    m = _est_min_ml_at_station(
                         obs["noise [nm]"][o],
                         mag_min,
                         mag_delta,
@@ -542,8 +690,8 @@ def minML_x_section(
                         region=kwargs["region"],
                     )
                     obs_mag.append(m)
-                if obs_mag[obs_stat_num - 1] < mag_grid[d, i]:
-                    mag_grid[d, i] = obs_mag[obs_stat_num - 1]
+                if obs_mag[kwargs["obs_stat_num"] - 1] < mag_grid[d, i]:
+                    mag_grid[d, i] = obs_mag[kwargs["obs_stat_num"] - 1]
 
             del array_mag[:]
             del mag[:]
@@ -636,6 +784,7 @@ def read_das_noise_data(das_in):
 def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
     """
     Initialize lat/lon grid for SNCAST model.
+
     Parameters
     ----------
     lon0 : float
@@ -683,6 +832,7 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     """
     Gets the maximum seismic noise level (in displacement) along
     a given continuous fibre length.
+
     Parameters
     ----------
     channel_pos : np.ndarray
@@ -702,7 +852,8 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     fibre_length = channel_pos[-1] - channel_pos[0]
     if detection_length > fibre_length:
         raise ValueError(
-            f"detection_length {detection_length} must be less than fibre_length {fibre_length}"
+            f"detection_length {detection_length:4.2f} must be less "
+            + f"than fibre_length {fibre_length:4.2f}"
         )
     if detection_length <= 0:
         raise ValueError(f"detection_length {detection_length} must be positive")
@@ -720,7 +871,7 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     return noise_at_sections
 
 
-def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length=1):
+def get_min_ml_for_das_section(channel_pos, mags, detection_length, slide_length=1):
     """
     Gets the earthquake magntiude which is detectable across a given
     continuous fibre length (detection_length).
@@ -743,7 +894,8 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
     fibre_length = channel_pos[-1] - channel_pos[0]
     if detection_length > fibre_length:
         raise ValueError(
-            f"detection_length {detection_length} must be less than fibre_length {fibre_length}"
+            f"detection_length {detection_length} must be less"
+            + f" than fibre_length {fibre_length}"
         )
     if detection_length <= 0:
         raise ValueError(f"detection_length {detection_length} must be positive")
@@ -763,7 +915,7 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
     return np.min(ml_at_windows)
 
 
-def calc_min_ML_at_gridpoint(
+def calc_min_ml_at_gridpoint(
     stations_df,
     lon,
     lat,
@@ -775,6 +927,8 @@ def calc_min_ML_at_gridpoint(
     **kwargs,
 ):
     """
+    Calculates the minimum local magnitude which can be detected by a
+    set of seismic stations at a given grid point.
 
     Parameters
     ----------
@@ -803,8 +957,10 @@ def calc_min_ML_at_gridpoint(
         Additional keyword arguments to control the method and parameters:
         - method: 'ML' or 'GMPE'. Default is 'ML'.
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
-        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
-        - region: Locality for assumed ML scale parameters ('UK' or 'CAL'). Default is 'CAL'.
+        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
+                  Default is 'CAL'.
     Returns
     -------
     float
@@ -856,7 +1012,7 @@ def calc_min_ML_at_gridpoint(
         # calculate hypcocentral distance
         hypo_dist = np.sqrt(distances_km**2 + dz**2)
         mag = [
-            _est_min_ML_at_station(
+            _est_min_ml_at_station(
                 noise[s],
                 mag_min,
                 mag_delta,
@@ -878,7 +1034,7 @@ def calc_min_ML_at_gridpoint(
         raise ValueError(f"Unsupported Method {method}")
 
 
-def calc_min_ML_at_gridpoint_das(
+def calc_min_ml_at_gridpoint_das(
     fibre, detection_length, lon, lat, foc_depth, snr, **kwargs
 ):
     """
@@ -896,9 +1052,9 @@ def calc_min_ML_at_gridpoint_das(
     detection_length : float
         Length of the fibre over which to calculate the noise level in metres.
     lon : float
-        Longitude of the grid point in decimal degrees.
+        Grid point longitude in decimal degrees.
     lat : float
-        Latitude of the grid point in decimal degrees.
+        Grid point latitude in decimal degrees.
     foc_depth : float
         Focal depth of the event in kilometres.
     snr : float
@@ -949,7 +1105,7 @@ def calc_min_ML_at_gridpoint_das(
     dz = np.abs(foc_depth - fibre["elevation_km"].values)
     hypo_distances = np.sqrt(distances_km**2 + dz**2)
     # Calculate the minimum local magnitude for each section of the fibre
-    # Vectorize _est_min_ML_at_station if possible
+    # Vectorize _est_min_ml_at_station if possible
     # Otherwise, use a generator expression for min
     required_ampls = snr * noise_nm
     mags = calc_local_magnitude(
@@ -977,10 +1133,49 @@ def update_with_arrays(
     **kwargs,
 ):
     """
-    Update the grid value with the minimum ML from arrays, if lower.
+    Update the grid value with the minimum ML from arrays, if lower than
+    the current grid value.
+
+    Parameters
+    ----------
+    mag_grid_val : float
+        Current minimum local magnitude at the grid point.
+    arrays_df : pd.DataFrame
+        DataFrame containing array data with columns:
+        - 'longitude': longitude of the array in decimal degrees
+        - 'latitude': latitude of the array in decimal degrees
+        - 'elevation_km': elevation of the array in km
+        - 'noise [nm]': noise level at the array in nanometres
+        - 'station': array name
+    lon : float
+        Grid point longitude in decimal degrees.
+    lat : float
+        Grid point latitude in decimal degrees.
+    foc_depth : float
+        Focal depth of the event in kilometres.
+    snr : float
+        Signal-to-noise ratio required for detection.
+    mag_min : float
+        Minimum local magnitude to consider when modelling detections.
+    mag_delta : float
+        Increment for local magnitude.
+    kwargs : dict
+        Additional keyword arguments, including:
+        - 'array_num': number of stations required for a detection on an array.
+                       Default is 1.
+        - 'method': 'ML' or 'GMPE'. Default is 'ML'.
+        - 'gmpe': GMPE model to use if method is 'GMPE'. Default is None.
+        - 'gmpe_model_type': Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
+                  Default is 'CAL'.
+    Returns
+    -------
+    float
+        Minimum local magnitude at the grid point including the arrays.
     """
 
-    mag_arrays = calc_min_ML_at_gridpoint(
+    mag_arrays = calc_min_ml_at_gridpoint(
         arrays_df,
         lon,
         lat,
@@ -1009,9 +1204,48 @@ def update_with_obs(
     **kwargs,
 ):
     """
-    Update the grid value with the minimum ML from OBS, if lower.
+    Update the grid value with the minimum ML from OBS, if lower than
+    the current grid value.
+
+    Parameters
+    ----------
+    mag_grid_val : float
+        Current minimum local magnitude at the grid point.
+    obs_df : pd.DataFrame
+        DataFrame containing OBS stations with columns:
+        - 'longitude': longitude of the OBS in decimal degrees
+        - 'latitude': latitude of the OBS in decimal degrees
+        - 'elevation_km': elevation of the OBS in km
+        - 'noise [nm]': noise level at the OBS in nanometres
+        - 'station': OBS station name
+    lon : float
+        Grid point longitude in decimal degrees.
+    lat : float
+        Grid point latitude in decimal degrees.
+    foc_depth : float
+        Focal depth of the event in kilometres.
+    snr : float
+        Signal-to-noise ratio required for detection.
+    mag_min : float
+        Minimum local magnitude to consider when modelling detections.
+    mag_delta : float
+        Increment for local magnitude.
+    kwargs : dict
+        Additional keyword arguments, including:
+        - 'obs_stat_num': number of stations required for a detection on an OBS.
+                       Default is 3.
+        - 'method': 'ML' or 'GMPE'. Default is 'ML'.
+        - 'gmpe': GMPE model to use if method is 'GMPE'. Default is None.
+        - 'gmpe_model_type': Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
+                  Default is 'CAL'.
+    Returns
+    -------
+    float
+        Minimum local magnitude at the grid point including the OBS.
     """
-    mag_obs = calc_min_ML_at_gridpoint(
+    mag_obs = calc_min_ml_at_gridpoint(
         obs_df,
         lon,
         lat,
@@ -1038,9 +1272,50 @@ def update_with_das(
     **kwargs,
 ):
     """
-    Update the grid value with the minimum ML from DAS, if lower.
+    Update the grid value with the minimum ML from DAS,
+    if lower than the current grid value.
+
+    Parameters
+    ----------
+    mag_grid_val : float
+        Current minimum local magnitude at the grid point.
+    das_df : pd.DataFrame
+        DataFrame containing DAS noise data with columns:
+        - 'channel_index': index of the channel
+        - 'fiber_length_m': length of the fibre in metres
+        - 'longitude': longitude of the fibre in decimal degrees
+        - 'latitude': latitude of the fibre in decimal degrees
+        - 'noise_m': noise level of the fibre in metres
+    detection_length : float
+        Length of the fibre over which to calculate the noise level in metres.
+    lon : float
+        Grid point longitude in decimal degrees.
+    lat : float
+        Grid point latitude in decimal degrees.
+    foc_depth : float
+        Focal depth of the event in kilometres.
+    snr : float
+        Signal-to-noise ratio required for detection.
+    mag_min : float
+        Minimum local magnitude to consider when modelling detections.
+    mag_delta : float
+        Increment for local magnitude.
+    kwargs : dict
+        Additional keyword arguments, including:
+        - 'array_num': number of stations required for a detection on an array.
+                       Default is 1.
+        - 'method': 'ML' or 'GMPE'. Default is 'ML'.
+        - 'gmpe': GMPE model to use if method is 'GMPE'. Default is None.
+        - 'gmpe_model_type': Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
+                  Default is 'CAL'.
+    Returns
+    -------
+    float
+        Minimum local magnitude at the grid point including DAS.
     """
-    mag_das = calc_min_ML_at_gridpoint_das(
+    mag_das = calc_min_ml_at_gridpoint_das(
         das_df,
         detection_length,
         lon,
