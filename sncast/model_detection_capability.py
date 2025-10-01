@@ -14,7 +14,7 @@ Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
           J Seismol 23, 493-504 (2019).
           https://doi.org/10.1007/s10950-019-09819-0
 
-   Copyright (C) 2019 Martin Möllhoff
+   Copyright (C) 2019 Martin Möllhoff, DIAS
    Copyright (C) 2024 Joseph Asplet, University of Oxford
 
    This program is free software: you can redistribute it and/or modify
@@ -32,9 +32,9 @@ Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
 
 --------------------------------------------------------------------
    Changes
-    - Refactor and re-write of enitre codebase, [Joseph Asplet, 2025]
+    - Refactor and re-write of entire codebase, [Joseph Asplet, 2025]
     - Added support for DAS deployments [Joseph Asplet, 2025]
-    - Implementation of GMPE based method (still in development [Jospeh Asplet, 2025]
+    - Implementation of GMPE based method (still in development [Joseph Asplet, 2025]
     - Implementation of BGS Local magnitude scale, [Joseph Asplet, 2024]
     - Functionality to calculate of a depth cross-section [Joseph Asplet, 2024]
     - Outputting of models as xarray.DataArray objects for easier plotting with
@@ -526,6 +526,53 @@ def _minml_worker(args):
     return (iy, ix, min_mag)
 
 
+def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
+    """
+    Initialize lat/lon grid for SNCAST model.
+
+    Parameters
+    ----------
+    lon0 : float
+        Minimum longitude of the grid.
+    lon1 : float
+        Maximum longitude of the grid.
+    lat0 : float
+        Minimum latitude of the grid.
+    lat1 : float
+        Maximum latitude of the grid.
+    dlon : float
+        Longitude increment for the grid.
+    dlat : float
+        Latitude increment for the grid.
+    Returns
+    -------
+    lats : np.ndarray
+        Array of latitudes for the grid.
+    lons : np.ndarray
+        Array of longitudes for the grid.
+    nx : int
+        Number of grid points in the x-direction (longitude).
+    ny : int
+        Number of grid points in the y-direction (latitude).
+    """
+    if lon0 > lon1:
+        raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
+    if lat0 > lat1:
+        raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
+    if dlon <= 0 or dlat <= 0:
+        raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
+    if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
+        raise ValueError(f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}")
+    if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
+        raise ValueError(f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}")
+
+    nx = int((lon1 - lon0) / dlon) + 1
+    ny = int((lat1 - lat0) / dlat) + 1
+    lats = np.linspace(lat1, lat0, ny)
+    lons = np.linspace(lon0, lon1, nx)
+    return lons, lats, nx, ny
+
+
 def find_min_ml_x_section(
     stations_in,
     lon0,
@@ -707,214 +754,6 @@ def find_min_ml_x_section(
     return array
 
 
-def read_station_data(stations_in):
-    """
-    Read and validate station data from a DataFrame or CSV file.
-
-    Parameters
-    ----------
-    stations_in : str or pd.DataFrame
-        Path to a CSV file or a DataFrame containing station data.
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame containing the station data with required columns.
-    Raises
-    ------
-    ValueError
-        If required columns are missing from the DataFrame.
-
-    """
-    if isinstance(stations_in, str):
-        stations_df = pd.read_csv(stations_in)
-    else:
-        stations_df = stations_in.copy()
-    if "elevation_m" in stations_df.columns:
-        stations_df["elevation_m"] *= 1e-3
-        stations_df.rename(columns={"elevation_m": "elevation_km"}, inplace=True)
-    required_cols = {
-        "longitude",
-        "latitude",
-        "elevation_km",
-        "noise [nm]",
-        "station",
-    }
-    if not required_cols.issubset(stations_df.columns):
-        raise ValueError(f"Missing columns: {required_cols - set(stations_df.columns)}")
-    return stations_df
-
-
-def read_das_noise_data(das_in):
-    """
-    Read and validate DAS noise data from a DataFrame or CSV file.
-
-    Parameters
-    ----------
-    das_in : str or pd.DataFrame
-        Path to a CSV file or a DataFrame containing DAS noise data.
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame containing the DAS noise data with required columns.
-    Raises
-    ------
-    ValueError
-        If required columns are missing from the DataFrame.
-    """
-    if isinstance(das_in, str):
-        das_df = pd.read_csv(das_in)
-    else:
-        das_df = das_in.copy()
-    required_cols = {
-        "channel_index",
-        "fiber_length_m",
-        "longitude",
-        "latitude",
-        "noise_m",
-    }
-    if not required_cols.issubset(das_df.columns):
-        raise ValueError(f"Missing columns: {required_cols - set(das_df.columns)}")
-    if "elevation_km" not in das_df.columns:
-        # If elevation is not provided, set it to zero
-        das_df["elevation_km"] = 0.0
-
-    return das_df
-
-
-def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
-    """
-    Initialize lat/lon grid for SNCAST model.
-
-    Parameters
-    ----------
-    lon0 : float
-        Minimum longitude of the grid.
-    lon1 : float
-        Maximum longitude of the grid.
-    lat0 : float
-        Minimum latitude of the grid.
-    lat1 : float
-        Maximum latitude of the grid.
-    dlon : float
-        Longitude increment for the grid.
-    dlat : float
-        Latitude increment for the grid.
-    Returns
-    -------
-    lats : np.ndarray
-        Array of latitudes for the grid.
-    lons : np.ndarray
-        Array of longitudes for the grid.
-    nx : int
-        Number of grid points in the x-direction (longitude).
-    ny : int
-        Number of grid points in the y-direction (latitude).
-    """
-    if lon0 > lon1:
-        raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
-    if lat0 > lat1:
-        raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
-    if dlon <= 0 or dlat <= 0:
-        raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
-    if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
-        raise ValueError(f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}")
-    if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
-        raise ValueError(f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}")
-
-    nx = int((lon1 - lon0) / dlon) + 1
-    ny = int((lat1 - lat0) / dlat) + 1
-    lats = np.linspace(lat1, lat0, ny)
-    lons = np.linspace(lon0, lon1, nx)
-    return lons, lats, nx, ny
-
-
-def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
-    """
-    Gets the maximum seismic noise level (in displacement) along
-    a given continuous fibre length.
-
-    Parameters
-    ----------
-    channel_pos : np.ndarray
-        position of channels along the fibre in metres.
-    noise : float
-        Noise level of the fibre in metres.
-    detection_length : float
-        Length of the fibre over which to calculate the noise level in metres.
-    slide_length : float, optional
-        Length to slide the detection window along the fibre in metres.
-        Default is 1 metre.
-    Returns
-    -------
-    np.ndarray
-        Array of noise levels for each section of the fibre.
-    """
-    fibre_length = channel_pos[-1] - channel_pos[0]
-    if detection_length > fibre_length:
-        raise ValueError(
-            f"detection_length {detection_length:4.2f} must be less "
-            + f"than fibre_length {fibre_length:4.2f}"
-        )
-    if detection_length <= 0:
-        raise ValueError(f"detection_length {detection_length} must be positive")
-
-    start_length = channel_pos[0]
-    # Calculate the number of sections along the fibre
-    noise_at_sections = np.zeros(channel_pos.shape)
-    for i in range(len(channel_pos)):
-        idx = np.argwhere(
-            (channel_pos >= start_length + i * slide_length)
-            & (channel_pos < start_length + detection_length + i * slide_length)
-        ).flatten()
-        noise_at_sections[i] = np.max(noise[idx])
-
-    return noise_at_sections
-
-
-def get_min_ml_for_das_section(channel_pos, mags, detection_length, slide_length=1):
-    """
-    Gets the earthquake magntiude which is detectable across a given
-    continuous fibre length (detection_length).
-    Parameters
-    ----------
-    channel_pos : np.ndarray
-        position of channels along the fibre in metres.
-    mags : array
-        Noise level of the fibre in metres.
-    detection_length : float
-        Length of the fibre over which to calculate the noise level in metres.
-    slide_length : float, optional
-        Length to slide the detection window along the fibre in metres.
-        Default is 1 metre.
-    Returns
-    -------
-    np.ndarray
-        Array of noise levels for each section of the fibre.
-    """
-    fibre_length = channel_pos[-1] - channel_pos[0]
-    if detection_length > fibre_length:
-        raise ValueError(
-            f"detection_length {detection_length} must be less"
-            + f" than fibre_length {fibre_length}"
-        )
-    if detection_length <= 0:
-        raise ValueError(f"detection_length {detection_length} must be positive")
-
-    # Calculate the number of windows along the fibre
-    n_windows = (
-        int(
-            np.floor(
-                (channel_pos[-1] - channel_pos[0] - detection_length) / slide_length
-            )
-        )
-        + 1
-    )
-    ml_at_windows = np.zeros(n_windows)
-    mags = np.array(mags)  # Convert to NumPy array for advanced indexing
-
-    return np.min(ml_at_windows)
-
-
 def calc_min_ml_at_gridpoint(
     stations_df,
     lon,
@@ -1034,6 +873,186 @@ def calc_min_ml_at_gridpoint(
         raise ValueError(f"Unsupported Method {method}")
 
 
+def read_station_data(stations_in):
+    """
+    Read and validate station data from a DataFrame or CSV file.
+
+    Parameters
+    ----------
+    stations_in : str or pd.DataFrame
+        Path to a CSV file or a DataFrame containing station data.
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the station data with required columns.
+    Raises
+    ------
+    ValueError
+        If required columns are missing from the DataFrame.
+
+    """
+    if isinstance(stations_in, str):
+        stations_df = pd.read_csv(stations_in)
+    else:
+        stations_df = stations_in.copy()
+    if "elevation_m" in stations_df.columns:
+        stations_df["elevation_m"] *= 1e-3
+        stations_df.rename(columns={"elevation_m": "elevation_km"}, inplace=True)
+    required_cols = {
+        "longitude",
+        "latitude",
+        "elevation_km",
+        "noise [nm]",
+        "station",
+    }
+    if not required_cols.issubset(stations_df.columns):
+        raise ValueError(f"Missing columns: {required_cols - set(stations_df.columns)}")
+    return stations_df
+
+
+def read_das_noise_data(das_in):
+    """
+    Read and validate DAS noise data from a DataFrame or CSV file.
+
+    Parameters
+    ----------
+    das_in : str or pd.DataFrame
+        Path to a CSV file or a DataFrame containing DAS noise data.
+        Expected columns are:
+            - channel_index: Index of the DAS channel
+            - fiber_length_m: Length of the fiber in meters
+            - longitude: Longitude of the channel in decimal degrees
+            - latitude: Latitude of the channel in decimal degrees
+            - noise_m: Noise level at the channel in meters
+            - elevation_km: (optional) Elevation of the channel in kilometers
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the DAS noise data with required columns.
+    Raises
+    ------
+    ValueError
+        If required columns are missing from the DataFrame.
+    """
+    if isinstance(das_in, str):
+        das_df = pd.read_csv(das_in)
+    else:
+        das_df = das_in.copy()
+    required_cols = {
+        "channel_index",
+        "fiber_length_m",
+        "longitude",
+        "latitude",
+        "noise_m",
+    }
+    if not required_cols.issubset(das_df.columns):
+        raise ValueError(f"Missing columns: {required_cols - set(das_df.columns)}")
+    if "elevation_km" not in das_df.columns:
+        # If elevation is not provided, set it to zero
+        das_df["elevation_km"] = 0.0
+
+    return das_df
+
+
+def get_das_noise_levels(das_noise, wind_len_idx, model_stacking=True):
+    """
+    Gets the maximum seismic noise level (in displacement) along
+    a given continuous fibre length.
+
+    Parameters
+    ----------
+    das_noise : np.ndarray
+        Array of DAS noise levels.
+    wind_len_idx : int
+        Length of the sliding window in samples.
+    model_stacking : bool, optional
+        Whether to apply a sqrt(N) improvement to SNR assuming
+        That the DAS data will be stacked. Default is True.
+
+    Returns
+    -------
+    np.ndarray
+        Array of noise levels for each section of the fibre.
+    """
+    max_filtered_noise = maximum_filter1d(das_noise, size=wind_len_idx, mode="nearest")
+    # model includes a assumed improvment in signal/noise from stacking
+    # over the length of the fibre section
+    if model_stacking:
+        # calc root(n) improvment in noise level
+        noise_rootn = np.ones(das_noise.shape) * np.sqrt(wind_len_idx)
+        # at start/end of fiber the stacking length is reduced
+        # here we do this in samples/array indexes and assume evenly spaced channels
+        # sliding window is centered on each channel so even at the start
+        # we have wind_len_idx//2 channels stacked
+        half_win = wind_len_idx // 2
+        # Apply window for either and odd or even window length
+        if wind_len_idx % 2 == 0:
+            # Even window: left and right edges have different lengths
+            noise_start = np.sqrt(np.arange(half_win, wind_len_idx))
+            noise_end = np.sqrt(np.arange(wind_len_idx, half_win, -1))
+            noise_rootn[:half_win] = noise_start
+            noise_rootn[-half_win:] = noise_end
+        else:
+            # Odd window is symmetric about center
+            noise_start = np.sqrt(np.arange(half_win + 1, wind_len_idx + 1))
+            noise_rootn[: half_win + 1] = noise_start
+            noise_rootn[-(half_win + 1) :] = noise_start[::-1]
+
+        max_filtered_noise /= noise_rootn
+
+        # raise value error if any values in max_filtered_noise are zero or negative
+        if np.any(max_filtered_noise <= 0):
+            raise ValueError("Filtered noise levels contain zero or negative values.")
+        elif np.any(np.isnan(max_filtered_noise)):
+            raise ValueError("Filtered noise levels contain NaN values.")
+
+    return max_filtered_noise
+
+
+# def get_min_ml_for_das_section(channel_pos, mags, detection_length, slide_length=1):
+#     """
+#     Gets the earthquake magntiude which is detectable across a given
+#     continuous fibre length (detection_length).
+#     Parameters
+#     ----------
+#     channel_pos : np.ndarray
+#         position of channels along the fibre in metres.
+#     mags : array
+#         Noise level of the fibre in metres.
+#     detection_length : float
+#         Length of the fibre over which to calculate the noise level in metres.
+#     slide_length : float, optional
+#         Length to slide the detection window along the fibre in metres.
+#         Default is 1 metre.
+#     Returns
+#     -------
+#     np.ndarray
+#         Array of noise levels for each section of the fibre.
+#     """
+#     fibre_length = channel_pos[-1] - channel_pos[0]
+#     if detection_length > fibre_length:
+#         raise ValueError(
+#             f"detection_length {detection_length} must be less"
+#             + f" than fibre_length {fibre_length}"
+#         )
+#     if detection_length <= 0:
+#         raise ValueError(f"detection_length {detection_length} must be positive")
+
+#     # Calculate the number of windows along the fibre
+#     n_windows = (
+#         int(
+#             np.floor(
+#                 (channel_pos[-1] - channel_pos[0] - detection_length) / slide_length
+#             )
+#         )
+#         + 1
+#     )
+#     ml_at_windows = np.zeros(n_windows)
+#     mags = np.array(mags)  # Convert to NumPy array for advanced indexing
+
+#     return np.min(ml_at_windows)
+
+
 def calc_min_ml_at_gridpoint_das(
     fibre, detection_length, lon, lat, foc_depth, snr, **kwargs
 ):
@@ -1078,6 +1097,11 @@ def calc_min_ml_at_gridpoint_das(
     mag_min = kwargs.get("mag_min", -2)
     mag_delta = kwargs.get("mag_delta", 0.1)
 
+    if "model_stacking" in kwargs:
+        model_stacking = kwargs["model_stacking"]
+    else:
+        model_stacking = True
+
     if method != "ML":
         raise ValueError(f"Method: {method} not supported for DAS at this time")
 
@@ -1087,10 +1111,10 @@ def calc_min_ml_at_gridpoint_das(
     # print(f"There are {window_size} channels in the sliding window.")
     # Covert noise from metres to nanometres
     noise_nm = fibre["noise_m"].values * 1e9
-    # print(f"This improves mean noise level from {noise_nm.mean():4.2f}")
-    noise_nm = noise_nm / np.sqrt(window_size)
-    # print(f"To a mean noise level of {noise_nm.mean():4.2f} ")
-    # print("~" * 50)
+    # Apply moving maximum filter to get max noise level along fibre section
+    # of length detection_length
+    windowed_noise_nm = get_das_noise_levels(noise_nm, window_size, model_stacking)
+
     # Precompute the hypocoentral distances using pygc
     # pygc gives distances in metres so convert to km
     distances_km = (
@@ -1107,7 +1131,7 @@ def calc_min_ml_at_gridpoint_das(
     # Calculate the minimum local magnitude for each section of the fibre
     # Vectorize _est_min_ml_at_station if possible
     # Otherwise, use a generator expression for min
-    required_ampls = snr * noise_nm
+    required_ampls = snr * windowed_noise_nm
     mags = calc_local_magnitude(
         required_ampls,
         hypo_distances,
@@ -1115,10 +1139,8 @@ def calc_min_ml_at_gridpoint_das(
         mag_min=mag_min,
         mag_delta=mag_delta,
     )
-    # Take a rolling maximum filter along fiber
-    min_windowed_mag = maximum_filter1d(mags, size=window_size, mode="nearest")
     # Get smallest ML detected at any one window along the fiber
-    return np.min(min_windowed_mag)
+    return np.min(mags)
 
 
 def update_with_arrays(
