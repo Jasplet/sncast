@@ -237,7 +237,7 @@ def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
         raise ValueError(f"Unknown method: {method}")
 
 
-def minML(
+def find_min_ml(
     stations_in,
     lon0,
     lon1,
