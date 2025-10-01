@@ -183,7 +183,7 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
     return ml
 
 
-def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
+def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
     """
     Estimates minimum detectable magnitude at a given station
 
@@ -213,7 +213,7 @@ def _est_min_ML_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
                            Default is 'CAL'.
     """
     warnings.warn(
-        "_est_min_ML_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude",
+        "_est_min_ml_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude",
         DeprecationWarning,
     )
     method = kwargs.get("method", "ML")
@@ -461,7 +461,7 @@ def _minML_worker(args):
         das_dfs,
         kwargs,
     ) = args
-    min_mag = calc_min_ML_at_gridpoint(
+    min_mag = calc_min_ml_at_gridpoint(
         stations_df,
         lons[ix],
         lats[iy],
@@ -635,7 +635,7 @@ def minML_x_section(
         ilon = xsection["longitude"][i]
         # Iterate over depth
         for d in range(ndepths):
-            mag_grid[d, i] = calc_min_ML_at_gridpoint(
+            mag_grid[d, i] = calc_min_ml_at_gridpoint(
                 stations_df,
                 ilon,
                 ilat,
@@ -653,7 +653,7 @@ def minML_x_section(
                     dx, dy = util_geo_km(ilon, ilat, arrays["lon"][a], arrays["lat"][a])
                     dz = np.abs(arrays["elevation_km"][a] - depths[d])
                     hypo_dist = np.sqrt(dx**2 + dy**2 + dz**2)
-                    m = _est_min_ML_at_station(
+                    m = _est_min_ml_at_station(
                         arrays["noise"][a],
                         mag_min,
                         mag_delta,
@@ -678,7 +678,7 @@ def minML_x_section(
                     # estimated noise level on array
                     # rootn or another cleverer method
                     # to get a displaement number)
-                    m = _est_min_ML_at_station(
+                    m = _est_min_ml_at_station(
                         obs["noise [nm]"][o],
                         mag_min,
                         mag_delta,
@@ -871,7 +871,7 @@ def get_das_noise_levels(channel_pos, noise, detection_length, slide_length=1):
     return noise_at_sections
 
 
-def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length=1):
+def get_min_ml_for_das_section(channel_pos, mags, detection_length, slide_length=1):
     """
     Gets the earthquake magntiude which is detectable across a given
     continuous fibre length (detection_length).
@@ -915,7 +915,7 @@ def get_min_ML_for_das_section(channel_pos, mags, detection_length, slide_length
     return np.min(ml_at_windows)
 
 
-def calc_min_ML_at_gridpoint(
+def calc_min_ml_at_gridpoint(
     stations_df,
     lon,
     lat,
@@ -1012,7 +1012,7 @@ def calc_min_ML_at_gridpoint(
         # calculate hypcocentral distance
         hypo_dist = np.sqrt(distances_km**2 + dz**2)
         mag = [
-            _est_min_ML_at_station(
+            _est_min_ml_at_station(
                 noise[s],
                 mag_min,
                 mag_delta,
@@ -1034,7 +1034,7 @@ def calc_min_ML_at_gridpoint(
         raise ValueError(f"Unsupported Method {method}")
 
 
-def calc_min_ML_at_gridpoint_das(
+def calc_min_ml_at_gridpoint_das(
     fibre, detection_length, lon, lat, foc_depth, snr, **kwargs
 ):
     """
@@ -1105,7 +1105,7 @@ def calc_min_ML_at_gridpoint_das(
     dz = np.abs(foc_depth - fibre["elevation_km"].values)
     hypo_distances = np.sqrt(distances_km**2 + dz**2)
     # Calculate the minimum local magnitude for each section of the fibre
-    # Vectorize _est_min_ML_at_station if possible
+    # Vectorize _est_min_ml_at_station if possible
     # Otherwise, use a generator expression for min
     required_ampls = snr * noise_nm
     mags = calc_local_magnitude(
@@ -1175,7 +1175,7 @@ def update_with_arrays(
         Minimum local magnitude at the grid point including the arrays.
     """
 
-    mag_arrays = calc_min_ML_at_gridpoint(
+    mag_arrays = calc_min_ml_at_gridpoint(
         arrays_df,
         lon,
         lat,
@@ -1241,7 +1241,7 @@ def update_with_obs(
         - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
                   Default is 'CAL'.
     """
-    mag_obs = calc_min_ML_at_gridpoint(
+    mag_obs = calc_min_ml_at_gridpoint(
         obs_df,
         lon,
         lat,
@@ -1307,7 +1307,7 @@ def update_with_das(
         - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
                   Default is 'CAL'.
     """
-    mag_das = calc_min_ML_at_gridpoint_das(
+    mag_das = calc_min_ml_at_gridpoint_das(
         das_df,
         detection_length,
         lon,
