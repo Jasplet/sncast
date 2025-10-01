@@ -428,7 +428,7 @@ def find_min_ml(
     return mag_det
 
 
-def _minML_worker(args):
+def _minml_worker(args):
     """
     Worker function for minML which allows the magnitude grid to be parallelised
     over multiple processors using multiprocessing.Pool
@@ -526,7 +526,7 @@ def _minML_worker(args):
     return (iy, ix, min_mag)
 
 
-def minML_x_section(
+def find_min_ml_x_section(
     stations_in,
     lon0,
     lat0,
