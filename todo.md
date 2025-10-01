@@ -4,3 +4,4 @@ To-Do list:
 - generalise noise estimation - cvurrently uses fixed directory!!
 - add examples
 - fix linting / refactor functions with large number of args.
+- build docs
