@@ -66,6 +66,8 @@ ML_COEFFS = {
     "CAL": {"a": 1.11, "b": 0.00189, "c": -2.09},
 }
 
+SUPPORTED_ML_REGIONS = list(ML_COEFFS.keys())
+
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     """
@@ -347,9 +349,16 @@ def find_min_ml(
         kwargs_worker["method"] = "ML"
         warnings.warn("Method not recognised, using ML as default")
 
-    if not kwargs.get("region"):
+    if kwargs.get("region") is None:
         kwargs_worker["region"] = "CAL"
         warnings.warn("Region not specified, using CAL as default")
+    elif kwargs["region"] not in SUPPORTED_ML_REGIONS:
+        raise ValueError(
+            f"Region {kwargs['region']} not supported, "
+            + f"supported regions are {SUPPORTED_ML_REGIONS}"
+        )
+    else:
+        kwargs_worker["region"] = kwargs["region"]
 
     print(f'Method : {kwargs_worker["method"]}')
     print(f'Region : {kwargs_worker["region"]}')
