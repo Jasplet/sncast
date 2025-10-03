@@ -20,7 +20,7 @@ def test_find_min_ml_basic():
         }
     )
     result = find_min_ml(
-        df,
+        networks=df,
         lon0=0,
         lon1=1,
         lat0=50,
