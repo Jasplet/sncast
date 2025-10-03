@@ -317,7 +317,7 @@ def find_min_ml(
         raise ValueError("No seismic networks, arrays or DAS provided!")
     # Make kwargs for worker function
     kwargs_worker = {}
-    kwargs_worker["foc_depth"] = kwargs.get("foc_depth", 0)
+    kwargs_worker["foc_depth"] = foc_depth
     kwargs_worker["snr"] = kwargs.get("snr", 3.0)
     kwargs_worker["mag_min"] = kwargs.get("mag_min", -2.0)
     kwargs_worker["mag_delta"] = kwargs.get("mag_delta", 0.1)
@@ -379,17 +379,50 @@ def find_min_ml(
     else:
         print("No seismic networks provided")
 
-    if kwargs["arrays"] is not None:
+    if kwargs.get("arrays") is not None:
         print(
             "Using seismic arrays in model. Arrays are modelled"
             + " as the central station with a required station number of 1."
         )
         if isinstance(kwargs["arrays"], (list, tuple)):
-            arrays_df = [read_station_data(a) for a in kwargs["arrays"]]
+            array_dfs = [read_station_data(a) for a in kwargs["arrays"]]
         else:
-            arrays_df = [read_station_data(kwargs["arrays"])]
+            array_dfs = [read_station_data(kwargs["arrays"])]
 
-        kwargs_worker["arrays_df"] = arrays_df
+        array_num = kwargs.get("array_num", 1)
+        if isinstance(array_num, int):
+            array_num = [array_num]
+
+        if len(array_num) != len(array_dfs):
+            warnings.warn(
+                f"Number of arrays ({len(array_dfs)}) does not match "
+                + f"number of required stations ({len(array_num)}), "
+                + f"using first value, {array_num[0]}, for all arrays"
+            )
+            array_num = [array_num[0]] * len(array_dfs)
+
+        kwargs_worker["array_num"] = array_num
+        kwargs_worker["array_dfs"] = array_dfs
+
+        # check there are enough stations in each array
+        for i, df in enumerate(array_dfs):
+            if len(df) < array_num[i]:
+                raise ValueError(
+                    f"Not enough stations in array {i+1}: "
+                    + f"have {len(df)}, need {array_num[i]}"
+                )
+
+            array_num = [stat_num[0]] * len(network_noise_dfs)
+
+        # check there are enough stations in each network
+        for i, df in enumerate(network_noise_dfs):
+            if len(df) < stat_num[i]:
+                raise ValueError(
+                    f"Not enough stations in network {i+1}: "
+                    + f"have {len(df)}, need {stat_num[i]}"
+                )
+
+        kwargs_worker["array_dfs"] = array_dfs
 
     if "das" in kwargs:
         if "detection_length" not in kwargs:
@@ -414,14 +447,19 @@ def find_min_ml(
     print(f"Using {nproc} cores")
     # Ensure fixed args are all in kwargs for worker function
     args_list = [
-        ((ix, iy, lons, lats), kwargs_worker) for ix in range(nx) for iy in range(ny)
+        ((ix, iy, lons[ix], lats[iy]), kwargs_worker)
+        for ix in range(nx)
+        for iy in range(ny)
     ]
     mag_grid = np.zeros((ny, nx))
+    # Detection capability has to be calulated at each grid point,
+    # Split this up using Pool and imap_unordered to multiple cores
+    # maybe numba would be quicker here?
     with Pool(processes=nproc) as pool:
-        for iy, ix, val in pool.imap_unordered(_minml_worker, args_list):
+        for iy, ix, val in pool.imap_unordered(_wrapper_minml_worker, args_list):
             mag_grid[iy, ix] = val
 
-    # # Make xarray grid to output
+    # Make xarray grid to output
     mag_det = xarray.DataArray(
         mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
     )
@@ -438,7 +476,7 @@ def _wrapper_minml_worker(arg):
     return _minml_worker(*args, **kwargs)
 
 
-def _minml_worker(args):
+def _minml_worker(ix, iy, lon, lat, **kwargs):
     """
     Worker function for minML which allows the magnitude grid to be parallelised
     over multiple processors using multiprocessing.Pool
@@ -454,51 +492,45 @@ def _minml_worker(args):
     tuple
         Tuple containing the y-index, x-index, and minimum magnitude for the grid point.
     """
-    # Unpack args
-    (
-        ix,
-        iy,
-        lons,
-        lats,
-        stations_df,
-        foc_depth,
-        stat_num,
-        snr,
-        mag_min,
-        mag_delta,
-        arrays_df,
-        obs_df,
-        das_dfs,
-        kwargs,
-    ) = args
-    min_mag = calc_min_ml_at_gridpoint(
-        stations_df,
-        lons[ix],
-        lats[iy],
-        foc_depth,
-        stat_num,
-        snr,
-        mag_min,
-        mag_delta,
-        **kwargs,
-    )
-    # Add arrays/obs/das if needed
-    if arrays_df is not None and not arrays_df.empty:
-        if "array_num" not in kwargs:
-            kwargs["array_num"] = 1
-            warnings.warn("array_num not specified, using 1 as default")
-
-        min_mag = update_with_arrays(
-            min_mag,
-            arrays_df,
-            lons[ix],
-            lats[iy],
-            foc_depth,
-            snr,
-            mag_min,
-            mag_delta,
-            **kwargs,
+    # Initialize min_mag to absurdly high value
+    min_mag = 100.0
+    if "network_noise_dfs" in kwargs:
+        for n, net_df in enumerate(kwargs["network_noise_dfs"]):
+            # spell out kwargs here for clarify and to avoid passing
+            # unnecessary data to worker processes
+            min_mag_net = calc_min_ml_at_gridpoint(
+                net_df,
+                lon,
+                lat,
+                stat_num=kwargs["stat_num"][n],
+                foc_depth=kwargs["foc_depth"],
+                snr=kwargs["snr"],
+                mag_min=kwargs["mag_min"],
+                mag_delta=kwargs["mag_delta"],
+                method=kwargs["method"],
+                region=kwargs["region"],
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"],
+            )
+            min_mag = min(min_mag, min_mag_net)
+    # Add arrays if provided
+    if kwargs.get("array_dfs") is not None and not kwargs["array_dfs"].empty:
+        min_mag_arrays = calc_min_ml_at_gridpoint(
+            kwargs.get("array_dfs"),
+            lon,
+            lat,
+            stat_num=kwargs["stat_num"][n],
+            foc_depth=kwargs["foc_depth"],
+            snr=kwargs["snr"],
+            mag_min=kwargs["mag_min"],
+            mag_delta=kwargs["mag_delta"],
+            method=kwargs["method"],
+            region=kwargs["region"],
+            gmpe=kwargs["gmpe"],
+            gmpe_model_type=kwargs["gmpe_model_type"],
         )
+        min_mag = min(min_mag, min_mag_arrays)
+
     if obs_df is not None and not obs_df.empty:
         if "obs_stat_num" not in kwargs:
             kwargs["obs_stat_num"] = 3
@@ -769,11 +801,6 @@ def calc_min_ml_at_gridpoint(
     stations_df,
     lon,
     lat,
-    foc_depth,
-    stat_num,
-    snr,
-    mag_min,
-    mag_delta,
     **kwargs,
 ):
     """
@@ -1152,77 +1179,6 @@ def calc_min_ml_at_gridpoint_das(
     )
     # Get smallest ML detected at any one window along the fiber
     return np.min(mags)
-
-
-def update_with_arrays(
-    mag_grid_val,
-    arrays_df,
-    lon,
-    lat,
-    foc_depth,
-    snr,
-    mag_min,
-    mag_delta,
-    **kwargs,
-):
-    """
-    Update the grid value with the minimum ML from arrays, if lower than
-    the current grid value.
-
-    Parameters
-    ----------
-    mag_grid_val : float
-        Current minimum local magnitude at the grid point.
-    arrays_df : pd.DataFrame
-        DataFrame containing array data with columns:
-        - 'longitude': longitude of the array in decimal degrees
-        - 'latitude': latitude of the array in decimal degrees
-        - 'elevation_km': elevation of the array in km
-        - 'noise [nm]': noise level at the array in nanometres
-        - 'station': array name
-    lon : float
-        Grid point longitude in decimal degrees.
-    lat : float
-        Grid point latitude in decimal degrees.
-    foc_depth : float
-        Focal depth of the event in kilometres.
-    snr : float
-        Signal-to-noise ratio required for detection.
-    mag_min : float
-        Minimum local magnitude to consider when modelling detections.
-    mag_delta : float
-        Increment for local magnitude.
-    kwargs : dict
-        Additional keyword arguments, including:
-        - 'array_num': number of stations required for a detection on an array.
-                       Default is 1.
-        - 'method': 'ML' or 'GMPE'. Default is 'ML'.
-        - 'gmpe': GMPE model to use if method is 'GMPE'. Default is None.
-        - 'gmpe_model_type': Type of GMPE model to use if method is 'GMPE'.
-                           Default is None.
-        - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
-                  Default is 'CAL'.
-    Returns
-    -------
-    float
-        Minimum local magnitude at the grid point including the arrays.
-    """
-
-    mag_arrays = calc_min_ml_at_gridpoint(
-        arrays_df,
-        lon,
-        lat,
-        foc_depth,
-        kwargs["array_num"],
-        snr,
-        mag_min,
-        mag_delta,
-        method=kwargs["method"],
-        gmpe=kwargs["gmpe"],
-        gmpe_model_type=kwargs["gmpe_model_type"],
-        region=kwargs["region"],
-    )
-    return min(mag_grid_val, mag_arrays)
 
 
 def update_with_obs(
