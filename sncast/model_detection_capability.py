@@ -339,6 +339,7 @@ def find_min_ml(
         kwargs_worker["gmpe"] = None
         kwargs_worker["gmpe_model_type"] = None
     elif kwargs.get("method") == "ML":
+        kwargs_worker["method"] = "ML"
         kwargs_worker["gmpe"] = None
         kwargs_worker["gmpe_model_type"] = None
 
