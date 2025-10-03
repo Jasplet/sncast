@@ -23,21 +23,66 @@ from sncast.model_detection_capability import calc_min_ml_at_gridpoint_das
 
 
 def test_read_das_noise_data():
-    # Make a test DataFrame
-    df = pd.DataFrame(
+    """Tests reading DAS noise data from a DataFrame and CSV file."""
+    # Create a DataFrame matching the dummy CSV file
+    dummy_df = pd.DataFrame(
         {
-            "channel_index": [10010, 10020, 10030],
-            "fiber_length_m": [1000, 2000, 3000],
-            "longitude": [0.01, 0.01, 0.01],
-            "latitude": [50.01, 50.02, 50.03],
-            "noise_m": [1e-8, 2e-9, 2.6e-8],
-            "elevation_km": [0.0, 10.0, -3.0],
+            "channel_index": [
+                10010,
+                10020,
+                10030,
+                10040,
+                10050,
+                10060,
+                10070,
+                10080,
+                10090,
+                10100,
+            ],
+            "fiber_length_m": [
+                1000,
+                2000,
+                3000,
+                4000,
+                5000,
+                6000,
+                7000,
+                8000,
+                9000,
+                10000,
+            ],
+            "longitude": [0.01] * 10,
+            "latitude": [
+                50.01,
+                50.02,
+                50.03,
+                50.04,
+                50.05,
+                50.06,
+                50.07,
+                50.08,
+                50.09,
+                50.10,
+            ],
+            "noise_m": [
+                1e-8,
+                2e-9,
+                2.6e-8,
+                1.2e-8,
+                3e-9,
+                4e-9,
+                1.5e-8,
+                2.2e-8,
+                5e-9,
+                3.1e-8,
+            ],
+            "elevation_km": [0.01] * 10,
         }
     )
-    output = read_das_noise_data(df)
+    output = read_das_noise_data(dummy_df)
     output_csv = read_das_noise_data("tests/data/das_dummy_data.csv")
-    assert output.equals(df)
-    assert output_csv.equals(df)
+    assert output.equals(dummy_df)
+    assert output_csv.equals(dummy_df)
 
 
 def test_read_das_noise_data_from_str():
