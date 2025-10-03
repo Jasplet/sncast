@@ -47,16 +47,16 @@ Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
 """
 
 from decimal import Decimal
+from multiprocessing import Pool
 import warnings
+
 import numpy as np
 import pandas as pd
-from multiprocessing import Pool
-from obspy.signal.util import util_geo_km
 from scipy.ndimage import maximum_filter1d
-
-import pygc
 import xarray
 
+from obspy.signal.util import util_geo_km
+import pygc
 
 from .gmpes import eval_gmpe
 from .magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
@@ -455,6 +455,7 @@ def find_min_ml(
     # Detection capability has to be calulated at each grid point,
     # Split this up using Pool and imap_unordered to multiple cores
     # maybe numba would be quicker here?
+
     with Pool(processes=nproc) as pool:
         for iy, ix, val in pool.imap_unordered(_wrapper_minml_worker, args_list):
             mag_grid[iy, ix] = val
