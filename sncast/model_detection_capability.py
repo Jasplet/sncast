@@ -247,7 +247,6 @@ def find_min_ml(
     foc_depth=0,
     networks=None,
     stat_num=[5],
-    arrays=None,
     **kwargs,
 ):
     """
@@ -314,12 +313,14 @@ def find_min_ml(
         at that grid point.
     """
     # exit if no stations provided
-    if networks
-    # Get kwargs and set defaults if needed
-    mag_min = kwargs.get("mag_min", -2.0)
-    mag_delta = kwargs.get("mag_delta", 0.1)
-    snr = kwargs.get("snr", 3.0)
-    nproc = kwargs.get("nproc", 1)
+    if (networks == None) and ("arrays" not in kwargs) and ("das" not in kwargs):
+        raise ValueError("No seismic networks, arrays or DAS provided!")
+    # Make kwargs for worker function
+    kwargs_worker = {}
+    kwargs_worker["foc_depth"] = kwargs.get("foc_depth", 0)
+    kwargs_worker["snr"] = kwargs.get("snr", 3.0)
+    kwargs_worker["mag_min"] = kwargs.get("mag_min", -2.0)
+    kwargs_worker["mag_delta"] = kwargs.get("mag_delta", 0.1)
 
     if kwargs.get("method") == "GMPE":
         if not kwargs["gmpe"]:
@@ -330,58 +331,65 @@ def find_min_ml(
             raise ValueError(
                 "GMPE model type must be specified if" + "GMPE method is selected"
             )
-        kwargs["gmpe"] = None
-        kwargs["gmpe_model_type"] = None
+        kwargs_worker["gmpe"] = None
+        kwargs_worker["gmpe_model_type"] = None
     elif kwargs.get("method") == "ML":
-        kwargs["gmpe"] = None
-        kwargs["gmpe_model_type"] = None
+        kwargs_worker["gmpe"] = None
+        kwargs_worker["gmpe_model_type"] = None
 
     else:
-        kwargs["method"] = "ML"
+        kwargs_worker["method"] = "ML"
         warnings.warn("Method not recognised, using ML as default")
 
     if not kwargs.get("region"):
-        kwargs["region"] = "CAL"
+        kwargs_worker["region"] = "CAL"
         warnings.warn("Region not specified, using CAL as default")
 
-    print(f'Method : {kwargs["method"]}')
-    print(f'Region : {kwargs["region"]}')
-    print(f"Using {nproc} cores")
+    print(f'Method : {kwargs_worker["method"]}')
+    print(f'Region : {kwargs_worker["region"]}')
 
-    # read in data, file format: "LON, LAT, NOISE [nm], STATION"
-    if isinstance(networks, (list, tuple)):
-        network_noise_dfs = [read_station_data(n) for n in networks]
-    else:
-        network_noise_dfs = [read_station_data(networks)]
+    if networks is not None:
+        # read in data, file format: "LON, LAT, NOISE [nm], STATION"
+        if isinstance(networks, (list, tuple)):
+            network_noise_dfs = [read_station_data(n) for n in networks]
+        else:
+            network_noise_dfs = [read_station_data(networks)]
 
-    stat_num = kwargs.get("stat_num", 5)
-    if isinstance(stat_num, int):
-        stat_num = [stat_num]
+        stat_num = kwargs.get("stat_num", 5)
+        if isinstance(stat_num, int):
+            stat_num = [stat_num]
 
-    if len(stat_num) != len(network_noise_dfs):
-        warnings.warn(
-            f"Number of networks ({len(network_noise_dfs)}) does not match "
-            + f"number of required stations ({len(stat_num)}), "
-            + f"using first value, {stat_num[0]}, for all networks"
-        )
-        stat_num = [stat_num[0]] * len(network_noise_dfs)
-    # check there are enough stations in each network
-    for i, df in enumerate(network_noise_dfs):
-        if len(df) < stat_num[i]:
-            raise ValueError(
-                f"Not enough stations in network {i+1}: "
-                + f"have {len(df)}, need {stat_num[i]}"
+        if len(stat_num) != len(network_noise_dfs):
+            warnings.warn(
+                f"Number of networks ({len(network_noise_dfs)}) does not match "
+                + f"number of required stations ({len(stat_num)}), "
+                + f"using first value, {stat_num[0]}, for all networks"
             )
+            stat_num = [stat_num[0]] * len(network_noise_dfs)
 
-    if arrays is not None:
+        # check there are enough stations in each network
+        for i, df in enumerate(network_noise_dfs):
+            if len(df) < stat_num[i]:
+                raise ValueError(
+                    f"Not enough stations in network {i+1}: "
+                    + f"have {len(df)}, need {stat_num[i]}"
+                )
+        kwargs_worker["network_noise_dfs"] = network_noise_dfs
+        kwargs_worker["stat_num"] = stat_num
+    else:
+        print("No seismic networks provided")
+
+    if kwargs["arrays"] is not None:
         print(
             "Using seismic arrays in model. Arrays are modelled"
             + " as the central station with a required station number of 1."
         )
-        if isinstance(arrays, (list, tuple)):
-            arrays_df = [read_station_data(a) for a in arrays]
+        if isinstance(kwargs["arrays"], (list, tuple)):
+            arrays_df = [read_station_data(a) for a in kwargs["arrays"]]
         else:
-            arrays_df = [read_station_data(arrays)]
+            arrays_df = [read_station_data(kwargs["arrays"])]
+
+        kwargs_worker["arrays_df"] = arrays_df
 
     if "das" in kwargs:
         if "detection_length" not in kwargs:
@@ -398,28 +406,15 @@ def find_min_ml(
             if len(df) == 0:
                 raise ValueError("No DAS data found in one of the input files")
         print(f'DAS detection length: {kwargs["detection_length"]} m')
-    else:
-        das_dfs = []
+        kwargs_worker["das_dfs"] = das_dfs
 
     lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
+
+    nproc = kwargs.get("nproc", 1)
+    print(f"Using {nproc} cores")
+    # Ensure fixed args are all in kwargs for worker function
     args_list = [
-        (
-            ix,
-            iy,
-            lons,
-            lats,
-            network_noise_dfs,
-            foc_depth,
-            stat_num,
-            snr,
-            mag_min,
-            mag_delta,
-            arrays_df,
-            das_dfs,
-            kwargs,
-        )
-        for ix in range(nx)
-        for iy in range(ny)
+        (ix, iy, lons, lats, kwargs_worker) for ix in range(nx) for iy in range(ny)
     ]
     mag_grid = np.zeros((ny, nx))
     with Pool(processes=nproc) as pool:
