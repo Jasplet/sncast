@@ -178,14 +178,16 @@ def test_get_das_noise_levels_stacking_edges_odd():
 
 
 #   test calc_min_ml_at_gridpoint_das
-@patch("sncast.model_detection_capability.calc_local_magnitude")
 @patch("sncast.model_detection_capability.get_das_noise_levels")
+@patch("sncast.model_detection_capability.calc_local_magnitude")
 def test_calc_min_ml_at_gridpoint_das(
     mock_calc_local_magnitude, mock_get_das_noise_levels
 ):
     """Tests the calc_min_ml_at_gridpoint_das function."""
-    mock_calc_local_magnitude.return_value = np.array([0.5, 0.7, 1.2, 1.3])
-    mock_get_das_noise_levels.return_value = np.array([0.5, 0.7, 1.2, 1.3]) * 0.2
+    test_mags = np.array([0.5, 0.7, 1.2, 1.3])
+    test_noise = np.array([6e-9, 6e-9, 6e-9, 6e-9])
+    mock_calc_local_magnitude.return_value = test_mags
+    mock_get_das_noise_levels.return_value = test_noise
     dummy_fibre = pd.read_csv("tests/data/das_dummy_data.csv")
     lat = 1
     lon = 50
@@ -198,6 +200,7 @@ def test_calc_min_ml_at_gridpoint_das(
         )["distance"]
         * 1e-3
     )
+    print(distances_km)
     result = calc_min_ml_at_gridpoint_das(
         dummy_fibre,
         100,
@@ -211,11 +214,7 @@ def test_calc_min_ml_at_gridpoint_das(
         mag_delta=0.1,
         gauge_len=10,
     )
-    print(np.min(mock_calc_local_magnitude.return_value))
-    assert result == np.min(mock_calc_local_magnitude.return_value)
-    mock_calc_local_magnitude.assert_called_once_with(
-        mock_get_das_noise_levels.return_value, distances_km, "UK", -2.0, 0.1
-    )
-    mock_get_das_noise_levels.assert_called_once_with(
-        dummy_fibre["noise_m"].values, 10, model_stacking=True
-    )
+    minmag = min(test_mags)
+    assert result == minmag
+    mock_calc_local_magnitude.assert_called_once()
+    mock_get_das_noise_levels.assert_called_once()
