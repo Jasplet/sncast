@@ -472,7 +472,7 @@ def _minml_worker(args):
         mag_delta,
         **kwargs,
     )
-    # Add arrays/obs/das as in your main loop if needed
+    # Add arrays/obs/das if needed
     if arrays_df is not None and not arrays_df.empty:
         if "array_num" not in kwargs:
             kwargs["array_num"] = 1
@@ -508,8 +508,7 @@ def _minml_worker(args):
 
     for das_df in das_dfs:
         if das_df is not None and not das_df.empty:
-            min_mag = update_with_das(
-                min_mag,
+            mag_das = calc_min_ml_at_gridpoint_das(
                 das_df,
                 detection_length=kwargs.get("detection_length", 1000),
                 lon=lons[ix],
@@ -522,7 +521,9 @@ def _minml_worker(args):
                 gmpe_model_type=kwargs.get("gmpe_model_type", None),
                 region=kwargs.get("region", "CAL"),
                 method=kwargs.get("method", "ML"),
+                **kwargs,
             )
+            min_mag = min(min_mag, mag_das)
     return (iy, ix, min_mag)
 
 
@@ -1279,73 +1280,3 @@ def update_with_obs(
         **kwargs,
     )
     return min(mag_grid_val, mag_obs)
-
-
-def update_with_das(
-    mag_grid_val,
-    das_df,
-    detection_length,
-    lon,
-    lat,
-    foc_depth,
-    snr,
-    mag_min,
-    mag_delta,
-    **kwargs,
-):
-    """
-    Update the grid value with the minimum ML from DAS,
-    if lower than the current grid value.
-
-    Parameters
-    ----------
-    mag_grid_val : float
-        Current minimum local magnitude at the grid point.
-    das_df : pd.DataFrame
-        DataFrame containing DAS noise data with columns:
-        - 'channel_index': index of the channel
-        - 'fiber_length_m': length of the fibre in metres
-        - 'longitude': longitude of the fibre in decimal degrees
-        - 'latitude': latitude of the fibre in decimal degrees
-        - 'noise_m': noise level of the fibre in metres
-    detection_length : float
-        Length of the fibre over which to calculate the noise level in metres.
-    lon : float
-        Grid point longitude in decimal degrees.
-    lat : float
-        Grid point latitude in decimal degrees.
-    foc_depth : float
-        Focal depth of the event in kilometres.
-    snr : float
-        Signal-to-noise ratio required for detection.
-    mag_min : float
-        Minimum local magnitude to consider when modelling detections.
-    mag_delta : float
-        Increment for local magnitude.
-    kwargs : dict
-        Additional keyword arguments, including:
-        - 'array_num': number of stations required for a detection on an array.
-                       Default is 1.
-        - 'method': 'ML' or 'GMPE'. Default is 'ML'.
-        - 'gmpe': GMPE model to use if method is 'GMPE'. Default is None.
-        - 'gmpe_model_type': Type of GMPE model to use if method is 'GMPE'.
-                           Default is None.
-        - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
-                  Default is 'CAL'.
-    Returns
-    -------
-    float
-        Minimum local magnitude at the grid point including DAS.
-    """
-    mag_das = calc_min_ml_at_gridpoint_das(
-        das_df,
-        detection_length,
-        lon,
-        lat,
-        foc_depth,
-        snr,
-        mag_min=mag_min,
-        mag_delta=mag_delta,
-        **kwargs,
-    )
-    return min(mag_grid_val, mag_das)
