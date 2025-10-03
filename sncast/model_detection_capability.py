@@ -370,8 +370,11 @@ def find_min_ml(
         else:
             network_noise_dfs = [read_station_data(networks)]
 
-        stat_num = kwargs.get("stat_num", 5)
         if isinstance(stat_num, int):
+            warnings.warn(
+                "Single integer provided for stat_num, "
+                + "assuming this applies to all networks"
+            )
             stat_num = [stat_num]
 
         if len(stat_num) != len(network_noise_dfs):
