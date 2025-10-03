@@ -354,7 +354,7 @@ def find_min_ml(
     else:
         network_noise_dfs = [read_station_data(networks)]
 
-    stat_num = kwargs.get("stat_num", [5])
+    stat_num = kwargs.get("stat_num", 5)
     if isinstance(stat_num, int):
         stat_num = [stat_num]
 
@@ -364,6 +364,7 @@ def find_min_ml(
             + f"number of required stations ({len(stat_num)}), "
             + f"using first value, {stat_num[0]}, for all networks"
         )
+        stat_num = [stat_num[0]] * len(network_noise_dfs)
     # check there are enough stations in each network
     for i, df in enumerate(network_noise_dfs):
         if len(df) < stat_num[i]:
