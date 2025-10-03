@@ -298,7 +298,8 @@ def find_min_ml(
         - array_num: Number of stations required for a detection on an array. Default is 1.
         - obs_stat_num: Number of stations required for a detection on an OBS. Default is 3.
         - nproc: Number of processors to use for parallel processing. Default is 1.
-        - detection_length: float, optional. Length of fiber (in meters) required for a detection. Default is 1000 m.
+        - detection_length: float, optional. Length of fiber (in meters) required for a detection.
+          Default is 1000 m.
         - mag_min: float, optional. Minimum local magnitude to consider. Default is -2.0.
         - mag_delta: float, optional. Increment for local magnitude. Default is 0.1.
         - snr: float, optional. Required signal-to-noise ratio for detection. Default is 3.0.
@@ -313,7 +314,11 @@ def find_min_ml(
         at that grid point.
     """
     # exit if no stations provided
-    if (networks == None) and ("arrays" not in kwargs) and ("das" not in kwargs):
+    if (
+        (networks is None)
+        and (kwargs.get("arrays") is None)
+        and (kwargs.get("das") is None)
+    ):
         raise ValueError("No seismic networks, arrays or DAS provided!")
     # Make kwargs for worker function
     kwargs_worker = {}
@@ -503,9 +508,9 @@ def _minml_worker(ix, iy, lon, lat, **kwargs):
                 net_df,
                 lon,
                 lat,
-                stat_num=kwargs["stat_num"][n],
-                foc_depth=kwargs["foc_depth"],
-                snr=kwargs["snr"],
+                kwargs["stat_num"][n],
+                kwargs["foc_depth"],
+                kwargs["snr"],
                 mag_min=kwargs["mag_min"],
                 mag_delta=kwargs["mag_delta"],
                 method=kwargs["method"],
@@ -787,6 +792,9 @@ def calc_min_ml_at_gridpoint(
     stations_df,
     lon,
     lat,
+    stat_num,
+    foc_depth,
+    snr,
     **kwargs,
 ):
     """
@@ -812,18 +820,20 @@ def calc_min_ml_at_gridpoint(
         Required number of station detections to calculate minimum ML.
     snr : float
         Signal-to-noise ratio required for detection.
+
     mag_min : float
-        Minimum local magnitude to consider when modelling detections.
+        - Minimum local magnitude to consider when modelling detections.
     mag_delta : float
-        Increment for local magnitude.
-    kwargs : dict, optional
-        Additional keyword arguments to control the method and parameters:
-        - method: 'ML' or 'GMPE'. Default is 'ML'.
-        - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
-        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
-                           Default is None.
-        - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
-                  Default is 'CAL'.
+        - Increment for local magnitude.
+    method: str
+        Method to use for 'ML'  (local mag scale) or 'GMPE'. Default is 'ML'.
+    region: str
+        Locality for assumed ML scale parameters ('UK' or 'CAL').
+        Default is 'CAL'.
+    gmpe: str
+        GMPE model to use if method is 'GMPE'. Default is None.
+    gmpe_model_type: str
+        Type of GMPE model to use if method is 'GMPE'. Default is None.
     Returns
     -------
     float
@@ -831,7 +841,8 @@ def calc_min_ml_at_gridpoint(
     """
     method = kwargs.get("method", "ML")
     region = kwargs.get("region", "CAL")
-
+    mag_min = kwargs.get("mag_min", -2.0)
+    mag_delta = kwargs.get("mag_delta", 0.1)
     if method == "ML":
 
         noise = stations_df["noise [nm]"].values
