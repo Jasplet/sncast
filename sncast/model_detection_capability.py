@@ -414,7 +414,7 @@ def find_min_ml(
     print(f"Using {nproc} cores")
     # Ensure fixed args are all in kwargs for worker function
     args_list = [
-        (ix, iy, lons, lats, kwargs_worker) for ix in range(nx) for iy in range(ny)
+        ((ix, iy, lons, lats), kwargs_worker) for ix in range(nx) for iy in range(ny)
     ]
     mag_grid = np.zeros((ny, nx))
     with Pool(processes=nproc) as pool:
@@ -426,6 +426,16 @@ def find_min_ml(
         mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
     )
     return mag_det
+
+
+def _wrapper_minml_worker(arg):
+    """
+    Function to act as a wrapper for the _minml_worker function to allow
+    passing multiple arguments using multiprocessing.Pool.imap_unordered
+
+    """
+    args, kwargs = arg
+    return _minml_worker(*args, **kwargs)
 
 
 def _minml_worker(args):
