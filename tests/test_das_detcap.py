@@ -22,6 +22,24 @@ from sncast.model_detection_capability import get_das_noise_levels
 from sncast.model_detection_capability import calc_min_ml_at_gridpoint_das
 
 
+def test_read_das_noise_data():
+    # Make a test DataFrame
+    df = pd.DataFrame(
+        {
+            "channel_index": [10010, 10020, 10030],
+            "fiber_length_m": [1000, 2000, 3000],
+            "longitude": [0.01, 0.01, 0.01],
+            "latitude": [50.01, 50.02, 50.03],
+            "noise_m": [1e-8, 2e-9, 2.6e-8],
+            "elevation_km": [0.0, 10.0, -3.0],
+        }
+    )
+    output = read_das_noise_data(df)
+    output_csv = read_das_noise_data("tests/data/das_dummy_data.csv")
+    assert output.equals(df)
+    assert output_csv.equals(df)
+
+
 def test_read_das_noise_data_from_str():
     """Tests reading DAS noise data from a CSV file path."""
     dummy_str = "tests/data/das_dummy_data.csv"

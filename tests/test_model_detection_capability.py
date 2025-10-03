@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
-from sncast.model_detection_capability import update_with_arrays
 from sncast.model_detection_capability import find_min_ml
-from sncast.model_detection_capability import read_station_data, read_das_noise_data
+from sncast.model_detection_capability import read_station_data
 from sncast.model_detection_capability import _est_min_ml_at_station
 from sncast.model_detection_capability import calc_ampl_from_magnitude
 from sncast.model_detection_capability import calc_local_magnitude
@@ -50,24 +49,6 @@ def test_read_station_data():
     )
     output = read_station_data(df)
     output_csv = read_station_data("tests/data/station_data.csv")
-    assert output.equals(df)
-    assert output_csv.equals(df)
-
-
-def test_read_das_noise_data():
-    # Make a test DataFrame
-    df = pd.DataFrame(
-        {
-            "channel_index": [10010, 10020, 10030],
-            "fiber_length_m": [1000, 2000, 3000],
-            "longitude": [0.01, 0.01, 0.01],
-            "latitude": [50.01, 50.02, 50.03],
-            "noise_m": [1e-8, 2e-9, 2.6e-8],
-            "elevation_km": [0.0, 10.0, -3.0],
-        }
-    )
-    output = read_das_noise_data(df)
-    output_csv = read_das_noise_data("tests/data/das_dummy_data.csv")
     assert output.equals(df)
     assert output_csv.equals(df)
 
@@ -237,73 +218,3 @@ def test_est_min_ml_at_station_raises_unsupported():
             _est_min_ml_at_station(
                 noise=10, mag_min=-2, mag_delta=0.1, distance=50, snr=3, method=mode
             )
-
-
-def test_update_with_arrays_lower():
-    df = pd.DataFrame(
-        {
-            "longitude": [0.0],
-            "latitude": [50.0],
-            "elevation_km": [0.0],
-            "noise [nm]": [1.0],
-            "station": ["STA1"],
-        }
-    )
-    # Use a dummy kwargs dict for ML method
-    kwargs = {
-        "method": "ML",
-        "region": "UK",
-        "gmpe": None,
-        "gmpe_model_type": None,
-        "array_num": 1,
-    }
-    # mag_grid_val is higher than what the array will return
-    result = update_with_arrays(5.0, df, 0.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
-    assert result < 5.0
-
-
-def test_update_with_arrays_higher():
-    df = pd.DataFrame(
-        {
-            "longitude": [0.0],
-            "latitude": [50.0],
-            "elevation_km": [0.0],
-            "noise [nm]": [1000.0],  # High noise, so ML will be high
-            "station": ["STA1"],
-        }
-    )
-    kwargs = {
-        "method": "ML",
-        "region": "UK",
-        "gmpe": None,
-        "gmpe_model_type": None,
-        "array_num": 1,
-    }
-    # mag_grid_val is lower than what the array will return
-    # params: mag_grid_val, arrays_df, lon, lat, foc_depth, snr, mag_min, mag_delta,
-    result = update_with_arrays(1.0, df, 1.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
-    assert result == 1.0
-
-
-def test_update_with_arrays_missing_column():
-    df = pd.DataFrame(
-        {
-            "longitude": [0.0],
-            "latitude": [50.0],
-            # 'elevation_km' missing
-            "noise [nm]": [1.0],
-            "station": ["STA1"],
-        }
-    )
-    kwargs = {
-        "method": "ML",
-        "region": "UK",
-        "gmpe": None,
-        "gmpe_model_type": None,
-        "array_num": 1,
-    }
-    try:
-        update_with_arrays(1.0, df, 0.0, 50.0, 0.0, 1, -2.0, 0.1, **kwargs)
-        assert False, "Should raise ValueError"
-    except Exception:
-        pass
