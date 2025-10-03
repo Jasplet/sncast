@@ -533,41 +533,24 @@ def _minml_worker(ix, iy, lon, lat, **kwargs):
             )
             min_mag = min(min_mag, min_mag_arrays)
 
-    if obs_df is not None and not obs_df.empty:
-        if "obs_stat_num" not in kwargs:
-            kwargs["obs_stat_num"] = 3
-            warnings.warn("obs_stat_num not specified, using 3 as default")
-
-        min_mag = update_with_obs(
-            min_mag,
-            obs_df,
-            lons[ix],
-            lats[iy],
-            foc_depth,
-            snr,
-            mag_min,
-            mag_delta,
-            **kwargs,
-        )
-
-    for das_df in das_dfs:
-        if das_df is not None and not das_df.empty:
-            mag_das = calc_min_ml_at_gridpoint_das(
-                das_df,
-                detection_length=kwargs.get("detection_length", 1000),
-                lon=lons[ix],
-                lat=lats[iy],
-                foc_depth=foc_depth,
-                snr=snr,
-                mag_min=mag_min,
-                mag_delta=mag_delta,
-                gmpe=kwargs.get("gmpe", None),
-                gmpe_model_type=kwargs.get("gmpe_model_type", None),
-                region=kwargs.get("region", "CAL"),
-                method=kwargs.get("method", "ML"),
-                **kwargs,
-            )
-            min_mag = min(min_mag, mag_das)
+    if kwargs.get("das_dfs") is not None:
+        for das_df in kwargs["das_dfs"]:
+            if das_df is not None and not das_df.empty:
+                mag_min_das = calc_min_ml_at_gridpoint_das(
+                    das_df,
+                    lon,
+                    lat,
+                    foc_depth=kwargs["foc_depth"],
+                    snr=kwargs["snr"],
+                    mag_min=kwargs["mag_min"],
+                    mag_delta=kwargs["mag_delta"],
+                    detection_length=kwargs.get("detection_length", 1000),
+                    gmpe=kwargs.get("gmpe", None),
+                    gmpe_model_type=kwargs.get("gmpe_model_type", None),
+                    region=kwargs.get("region", "CAL"),
+                    method=kwargs.get("method", "ML"),
+                )
+                min_mag = min(min_mag, mag_min_das)
     return (iy, ix, min_mag)
 
 
@@ -1049,6 +1032,93 @@ def get_das_noise_levels(das_noise, wind_len_idx, model_stacking=True):
     return max_filtered_noise
 
 
+def calc_min_ml_at_gridpoint_das(
+    fibre, lon, lat, detection_length, foc_depth, snr, **kwargs
+):
+    """
+    Calculates the minimum local magnitude which can
+    de detected along a given detection length of the fibre.
+    Parameters
+    ----------
+    fibre : pd.DataFrame
+        DataFrame containing the fibre data with columns:
+        - 'channel_index': index of the channel
+        - 'fiber_length_m': length of the fibre in metres
+        - 'longitude': longitude of the fibre in decimal degrees
+        - 'latitude': latitude of the fibre in decimal degrees
+        - 'noise_m': noise level of the fibre in metres
+    lon : float
+        Grid point longitude in decimal degrees.
+    lat : float
+        Grid point latitude in decimal degrees.
+    detection_length : float
+        Length of the fibre over which to calculate the noise level in metres.
+    foc_depth : float
+        Focal depth of the event in kilometres.
+    snr : float
+        Signal-to-noise ratio required for detection.
+    kwargs : dict
+        Additional keyword arguments, including:
+        - 'mag_min': minimum local magnitude to consider
+        - 'mag_delta': increment for local magnitude
+        - 'method': method to use for calculation ('ML' or 'GMPE')
+        - 'gmpe': GMPE model to use if method is 'GMPE'
+        - 'gmpe_model_type': type of GMPE model to use if method is 'GMPE'
+        - 'region': region for the local magnitude scale ('UK' or 'CAL')
+    Returns
+    -------
+    float
+        Minimum local magnitude that can be detected by a continuous section of fibre
+        of the input detection length.
+    """
+    method = kwargs.get("method", "ML")
+    region = kwargs.get("region", "CAL")
+    mag_min = kwargs.get("mag_min", -2)
+    mag_delta = kwargs.get("mag_delta", 0.1)
+    # Set model_stacking to True by default
+    model_stacking = kwargs.get("model_stacking", True)
+
+    if method != "ML":
+        raise ValueError(f"Method: {method} not supported for DAS at this time")
+
+    gauge_len = kwargs.get("gauge_length", 20)
+    window_size = int(np.ceil((detection_length / gauge_len)))
+    # print("~" * 50)
+    # print(f"There are {window_size} channels in the sliding window.")
+    # Covert noise from metres to nanometres
+    noise_nm = fibre["noise_m"].values * 1e9
+    # Apply moving maximum filter to get max noise level along fibre section
+    # of length detection_length
+    windowed_noise_nm = get_das_noise_levels(noise_nm, window_size, model_stacking)
+
+    # Precompute the hypocoentral distances using pygc
+    # pygc gives distances in metres so convert to km
+    distances_km = (
+        pygc.great_distance(
+            start_latitude=fibre["latitude"].values,
+            end_latitude=lat,
+            start_longitude=fibre["longitude"].values,
+            end_longitude=lon,
+        )["distance"]
+        * 1e-3
+    )
+    dz = np.abs(foc_depth - fibre["elevation_km"].values)
+    hypo_distances = np.sqrt(distances_km**2 + dz**2)
+    # Calculate the minimum local magnitude for each section of the fibre
+    required_ampls = snr * windowed_noise_nm
+    mags = calc_local_magnitude(
+        required_ampls,
+        hypo_distances,
+        region=region,
+        mag_min=mag_min,
+        mag_delta=mag_delta,
+    )
+    # Get smallest ML detected at any one window along the fiber
+    return np.min(mags)
+
+
+# Deprecated function - not currently used
+
 # def get_min_ml_for_das_section(channel_pos, mags, detection_length, slide_length=1):
 #     """
 #     Gets the earthquake magntiude which is detectable across a given
@@ -1091,160 +1161,3 @@ def get_das_noise_levels(das_noise, wind_len_idx, model_stacking=True):
 #     mags = np.array(mags)  # Convert to NumPy array for advanced indexing
 
 #     return np.min(ml_at_windows)
-
-
-def calc_min_ml_at_gridpoint_das(
-    fibre, detection_length, lon, lat, foc_depth, snr, **kwargs
-):
-    """
-    Calculates the minimum local magnitude which can
-    de detected along a given detection length of the fibre.
-    Parameters
-    ----------
-    fibre : pd.DataFrame
-        DataFrame containing the fibre data with columns:
-        - 'channel_index': index of the channel
-        - 'fiber_length_m': length of the fibre in metres
-        - 'longitude': longitude of the fibre in decimal degrees
-        - 'latitude': latitude of the fibre in decimal degrees
-        - 'noise_m': noise level of the fibre in metres
-    detection_length : float
-        Length of the fibre over which to calculate the noise level in metres.
-    lon : float
-        Grid point longitude in decimal degrees.
-    lat : float
-        Grid point latitude in decimal degrees.
-    foc_depth : float
-        Focal depth of the event in kilometres.
-    snr : float
-        Signal-to-noise ratio required for detection.
-    kwargs : dict
-        Additional keyword arguments, including:
-        - 'mag_min': minimum local magnitude to consider
-        - 'mag_delta': increment for local magnitude
-        - 'method': method to use for calculation ('ML' or 'GMPE')
-        - 'gmpe': GMPE model to use if method is 'GMPE'
-        - 'gmpe_model_type': type of GMPE model to use if method is 'GMPE'
-        - 'region': region for the local magnitude scale ('UK' or 'CAL')
-    Returns
-    -------
-    float
-        Minimum local magnitude that can be detected by a continuous section of fibre
-        of the input detection length.
-    """
-    method = kwargs.get("method", "ML")
-    region = kwargs.get("region", "CAL")
-    mag_min = kwargs.get("mag_min", -2)
-    mag_delta = kwargs.get("mag_delta", 0.1)
-
-    if "model_stacking" in kwargs:
-        model_stacking = kwargs["model_stacking"]
-    else:
-        model_stacking = True
-
-    if method != "ML":
-        raise ValueError(f"Method: {method} not supported for DAS at this time")
-
-    gauge_len = kwargs.get("gauge_length", 20)
-    window_size = int(np.ceil((detection_length / gauge_len)))
-    # print("~" * 50)
-    # print(f"There are {window_size} channels in the sliding window.")
-    # Covert noise from metres to nanometres
-    noise_nm = fibre["noise_m"].values * 1e9
-    # Apply moving maximum filter to get max noise level along fibre section
-    # of length detection_length
-    windowed_noise_nm = get_das_noise_levels(noise_nm, window_size, model_stacking)
-
-    # Precompute the hypocoentral distances using pygc
-    # pygc gives distances in metres so convert to km
-    distances_km = (
-        pygc.great_distance(
-            start_latitude=fibre["latitude"].values,
-            end_latitude=lat,
-            start_longitude=fibre["longitude"].values,
-            end_longitude=lon,
-        )["distance"]
-        * 1e-3
-    )
-    dz = np.abs(foc_depth - fibre["elevation_km"].values)
-    hypo_distances = np.sqrt(distances_km**2 + dz**2)
-    # Calculate the minimum local magnitude for each section of the fibre
-    # Vectorize _est_min_ml_at_station if possible
-    # Otherwise, use a generator expression for min
-    required_ampls = snr * windowed_noise_nm
-    mags = calc_local_magnitude(
-        required_ampls,
-        hypo_distances,
-        region=region,
-        mag_min=mag_min,
-        mag_delta=mag_delta,
-    )
-    # Get smallest ML detected at any one window along the fiber
-    return np.min(mags)
-
-
-def update_with_obs(
-    mag_grid_val,
-    obs_df,
-    lon,
-    lat,
-    foc_depth,
-    snr,
-    mag_min,
-    mag_delta,
-    **kwargs,
-):
-    """
-    Update the grid value with the minimum ML from OBS, if lower than
-    the current grid value.
-
-    Parameters
-    ----------
-    mag_grid_val : float
-        Current minimum local magnitude at the grid point.
-    obs_df : pd.DataFrame
-        DataFrame containing OBS stations with columns:
-        - 'longitude': longitude of the OBS in decimal degrees
-        - 'latitude': latitude of the OBS in decimal degrees
-        - 'elevation_km': elevation of the OBS in km
-        - 'noise [nm]': noise level at the OBS in nanometres
-        - 'station': OBS station name
-    lon : float
-        Grid point longitude in decimal degrees.
-    lat : float
-        Grid point latitude in decimal degrees.
-    foc_depth : float
-        Focal depth of the event in kilometres.
-    snr : float
-        Signal-to-noise ratio required for detection.
-    mag_min : float
-        Minimum local magnitude to consider when modelling detections.
-    mag_delta : float
-        Increment for local magnitude.
-    kwargs : dict
-        Additional keyword arguments, including:
-        - 'obs_stat_num': number of stations required for a detection on an OBS.
-                       Default is 3.
-        - 'method': 'ML' or 'GMPE'. Default is 'ML'.
-        - 'gmpe': GMPE model to use if method is 'GMPE'. Default is None.
-        - 'gmpe_model_type': Type of GMPE model to use if method is 'GMPE'.
-                           Default is None.
-        - 'region': Locality for assumed ML scale parameters ('UK' or 'CAL').
-                  Default is 'CAL'.
-    Returns
-    -------
-    float
-        Minimum local magnitude at the grid point including the OBS.
-    """
-    mag_obs = calc_min_ml_at_gridpoint(
-        obs_df,
-        lon,
-        lat,
-        foc_depth,
-        kwargs["obs_stat_num"],
-        snr,
-        mag_min,
-        mag_delta,
-        **kwargs,
-    )
-    return min(mag_grid_val, mag_obs)
