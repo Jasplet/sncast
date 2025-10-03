@@ -238,7 +238,7 @@ def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
 
 
 def find_min_ml(
-    stations_in,
+    networks,
     lon0,
     lon1,
     lat0,
@@ -246,12 +246,7 @@ def find_min_ml(
     dlon,
     dlat,
     stat_num,
-    snr,
-    foc_depth=2,
-    mag_min=-2.0,
-    mag_delta=0.1,
     arrays=None,
-    obs=None,
     **kwargs,
 ):
     """
@@ -341,10 +336,13 @@ def find_min_ml(
         at that grid point.
 
     """
-    if kwargs["method"] == "ML":
-        kwargs["gmpe"] = None
-        kwargs["gmpe_model_type"] = None
-    elif kwargs["method"] == "GMPE":
+    # Get kwargs and set defaults if needed
+    mag_min = kwargs.get("mag_min", -2.0)
+    mag_delta = kwargs.get("mag_delta", 0.1)
+    snr = kwargs.get("snr", 3.0)
+    nproc = kwargs.get("nproc", 1)
+
+    if kwargs.get("method") == "GMPE":
         if not kwargs["gmpe"]:
             raise ValueError(
                 "GMPE model must be specified if" + "GMPE method is selected"
@@ -353,29 +351,54 @@ def find_min_ml(
             raise ValueError(
                 "GMPE model type must be specified if" + "GMPE method is selected"
             )
+        kwargs["gmpe"] = None
+        kwargs["gmpe_model_type"] = None
+    elif kwargs.get("method") == "ML":
+        kwargs["gmpe"] = None
+        kwargs["gmpe_model_type"] = None
+
     else:
         kwargs["method"] = "ML"
         warnings.warn("Method not recognised, using ML as default")
 
-    if not kwargs["region"]:
+    if not kwargs.get("region"):
         kwargs["region"] = "CAL"
         warnings.warn("Region not specified, using CAL as default")
-
-    nproc = kwargs.get("nproc", 1)
 
     print(f'Method : {kwargs["method"]}')
     print(f'Region : {kwargs["region"]}')
     print(f"Using {nproc} cores")
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
-    stations_df = read_station_data(stations_in)
-    # Read in arrays and obs data if provided
-    arrays_df = read_station_data(arrays) if arrays is not None else None
-    obs_df = read_station_data(obs) if obs is not None else None
-    if len(stations_df) < stat_num:
-        raise ValueError(
-            f"Not enough stations ({len(stations_df)}) "
-            + f"to calculate minimum ML at {stat_num} stations"
+    if isinstance(networks, (list, tuple)):
+        network_noise_dfs = [read_station_data(n) for n in networks]
+    else:
+        network_noise_dfs = [read_station_data(networks)]
+
+    stat_num = kwargs.get("stat_num", [5])
+
+    if len(stat_num) != len(network_noise_dfs):
+        warnings.warn(
+            f"Number of networks ({len(network_noise_dfs)}) does not match "
+            + f"number of required stations ({len(stat_num)}), "
+            + f"using first value, {stat_num[0]}, for all networks"
         )
+    # check there are enough stations in each network
+    for i, df in enumerate(network_noise_dfs):
+        if len(df) < stat_num[i]:
+            raise ValueError(
+                f"Not enough stations in network {i+1}: "
+                + f"have {len(df)}, need {stat_num[i]}"
+            )
+
+    if arrays is not None:
+        print(
+            "Using seismic arrays in model. Arrays are modelled"
+            + " as the central station with a required station number of 1."
+        )
+        if isinstance(arrays, (list, tuple)):
+            arrays_df = [read_station_data(a) for a in arrays]
+        else:
+            arrays_df = [read_station_data(arrays)]
 
     if "das" in kwargs:
         if "detection_length" not in kwargs:
