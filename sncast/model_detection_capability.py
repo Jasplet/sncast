@@ -515,21 +515,23 @@ def _minml_worker(ix, iy, lon, lat, **kwargs):
             min_mag = min(min_mag, min_mag_net)
     # Add arrays if provided
     if kwargs.get("array_dfs") is not None and not kwargs["array_dfs"].empty:
-        min_mag_arrays = calc_min_ml_at_gridpoint(
-            kwargs.get("array_dfs"),
-            lon,
-            lat,
-            stat_num=kwargs["stat_num"][n],
-            foc_depth=kwargs["foc_depth"],
-            snr=kwargs["snr"],
-            mag_min=kwargs["mag_min"],
-            mag_delta=kwargs["mag_delta"],
-            method=kwargs["method"],
-            region=kwargs["region"],
-            gmpe=kwargs["gmpe"],
-            gmpe_model_type=kwargs["gmpe_model_type"],
-        )
-        min_mag = min(min_mag, min_mag_arrays)
+        for a, array_df in enumerate(kwargs["array_dfs"]):
+
+            min_mag_arrays = calc_min_ml_at_gridpoint(
+                array_df,
+                lon,
+                lat,
+                stat_num=kwargs["array_num"][a],
+                foc_depth=kwargs["foc_depth"],
+                snr=kwargs["snr"],
+                mag_min=kwargs["mag_min"],
+                mag_delta=kwargs["mag_delta"],
+                method=kwargs["method"],
+                region=kwargs["region"],
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"],
+            )
+            min_mag = min(min_mag, min_mag_arrays)
 
     if obs_df is not None and not obs_df.empty:
         if "obs_stat_num" not in kwargs:
