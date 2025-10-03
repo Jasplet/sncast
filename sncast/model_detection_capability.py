@@ -238,14 +238,15 @@ def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
 
 
 def find_min_ml(
-    networks,
     lon0,
     lon1,
     lat0,
     lat1,
     dlon,
     dlat,
-    stat_num,
+    foc_depth=0,
+    networks=None,
+    stat_num=[5],
     arrays=None,
     **kwargs,
 ):
@@ -336,6 +337,8 @@ def find_min_ml(
         at that grid point.
 
     """
+    # exit if no stations provided
+    if networks
     # Get kwargs and set defaults if needed
     mag_min = kwargs.get("mag_min", -2.0)
     mag_delta = kwargs.get("mag_delta", 0.1)
@@ -368,6 +371,7 @@ def find_min_ml(
     print(f'Method : {kwargs["method"]}')
     print(f'Region : {kwargs["region"]}')
     print(f"Using {nproc} cores")
+
     # read in data, file format: "LON, LAT, NOISE [nm], STATION"
     if isinstance(networks, (list, tuple)):
         network_noise_dfs = [read_station_data(n) for n in networks]
@@ -425,14 +429,13 @@ def find_min_ml(
             iy,
             lons,
             lats,
-            stations_df,
+            network_noise_dfs,
             foc_depth,
             stat_num,
             snr,
             mag_min,
             mag_delta,
             arrays_df,
-            obs_df,
             das_dfs,
             kwargs,
         )
