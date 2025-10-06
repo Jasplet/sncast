@@ -227,17 +227,14 @@ def psd_db_to_displacement_amplitude(psd_in_db, f1, f2, f0=None):
         Lower bound of the frequency range in Hz
     f2 : float
         Upper bound of the frequency range in Hz
-    f0 : float, optional
-        Centre frequency of the band of interest in Hz. If None, it is
-        calculated as the geometric mean of f1 and f2. Default is None.
 
     Returns
     -------
     displ : float
         Estimated PSD in frequency range converted to displacement [m].
     """
-    if f0 is None:
-        f0 = np.sqrt(f1 * f2)  # find centre frequency
+
+    f0 = np.sqrt(f1 * f2)  # find centre frequency, geometric mean of f1 and f2
     psd = psd_db_convert(psd_in_db)
     displ = (3.75) / ((2 * np.pi * f0) ** 2) * np.sqrt(psd * (f2 - f1))
 
