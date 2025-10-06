@@ -958,10 +958,10 @@ def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
         Latitude increment for the grid.
     Returns
     -------
-    lats : np.ndarray
-        Array of latitudes for the grid.
     lons : np.ndarray
         Array of longitudes for the grid.
+    lats : np.ndarray
+        Array of latitudes for the grid.
     nx : int
         Number of grid points in the x-direction (longitude).
     ny : int
