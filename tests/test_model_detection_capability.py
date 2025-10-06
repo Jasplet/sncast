@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch
 
 from sncast.model_detection_capability import find_min_ml
+from sncast.model_detection_capability import create_grid
 from sncast.model_detection_capability import read_station_data
 from sncast.model_detection_capability import _est_min_ml_at_station
 from sncast.model_detection_capability import calc_ampl_from_magnitude
@@ -194,6 +195,50 @@ def test_est_min_ml_at_station_raises_unsupported():
             )
 
 
+# Test create_grid function #
+@pytest.mark.parametrize(
+    "inputs, expected",
+    [
+        ((-1, 1, 50, 52, 0.5, 0.5), (5, 5)),
+    ],
+)
+def test_create_grid_expected(inputs, expected):
+    lons, lats, nlon, nlat = create_grid(*inputs)
+    assert nlon == expected[0]
+    assert nlat == expected[1]
+    assert lons.shape == (nlon,)
+    assert lats.shape == (nlat,)
+    assert np.isclose(lons[0], inputs[0])
+    assert np.isclose(lons[-1], inputs[1])
+    assert np.isclose(lats[0], inputs[2])
+    assert np.isclose(lats[-1], inputs[3])
+
+
+def test_create_grid_invalid_bounds():
+    with pytest.raises(ValueError, match="lon0 2 must be less than lon1 -2"):
+        create_grid(2, -2, 50, 52, 1, 1)
+
+    with pytest.raises(ValueError, match="lat0 52 must be less than lat1 50"):
+        create_grid(-2, 2, 52, 50, 1, 1)
+
+
+@pytest.mark.parametrize("dlon, dlat", [(0, 1), (1, 0), (-1, -1), (0, 0)])
+def test_create_grid_negative_increments(dlon, dlat):
+
+    with pytest.raises(
+        ValueError, match="dlon and dlat ({dlon, dlat}) must be positive values"
+    ):
+        create_grid(-2, 2, 50, 52, dlon, dlat)
+
+
+def test_create_grid_non_divisible():
+    with pytest.raises(ValueError, match="must be divisible by"):
+        create_grid(-2, 2, 50, 52.3, 1, 1)  # Non-divisible range
+
+
+# Test find_min_ml function #
+
+
 def test_find_min_ml_basic():
     # Create a small test DataFrame
     df = pd.DataFrame(
@@ -222,7 +267,18 @@ def test_find_min_ml_basic():
     assert result.shape == (2, 2)
 
 
-def test_find_min_ml_bad_ML_methods():
+def test_find_min_ml_no_networks_provided():
+    with pytest.raises(ValueError, match="No seismic networks, arrays or DAS provided"):
+        find_min_ml(-1, 1, 50, 52, 0.5, 0.5)
+
+
+@pytest.mark.parametrize("bad_region", ["", None, "US", "MARS"])
+def test_find_min_ml_unsupported_region(bad_region):
+    with pytest.raises(ValueError, match=f"Region {bad_region} not supported"):
+        find_min_ml(-1, 1, 50, 52, 0.5, 0.5, networks=["dummy.csv"], region=bad_region)
+
+
+def test_find_min_ml_warns_unknown_ML():
     df = pd.DataFrame(
         {
             "longitude": [0.0, 1.0],
@@ -249,6 +305,11 @@ def test_find_min_ml_bad_ML_methods():
                 method=method,
                 region="UK",
             )
+
+
+def test_find_min_ml_warns_no_region():
+    with pytest.warns(UserWarning, match="Region not specified, using CAL as default"):
+        find_min_ml(-1, 1, 50, 52, 0.5, 0.5, networks=["dummy.csv"])
 
 
 @patch("sncast.model_detection_capability.create_grid")
