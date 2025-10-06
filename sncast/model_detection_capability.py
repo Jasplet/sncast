@@ -55,7 +55,6 @@ import pandas as pd
 from scipy.ndimage import maximum_filter1d
 import xarray
 
-from obspy.signal.util import util_geo_km
 import pygc
 
 from .gmpes import eval_gmpe
