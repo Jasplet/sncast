@@ -10,6 +10,7 @@ from sncast.model_detection_capability import read_station_data
 from sncast.model_detection_capability import _est_min_ml_at_station
 from sncast.model_detection_capability import calc_ampl_from_magnitude
 from sncast.model_detection_capability import calc_local_magnitude
+from sncast.model_detection_capability import calc_min_ml_at_gridpoint
 
 
 def test_read_station_data():
@@ -427,3 +428,23 @@ def test_find_min_ml_integration_single_network(mock_pool):
     assert isinstance(result, xarray.DataArray)
     assert "Latitude" in result.dims
     assert "Longitude" in result.dims
+
+
+# test calc_min_ml_at_gridpoint function ###
+
+
+def test_calc_min_ml_at_gridpoint_zero_distance():
+    """Test when grid point is exactly at station location"""
+    df = pd.DataFrame(
+        {
+            "longitude": [0.0],
+            "latitude": [50.0],
+            "elevation_km": [0.0],
+            "noise [nm]": [1.0],
+            "station": ["STA1"],
+        }
+    )
+    result = calc_min_ml_at_gridpoint(
+        df, lon=0.0, lat=50.0, foc_depth=0, stat_num=1, snr=1, method="ML", region="UK"
+    )
+    assert isinstance(result, float)
