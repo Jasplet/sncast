@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2025 Joseph Asplet, University of Oxford
+# ------------------------------------------------------------------
 """
 Filename: magnitude_conversions.py
 Purpose:  Ultility functions for converting between

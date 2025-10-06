@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # SPDX-License-Identifier: GPL-3.0-or-later
 # SPDX-FileCopyrightText: 2019 Martin Möllhoff
-# SPDX-FileCopyrightText: 2024–2025 Joseph Asplet, University of Oxford
+# SPDX-FileCopyrightText: 2024 Joseph Asplet, University of Oxford
 # ------------------------------------------------------------------
 """
 Filename: model_detection_capability.py
