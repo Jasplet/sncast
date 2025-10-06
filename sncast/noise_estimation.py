@@ -1,10 +1,14 @@
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2025 Joseph Asplet, University of Oxford
+# ------------------------------------------------------------------"""
 """
-Filename: noise_estimation.py
+Filename:   noise_estimation.py
 
 Purpose:    Functions to estimate noise displacement and velocity
             from probabilistic power spectral densities (PPSDs)
             for stations in a given Inventory. Implements equations given in
-            Mölhoff et al., (2019).
+            Mölhoff et al., (2019) and Haskov and Alguacil (2016).
 
 Author:     Joseph Asplet, University of Oxford
 Email:      joseph.asplet@earth.ox.ac.uk
@@ -19,6 +23,9 @@ Citation:   Möllhoff, M., Bean, C.J. & Baptie, B.J.,
             for regional networks - examples from Ireland.
             J Seismol 23, 493-504 (2019).
             https://doi.org/10.1007/s10950-019-09819-0
+
+            Havskov and Alguacil (2016), Instrumentation in Earthquake
+            Seismology (2nd Edition), https://doi.org/10.1007/978-3-319-21314-9
 
 Copyright (C) 2025 Joseph Asplet
 
@@ -148,6 +155,31 @@ def estimate_noise_velocity(station_ppsd, f0=5, n=0.5, case="worst", verbose=Fal
     return velocity
 
 
+def get_f0_octaves_from_f1f2(f1, f2):
+    """
+    Calculates the centre frequency and width in octaves
+    from a given frequency range.
+
+    Parameters
+    ----------
+    f1 : float
+        Lower bound of the frequency range in Hz
+    f2 : float
+        Upper bound of the frequency range in Hz
+
+    Returns
+    -------
+    f0 : float
+        Centre frequency in Hz
+    n : float
+        Width of the frequency band in octaves
+
+    """
+    n = np.log2(f2 / f1) / 2  # half-width of the frequency band in octaves
+    f0 = np.sqrt(f1 * f2)  # centre frequency
+    return f0, n
+
+
 def get_freq_range_from_centre(f0, n=0.5):
     """
     Calculates a 2n octave frequency range centred on f0
@@ -168,6 +200,10 @@ def get_freq_range_from_centre(f0, n=0.5):
         Upper bound of the frequency range in Hz
 
     """
+    if (n <= 0) or not isinstance(n, (int, float)):
+        raise ValueError("n must be a positive number")
+    if (f0 <= 0) or not isinstance(f0, (int, float)):
+        raise ValueError("f0 must be a positive number")
     f1 = f0 * 2 ** (-n / 2)  # lower bound of frequency span
     f2 = f0 * 2 ** (n / 2)  # upper bound of frequency span
     return f1, f2
