@@ -233,7 +233,9 @@ def test_find_min_ml_bad_ML_methods():
         }
     )
     for method in ["foo", "bar", ""]:
-        with pytest.raises(ValueError):
+        with pytest.warns(
+            UserWarning, match="Method not recognised, using ML as default"
+        ):
             find_min_ml(
                 networks=df,
                 lon0=0,
