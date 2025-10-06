@@ -1,39 +1,13 @@
 import numpy as np
 import pandas as pd
 import pytest
+from unittest.mock import patch
+
 from sncast.model_detection_capability import find_min_ml
 from sncast.model_detection_capability import read_station_data
 from sncast.model_detection_capability import _est_min_ml_at_station
 from sncast.model_detection_capability import calc_ampl_from_magnitude
 from sncast.model_detection_capability import calc_local_magnitude
-
-
-def test_find_min_ml_basic():
-    # Create a small test DataFrame
-    df = pd.DataFrame(
-        {
-            "longitude": [0.0, 1.0],
-            "latitude": [50.0, 51.0],
-            "elevation_km": [0.0, 0.0],
-            "noise [nm]": [0.1, 0.1],
-            "station": ["STA1", "STA2"],
-        }
-    )
-    result = find_min_ml(
-        networks=df,
-        lon0=0,
-        lon1=1,
-        lat0=50,
-        lat1=51,
-        dlon=1,
-        dlat=1,
-        stat_num=1,
-        snr=1,
-        method="ML",
-        region="UK",
-    )
-    assert hasattr(result, "shape")
-    assert result.shape == (2, 2)
 
 
 def test_read_station_data():
@@ -218,3 +192,110 @@ def test_est_min_ml_at_station_raises_unsupported():
             _est_min_ml_at_station(
                 noise=10, mag_min=-2, mag_delta=0.1, distance=50, snr=3, method=mode
             )
+
+
+def test_find_min_ml_basic():
+    # Create a small test DataFrame
+    df = pd.DataFrame(
+        {
+            "longitude": [0.0, 1.0],
+            "latitude": [50.0, 51.0],
+            "elevation_km": [0.0, 0.0],
+            "noise [nm]": [0.1, 0.1],
+            "station": ["STA1", "STA2"],
+        }
+    )
+    result = find_min_ml(
+        networks=df,
+        lon0=0,
+        lon1=1,
+        lat0=50,
+        lat1=51,
+        dlon=1,
+        dlat=1,
+        stat_num=1,
+        snr=1,
+        method="ML",
+        region="UK",
+    )
+    assert hasattr(result, "shape")
+    assert result.shape == (2, 2)
+
+
+def test_find_min_ml_bad_ML_methods():
+    df = pd.DataFrame(
+        {
+            "longitude": [0.0, 1.0],
+            "latitude": [50.0, 51.0],
+            "elevation_km": [0.0, 0.0],
+            "noise [nm]": [0.1, 0.1],
+            "station": ["STA1", "STA2"],
+        }
+    )
+    for method in ["foo", "bar", ""]:
+        with pytest.raises(ValueError):
+            find_min_ml(
+                networks=df,
+                lon0=0,
+                lon1=1,
+                lat0=50,
+                lat1=51,
+                dlon=1,
+                dlat=1,
+                stat_num=1,
+                snr=1,
+                method=method,
+                region="UK",
+            )
+
+
+@patch("sncast.model_detection_capability.create_grid")
+@patch("sncast.model_detection_capability.read_station_data")
+@patch("sncast.model_detection_capability._minml_worker")
+def test_find_min_ml_bad_gmpe_inputs(mock_worker, mock_read_station_data, mock_grid):
+    """Tests that find_min_ml raises errors when required kwargs for the GMPE method are not provided."""
+
+    # Mock the internal functions to return dummy data
+    mock_read_station_data.return_value = pd.DataFrame(
+        {
+            "longitude": [0.0],
+            "latitude": [50.0],
+            "elevation_km": [0.0],
+            "noise [nm]": [1.0],
+            "station": ["STA1"],
+        }
+    )
+    mock_grid.return_value = ([0.0, 1.0], [50.0, 51.0], 2, 2)
+    mock_worker.return_value = (0, 0, 1.5)  # Dummy result
+
+    # should raise value error if method is GMPE but no gmpe provided
+    with pytest.raises(ValueError):
+        find_min_ml(
+            networks="dummy_path.csv",
+            lon0=0,
+            lon1=1,
+            lat0=50,
+            lat1=51,
+            dlon=1,
+            dlat=1,
+            stat_num=1,
+            snr=1,
+            method="GMPE",
+            region="UK",
+        )
+
+    with pytest.raises(ValueError):
+        find_min_ml(
+            networks="dummy_path.csv",
+            lon0=0,
+            lon1=1,
+            lat0=50,
+            lat1=51,
+            dlon=1,
+            dlat=1,
+            stat_num=1,
+            snr=1,
+            method="GMPE",
+            region="UK",
+            gmpe="AK14",
+        )
