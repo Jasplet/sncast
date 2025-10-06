@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sncast",
-    version="1.1.0",
+    version="2.0.0",
     description="Software for modelling earthquake detection capability for a seismic network",
     author="Martin Molhoff, Joseph Asplet",
     author_email="joseph.asplet@earth.ox.ac.uk",
