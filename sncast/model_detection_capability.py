@@ -258,7 +258,7 @@ def find_min_ml(
     - networks: List of paths to CSV files or DataFrames containing station data for each network.
     - stat_num: List of required number of station detections for each network.
     - arrays: List of paths to CSV files or DataFrames containing seismic array data (optional).
-    - array_num: List of required number of station detections for each array (optional, default is 1).
+    - array_num: List of required number of station detections for each array (default is 1).
     - das: List of paths to CSV files or DataFrames containing DAS noise data (optional).
 
     Example of the input file format for stations and arrays:

@@ -253,7 +253,10 @@ def test_find_min_ml_bad_ML_methods():
 @patch("sncast.model_detection_capability.read_station_data")
 @patch("sncast.model_detection_capability._minml_worker")
 def test_find_min_ml_bad_gmpe_inputs(mock_worker, mock_read_station_data, mock_grid):
-    """Tests that find_min_ml raises errors when required kwargs for the GMPE method are not provided."""
+    """
+    Tests that find_min_ml raises errors when required kwargs for
+    the GMPE method are not provided.
+    """
 
     # Mock the internal functions to return dummy data
     mock_read_station_data.return_value = pd.DataFrame(
