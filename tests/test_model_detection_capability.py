@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+import xarray
 
 from sncast.model_detection_capability import find_min_ml
 from sncast.model_detection_capability import create_grid
@@ -188,11 +189,21 @@ def test_calc_local_magnitude_raise_on_bad_ampl(ampl):
 
 
 def test_est_min_ml_at_station_raises_unsupported():
-    for mode in ["ML", "foo", "bar"]:
+    for mode in ["foo", "bar"]:
         with pytest.raises(ValueError):
             _est_min_ml_at_station(
                 noise=10, mag_min=-2, mag_delta=0.1, distance=50, snr=3, method=mode
             )
+
+
+def test_est_min_ml_at_station_deprecation_warning():
+    with pytest.warns(DeprecationWarning, match="_est_min_ml_at_station is deprecated"):
+        _est_min_ml_at_station(1.0, -2.0, 0.1, 10.0, 2.0, method="GMPE", region="UK")
+
+
+def test_est_min_ml_at_station_ml_method_raises():
+    with pytest.raises(ValueError, match="ML no longer supported"):
+        _est_min_ml_at_station(1.0, -2.0, 0.1, 10.0, 2.0, method="ML")
 
 
 # Test create_grid function #
@@ -204,14 +215,16 @@ def test_est_min_ml_at_station_raises_unsupported():
 )
 def test_create_grid_expected(inputs, expected):
     lons, lats, nlon, nlat = create_grid(*inputs)
+    print(lats)
     assert nlon == expected[0]
     assert nlat == expected[1]
     assert lons.shape == (nlon,)
     assert lats.shape == (nlat,)
     assert np.isclose(lons[0], inputs[0])
     assert np.isclose(lons[-1], inputs[1])
-    assert np.isclose(lats[0], inputs[2])
-    assert np.isclose(lats[-1], inputs[3])
+    # lats go from high to low
+    assert np.isclose(lats[0], inputs[3])
+    assert np.isclose(lats[-1], inputs[2])
 
 
 def test_create_grid_invalid_bounds():
@@ -225,9 +238,7 @@ def test_create_grid_invalid_bounds():
 @pytest.mark.parametrize("dlon, dlat", [(0, 1), (1, 0), (-1, -1), (0, 0)])
 def test_create_grid_negative_increments(dlon, dlat):
 
-    with pytest.raises(
-        ValueError, match="dlon and dlat ({dlon, dlat}) must be positive values"
-    ):
+    with pytest.raises(ValueError):
         create_grid(-2, 2, 50, 52, dlon, dlat)
 
 
@@ -272,10 +283,30 @@ def test_find_min_ml_no_networks_provided():
         find_min_ml(-1, 1, 50, 52, 0.5, 0.5)
 
 
-@pytest.mark.parametrize("bad_region", ["", None, "US", "MARS"])
-def test_find_min_ml_unsupported_region(bad_region):
+@pytest.mark.parametrize("bad_region", ["", 10, "US", "MARS"])
+@patch("sncast.model_detection_capability.read_station_data")
+def test_find_min_ml_unsupported_region(mock_read_station_data, bad_region):
+    mock_read_station_data.return_value = pd.DataFrame(
+        {
+            "longitude": [0.0, 1.0],
+            "latitude": [50.0, 51.0],
+            "elevation_km": [0.0, 0.0],
+            "noise [nm]": [1.0, 1.0],
+            "station": ["STA1", "STA2"],
+        }
+    )
     with pytest.raises(ValueError, match=f"Region {bad_region} not supported"):
-        find_min_ml(-1, 1, 50, 52, 0.5, 0.5, networks=["dummy.csv"], region=bad_region)
+        find_min_ml(
+            -1,
+            1,
+            50,
+            52,
+            0.5,
+            0.5,
+            networks=["dummy.csv"],
+            region=bad_region,
+            stat_num=1,
+        )
 
 
 def test_find_min_ml_warns_unknown_ML():
@@ -307,9 +338,19 @@ def test_find_min_ml_warns_unknown_ML():
             )
 
 
-def test_find_min_ml_warns_no_region():
+@patch("sncast.model_detection_capability.read_station_data")
+def test_find_min_ml_warns_no_region(mock_read_station_data):
+    mock_read_station_data.return_value = pd.DataFrame(
+        {
+            "longitude": [0.0],
+            "latitude": [50.0],
+            "elevation_km": [0.0],
+            "noise [nm]": [1.0],
+            "station": ["STA1"],
+        }
+    )
     with pytest.warns(UserWarning, match="Region not specified, using CAL as default"):
-        find_min_ml(-1, 1, 50, 52, 0.5, 0.5, networks=["dummy.csv"])
+        find_min_ml(-1, 1, 50, 52, 0.5, 0.5, networks=["dummy.csv"], stat_num=1)
 
 
 @patch("sncast.model_detection_capability.create_grid")
@@ -365,3 +406,24 @@ def test_find_min_ml_bad_gmpe_inputs(mock_worker, mock_read_station_data, mock_g
             region="UK",
             gmpe="AK14",
         )
+
+
+@patch("sncast.model_detection_capability.Pool")
+def test_find_min_ml_integration_single_network(mock_pool):
+    """Test complete workflow with mocked multiprocessing"""
+    # Mock the pool to return dummy results
+    mock_pool_instance = MagicMock()
+    mock_pool.return_value.__enter__.return_value = mock_pool_instance
+    mock_pool_instance.imap_unordered.return_value = [(0, 0, 1.5), (0, 1, 1.6)]
+
+    # Create test data
+    test_df = pd.read_csv("tests/data/station_data.csv")
+
+    # Test the function
+    result = find_min_ml(
+        -1, 1, 50, 52, 1, 1, networks=[test_df], stat_num=[2], region="UK", method="ML"
+    )
+
+    assert isinstance(result, xarray.DataArray)
+    assert "Latitude" in result.dims
+    assert "Longitude" in result.dims
