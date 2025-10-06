@@ -254,10 +254,11 @@ def find_min_ml(
     This routine calculates the geographic distribution of the minimum
     detectable local magnitude ML for a given seismic network.
 
-    Inputs:
+    Input requirements for seismic stations, arrays, and DAS:
     - networks: List of paths to CSV files or DataFrames containing station data for each network.
     - stat_num: List of required number of station detections for each network.
     - arrays: List of paths to CSV files or DataFrames containing seismic array data (optional).
+    - array_num: List of required number of station detections for each array (optional, default is 1).
     - das: List of paths to CSV files or DataFrames containing DAS noise data (optional).
 
     Example of the input file format for stations and arrays:
@@ -329,16 +330,16 @@ def find_min_ml(
     kwargs_worker["mag_delta"] = kwargs.get("mag_delta", 0.1)
 
     if kwargs.get("method") == "GMPE":
-        if not kwargs["gmpe"]:
+        if "gmpe" not in kwargs:
             raise ValueError(
                 "GMPE model must be specified if" + "GMPE method is selected"
             )
-        if not kwargs["gmpe_model_type"]:
+        if "gmpe_model_type" not in kwargs:
             raise ValueError(
                 "GMPE model type must be specified if" + "GMPE method is selected"
             )
-        kwargs_worker["gmpe"] = None
-        kwargs_worker["gmpe_model_type"] = None
+        kwargs_worker["gmpe"] = kwargs["gmpe"]
+        kwargs_worker["gmpe_model_type"] = kwargs["gmpe_model_type"]
     elif kwargs.get("method") == "ML":
         kwargs_worker["method"] = "ML"
         kwargs_worker["gmpe"] = None
@@ -581,11 +582,11 @@ def find_min_ml_x_section(
     kwargs_worker["mag_delta"] = kwargs.get("mag_delta", 0.1)
 
     if kwargs.get("method") == "GMPE":
-        if not kwargs["gmpe"]:
+        if "gmpe" not in kwargs:
             raise ValueError(
                 "GMPE model must be specified if" + "GMPE method is selected"
             )
-        if not kwargs["gmpe_model_type"]:
+        if "gmpe_model_type" not in kwargs:
             raise ValueError(
                 "GMPE model type must be specified if" + "GMPE method is selected"
             )
@@ -804,8 +805,8 @@ def _minml_worker(ix, iy, lon, lat, **kwargs):
                 mag_delta=kwargs["mag_delta"],
                 method=kwargs["method"],
                 region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
+                gmpe=kwargs.get("gmpe", None),
+                gmpe_model_type=kwargs.get("gmpe_model_type", None),
             )
             min_mag = min(min_mag, min_mag_net)
     # Add arrays if provided
@@ -910,8 +911,8 @@ def _minml_x_section_worker(ix, iz, lon, lat, depth, **kwargs):
                 mag_delta=kwargs["mag_delta"],
                 method=kwargs["method"],
                 region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
+                gmpe=kwargs.get("gmpe", None),
+                gmpe_model_type=kwargs.get("gmpe_model_type", None),
             )
             min_mag = min(min_mag, min_mag_arrays)
 
@@ -1089,8 +1090,8 @@ def calc_min_ml_at_gridpoint(
                 hypo_dist[s],
                 snr,
                 method=kwargs["method"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
+                gmpe=kwargs.get("gmpe", None),
+                gmpe_model_type=kwargs.get("gmpe_model_type", None),
                 region=kwargs["region"],
             )
             for s in range(len(stations_df))
