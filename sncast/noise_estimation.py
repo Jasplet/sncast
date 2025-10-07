@@ -289,7 +289,9 @@ def psd_db_convert(psd_in_db):
     return np.power(10, psd_in_db / 10)
 
 
-def make_noise_estimate_for_ppsds(Inventory, case, kind="displ", **kwargs):
+def make_noise_estimate_for_ppsds(
+    Inventory, case, kind="displ", ppsd_path=Path.cwd() / "ppsd", **kwargs
+):
     """
     Function to make noise estimates from previously
     calculated probabilistic power spectral densities (PPSDs)
@@ -310,7 +312,8 @@ def make_noise_estimate_for_ppsds(Inventory, case, kind="displ", **kwargs):
     kind : str
         Type of noise estimate to make. Can be 'displ' for displacement
         estimates in nm, or 'vel' for velocity estimates in cm/s. Default is 'displ'.
-
+    ppsd_path : str or pathlib.Path, optional
+        Path to the directory containing the PPSD files. Default is Path.cwd() / "ppsd".
     Returns
     -------
     station_noise_df : pandas.DataFrame
@@ -337,6 +340,11 @@ def make_noise_estimate_for_ppsds(Inventory, case, kind="displ", **kwargs):
         noise_key: [],
         "station": [],
     }
+    if "ppsd_path" is None:
+        ppsd_path = Path.cwd() / "ppsd"
+    else:
+        ppsd_path = Path(kwargs["ppsd_path"])
+
     Inventory = Inventory.select(channel="*Z")
     for Network in Inventory:
         network_ppsd_path = ppsd_path / Network.code
@@ -368,7 +376,7 @@ def make_noise_estimate_for_ppsds(Inventory, case, kind="displ", **kwargs):
                     noise = vel_ms * 1e2  # vel in cm/s
 
             except FileNotFoundError:
-                print(file)
+                print(ppsd_file)
                 if kind == "displ":
                     noise = 10  # nm
                 elif kind == "vel":
