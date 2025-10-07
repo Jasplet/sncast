@@ -339,18 +339,16 @@ def make_noise_estimate_for_ppsds(Inventory, case, kind="displ", **kwargs):
     }
     Inventory = Inventory.select(channel="*Z")
     for Network in Inventory:
+        network_ppsd_path = ppsd_path / Network.code
         for Station in Network:
-            path = Path(
-                f"/Users/eart0593/Projects/NEP_consulting/UK_network/data/ppsds/1year_span/{Network.code}/"
-            )
             if Station.code in ["AU05", "AT12", "WINS", "LBMK"]:
-                file = f"{Network.code}_{Station.code}_{Station[0].code}_20231001_20241001_PPSD.npz"
+                ppsd_file = f"{Network.code}_{Station.code}_{Station[0].code}_20231001_20241001_PPSD.npz"
             elif (Network.code == "UR") or (Station.code == "AU08"):
-                file = f"{Network.code}_{Station.code}_{Station[0].code}_20190101_20191231_PPSD.npz"
+                ppsd_file = f"{Network.code}_{Station.code}_{Station[0].code}_20190101_20191231_PPSD.npz"
             else:
-                file = f"{Network.code}_{Station.code}_{Station[0].code}_20230101_20240101_PPSD.npz"
+                ppsd_file = f"{Network.code}_{Station.code}_{Station[0].code}_20230101_20240101_PPSD.npz"
             try:
-                ppsd = PPSD.load_npz(path / file)
+                ppsd = PPSD.load_npz(network_ppsd_path / ppsd_file)
 
                 if kind == "displ":
                     if "f0" in kwargs:
