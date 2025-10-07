@@ -1,10 +1,12 @@
 import numpy as np
 import pytest
-from unittest import patch
+
+# from unittest import patch
 
 from sncast.noise_estimation import get_freq_range_from_centre, get_f0_octaves_from_f1f2
 from sncast.noise_estimation import psd_db_to_displacement_amplitude
-frmo sncast.noise_estimation import psd_db_convert
+from sncast.noise_estimation import psd_db_convert
+
 
 @pytest.mark.parametrize(
     "f0, n, expected_f1, expected_f2",
@@ -55,7 +57,25 @@ def test_get_freq_range_from_centre_invalid_f0():
     with pytest.raises(ValueError, match="f0 must be a positive number"):
         get_freq_range_from_centre(-1.0, 1.0)
 
+
+# test get f0_octaves_from_f1f2
+@pytest.mark.parametrize(
+    "f1, f2, expected_f0, expected_n",
+    [
+        (1.0, 4.0, 2.0, 2.0),
+        (10, 20, np.sqrt(200), 1.0),
+        (0.25, 1.0, 0.5, 2.0),
+        (50, 200, 100, 2.0),
+    ],
+)
+def test_get_f0_octaves_from_f1f2(f1, f2, expected_f0, expected_n):
+    f0, n = get_f0_octaves_from_f1f2(f1, f2)
+    assert np.isclose(f0, expected_f0)
+    assert np.isclose(n, expected_n)
+
+
 # test conversion db to displacement amplitude
+
 
 @pytest.mark.parametrize(
     "psd_in_db, expected_psd",
@@ -65,12 +85,15 @@ def test_get_freq_range_from_centre_invalid_f0():
         (-140, 1e-14),
         (0, 1.0),
         (20, 100.0),
-    ])
+    ],
+)
 def test_psd_db_convert(psd_in_db, expected_psd):
     psd = psd_db_convert(psd_in_db)
     assert np.isclose(psd, expected_psd)
 
+
 # test psd_db_to_displacement_amplitude
+
 
 @pytest.mark.parametrize(
     "psd_db, f1, f2",
@@ -93,6 +116,8 @@ def test_psd_db_to_displacement_amplitude_values():
     f2 = 8
     psd_acc = psd_db_convert(psd_db)
     f0 = np.sqrt(f1 * f2)
-    expected_displacement = (3.75) / ((2 * np.pi * f0) ** 2) * np.sqrt(psd_acc * (f2 - f1))
+    expected_displacement = (
+        (3.75) / ((2 * np.pi * f0) ** 2) * np.sqrt(psd_acc * (f2 - f1))
+    )
     displacement = psd_db_to_displacement_amplitude(psd_db, f1=f1, f2=f2)
     assert np.isclose(displacement, expected_displacement)
