@@ -290,7 +290,12 @@ def psd_db_convert(psd_in_db):
 
 
 def make_noise_estimate_for_ppsds(
-    Inventory, case, kind="displ", ppsd_path=Path.cwd() / "ppsd", **kwargs
+    inventory,
+    case,
+    file_ext="20230101_20240101_PPSD",
+    kind="displ",
+    ppsd_path=Path.cwd() / "ppsd",
+    **kwargs,
 ):
     """
     Function to make noise estimates from previously
@@ -303,12 +308,17 @@ def make_noise_estimate_for_ppsds(
 
     Parameters
     ----------
-    Inventory : obspy.core.inventory.Inventory
+    inventory : obspy.core.inventory.Inventory
         Inventory object containing stations to make noise estimates for.
     case : str or int
         Case for the noise estimate. Can be 'worst' (95th percentile),
         'mode' (mode of the distribution) or an integer giving the desired
         percentile (e.g. 50 for median). Default is 'worst'.
+    file_ext : str, optional
+        Suffix for the PPSD files. Default is '20230101_20240101_PPSD'.
+        Function assumes files are named as
+        '{network}_{station}_{channel}_{file_ext}.npz' and (implicity) are for
+        the same date range.
     kind : str
         Type of noise estimate to make. Can be 'displ' for displacement
         estimates in nm, or 'vel' for velocity estimates in cm/s. Default is 'displ'.
@@ -342,48 +352,40 @@ def make_noise_estimate_for_ppsds(
     }
     if ppsd_path is not None:
         ppsd_path = Path(kwargs["ppsd_path"])
+    for network in inventory:
+        network_ppsd_path = ppsd_path / network.code
+        for station in network:
+            for channel in station:
+                ppsd_file = (
+                    f"{network.code}_{station.code}_{channel.code}_{file_ext}.npz"
+                )
+    try:
+        ppsd = PPSD.load_npz(network_ppsd_path / ppsd_file)
 
-    Inventory = Inventory.select(channel="*Z")
-    for Network in Inventory:
-        network_ppsd_path = ppsd_path / Network.code
-        for Station in Network:
-            if Station.code in ["AU05", "AT12", "WINS", "LBMK"]:
-                ppsd_file = f"{Network.code}_{Station.code}_{Station[0].code}_20231001_20241001_PPSD.npz"
-            elif (Network.code == "UR") or (Station.code == "AU08"):
-                ppsd_file = f"{Network.code}_{Station.code}_{Station[0].code}_20190101_20191231_PPSD.npz"
+        if kind == "displ":
+            if "f0" in kwargs:
+                displ_m = estimate_noise_displacement(ppsd, case=case, f0=kwargs["f0"])
             else:
-                ppsd_file = f"{Network.code}_{Station.code}_{Station[0].code}_20230101_20240101_PPSD.npz"
-            try:
-                ppsd = PPSD.load_npz(network_ppsd_path / ppsd_file)
+                displ_m = estimate_noise_displacement(ppsd, case=case)
+            noise = displ_m * 1e9  # disp in nm
+        elif kind == "vel":
+            if "f0" in kwargs:
+                vel_ms = estimate_noise_velocity(ppsd, case=case, f0=kwargs["f0"])
+            else:
+                vel_ms = estimate_noise_velocity(ppsd, case=case)
+            noise = vel_ms * 1e2  # vel in cm/s
 
-                if kind == "displ":
-                    if "f0" in kwargs:
-                        displ_m = estimate_noise_displacement(
-                            ppsd, case=case, f0=kwargs["f0"]
-                        )
-                    else:
-                        displ_m = estimate_noise_displacement(ppsd, case=case)
-                    noise = displ_m * 1e9  # disp in nm
-                elif kind == "vel":
-                    if "f0" in kwargs:
-                        vel_ms = estimate_noise_velocity(
-                            ppsd, case=case, f0=kwargs["f0"]
-                        )
-                    else:
-                        vel_ms = estimate_noise_velocity(ppsd, case=case)
-                    noise = vel_ms * 1e2  # vel in cm/s
+    except FileNotFoundError:
+        print(ppsd_file)
+        if kind == "displ":
+            noise = 10  # nm
+        elif kind == "vel":
+            noise = 2e-05  # cm/s
 
-            except FileNotFoundError:
-                print(ppsd_file)
-                if kind == "displ":
-                    noise = 10  # nm
-                elif kind == "vel":
-                    noise = 2e-05  # cm/s
-
-            station_noise_dict["longitude"].append(Station.longitude)
-            station_noise_dict["latitude"].append(Station.latitude)
-            station_noise_dict["elevation_km"].append(Station.elevation * 1e-3)
-            station_noise_dict[noise_key].append(noise)
-            station_noise_dict["station"].append(Station.code)
+    station_noise_dict["longitude"].append(Station.longitude)
+    station_noise_dict["latitude"].append(Station.latitude)
+    station_noise_dict["elevation_km"].append(Station.elevation * 1e-3)
+    station_noise_dict[noise_key].append(noise)
+    station_noise_dict["station"].append(Station.code)
 
     return pd.DataFrame(station_noise_dict)
