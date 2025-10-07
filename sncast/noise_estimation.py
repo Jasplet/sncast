@@ -359,33 +359,38 @@ def make_noise_estimate_for_ppsds(
                 ppsd_file = (
                     f"{network.code}_{station.code}_{channel.code}_{file_ext}.npz"
                 )
-    try:
-        ppsd = PPSD.load_npz(network_ppsd_path / ppsd_file)
+                try:
+                    ppsd = PPSD.load_npz(network_ppsd_path / ppsd_file)
 
-        if kind == "displ":
-            if "f0" in kwargs:
-                displ_m = estimate_noise_displacement(ppsd, case=case, f0=kwargs["f0"])
-            else:
-                displ_m = estimate_noise_displacement(ppsd, case=case)
-            noise = displ_m * 1e9  # disp in nm
-        elif kind == "vel":
-            if "f0" in kwargs:
-                vel_ms = estimate_noise_velocity(ppsd, case=case, f0=kwargs["f0"])
-            else:
-                vel_ms = estimate_noise_velocity(ppsd, case=case)
-            noise = vel_ms * 1e2  # vel in cm/s
+                    if kind == "displ":
+                        if "f0" in kwargs:
+                            displ_m = estimate_noise_displacement(
+                                ppsd, case=case, f0=kwargs["f0"]
+                            )
+                        else:
+                            displ_m = estimate_noise_displacement(ppsd, case=case)
+                        noise = displ_m * 1e9  # disp in nm
+                    elif kind == "vel":
+                        if "f0" in kwargs:
+                            vel_ms = estimate_noise_velocity(
+                                ppsd, case=case, f0=kwargs["f0"]
+                            )
+                        else:
+                            vel_ms = estimate_noise_velocity(ppsd, case=case)
+                        noise = vel_ms * 1e2  # vel in cm/s
 
-    except FileNotFoundError:
-        print(ppsd_file)
-        if kind == "displ":
-            noise = 10  # nm
-        elif kind == "vel":
-            noise = 2e-05  # cm/s
+                except FileNotFoundError:
+                    print(ppsd_file)
+                    if kind == "displ":
+                        noise = 10  # nm
+                    elif kind == "vel":
+                        noise = 2e-05  # cm/s
 
-    station_noise_dict["longitude"].append(Station.longitude)
-    station_noise_dict["latitude"].append(Station.latitude)
-    station_noise_dict["elevation_km"].append(Station.elevation * 1e-3)
-    station_noise_dict[noise_key].append(noise)
-    station_noise_dict["station"].append(Station.code)
+                station_noise_dict["longitude"].append(station.longitude)
+                station_noise_dict["latitude"].append(station.latitude)
+                station_noise_dict["elevation_km"].append(station.elevation * 1e-3)
+                station_noise_dict[noise_key].append(noise)
+                station_noise_dict["station"].append(station.code)
+                station_noise_dict["channel"].append(channel.code)
 
     return pd.DataFrame(station_noise_dict)
