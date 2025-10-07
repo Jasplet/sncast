@@ -340,9 +340,7 @@ def make_noise_estimate_for_ppsds(
         noise_key: [],
         "station": [],
     }
-    if "ppsd_path" is None:
-        ppsd_path = Path.cwd() / "ppsd"
-    else:
+    if ppsd_path is not None:
         ppsd_path = Path(kwargs["ppsd_path"])
 
     Inventory = Inventory.select(channel="*Z")
