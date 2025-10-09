@@ -5,7 +5,9 @@ import pytest
 
 from sncast.noise_estimation import get_freq_range_from_centre, get_f0_octaves_from_f1f2
 from sncast.noise_estimation import psd_db_to_displacement_amplitude
+from sncast.noise_estimation import psd_db_to_velocity
 from sncast.noise_estimation import psd_db_convert
+from sncast.noise_estimation import make_noise_estimate_for_ppsds
 
 
 @pytest.mark.parametrize(
@@ -121,3 +123,25 @@ def test_psd_db_to_displacement_amplitude_values():
     )
     displacement = psd_db_to_displacement_amplitude(psd_db, f1=f1, f2=f2)
     assert np.isclose(displacement, expected_displacement)
+
+
+# test psd_db_to_velocity
+
+
+@pytest.mark.parametrize(
+    "psd_db, f1, f2",
+    [
+        (-120, 0.5, 2),
+        (-110, 0.5, 2),
+        (-140, 0.5, 2),
+    ],
+)
+def test_psd_db_to_velocity(psd_db, f1, f2):
+    velocity = psd_db_to_velocity(psd_db, f1=f1, f2=f2)
+    assert isinstance(velocity, float)
+    assert velocity > 0
+
+
+# test make_noise_estimates_for_ppsds
+
+# def test_make_noise_estimate_for_ppsds():
