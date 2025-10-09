@@ -293,7 +293,7 @@ def make_noise_estimate_for_ppsds(
     inventory,
     case,
     file_ext="20230101_20240101_PPSD",
-    kind="displ",
+    unit="displ",
     ppsd_path=Path.cwd() / "ppsd",
     **kwargs,
 ):
@@ -319,7 +319,7 @@ def make_noise_estimate_for_ppsds(
         Function assumes files are named as
         '{network}_{station}_{channel}_{file_ext}.npz' and (implicity) are for
         the same date range.
-    kind : str
+    unit : str
         Type of noise estimate to make. Can be 'displ' for displacement
         estimates in nm, or 'vel' for velocity estimates in cm/s. Default is 'displ'.
     ppsd_path : str or pathlib.Path, optional
@@ -337,11 +337,11 @@ def make_noise_estimate_for_ppsds(
     - This function assumes that the PPSD files are stored in a specific directory structure.
       This needs to be fixed before release.
     """
-    if kind not in ["displ", "vel"]:
-        raise ValueError(f'kind must be one of ["displ", "vel"] not {kind}')
-    elif kind == "displ":
+    if unit not in ["displ", "vel"]:
+        raise ValueError(f'unit must be one of ["displ", "vel"] not {unit}')
+    elif unit == "displ":
         noise_key = "noise [nm]"
-    elif kind == "vel":
+    elif unit == "vel":
         noise_key = "noise [cm/s]"
     station_noise_dict = {
         "longitude": [],
