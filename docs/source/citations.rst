@@ -14,7 +14,9 @@ Citations
    seismicity. *Seismological Society of America*, 91(6), 3270-3281.
    https://doi.org/10.1785/0120190032
 
-.. [Haskov2016] Havskov, J., Alguacil, G., 2016. Instrumentation in Earthquake Seismology. Springer International Publishing, Cham. https://doi.org/10.1007/978-3-319-21314-9
+.. [Haskov2016] Havskov, J., Alguacil, G., (2016). Instrumentation in Earthquake Seismology. Springer International Publishing, Cham. https://doi.org/10.1007/978-3-319-21314-9
+
+.. [Hutton1987] Hutton, L. K., & Boore, D. M. (1987). The ML scale in southern California. *Bulletin of the Seismological Society of America*, 77(6), 2074-2094. https://doi.org/10.1785/BSSA0770062074
 
 .. [Luckett2019] Luckett, R., Butcher, A., Verdon, J. P., Kendall, J. M., 
    Baptie, B., & Wookey, J. (2019). A local magnitude scale for northern England 
@@ -28,6 +30,8 @@ Citations
 .. [Ottemöller2013] Ottemöller, L., & Sargeant, S. (2013). A local magnitude 
    scale ML for the United Kingdom. *Bulletin of the Seismological Society 
    of America*, 103(5), 2884-2893. https://doi.org/10.1785/0120130085
+
+.. [Richter1935] Richter, C. F. (1935). An instrumental earthquake magnitude scale. *Bulletin of the Seismological Society of America*, 25(1), 1-32. https://doi.org/10.1785/BSSA0250010001
 
 .. [Rietbrock2019] Rietbrock, A., & Edwards, B. (2019). Update of the UK stochastic ground motion model using
     a decade of broadband data. In: *SECED 2019 Conference, 2019-9-9 - 2019-9-10,*
