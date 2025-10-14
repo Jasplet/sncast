@@ -72,9 +72,9 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     """
     Calculate the amplitude of a seismic signal given a local magnitude
     and hypocentral distance. Local magnitude scales for the UK and California
-    (Hutton and Boore, 1987) are supported. The Hutton and Boore (1987) scale is
+    [Hutton1987]_ are supported. The [Hutton1987]_ scale is
     the default ML scale reccomended by the IASPEI working group on earthquake magnitude
-    determination and is consistent with the magnitude of Richter (1935).
+    determination and is consistent with the magnitude of [Richter1935]_.
 
     Parameters
     ----------
@@ -83,8 +83,8 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     hypo_dist : float, np.ndarray
         Hypocentral distance in km.
     region : str
-        Seismic region. "UK" for Luckett et al. (2019) scale, "CAL" for
-        Hutton and Boore (1987) scale.
+        Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
+        [Hutton1987]_ California scale.
 
     Returns
     -------
@@ -139,8 +139,8 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
     hypo_dist : float or np.ndarray
         Hypocentral distance in km.
     region : str
-        Seismic region. "UK" for Luckett et al. (2019) scale, "CAL" for
-        Hutton and Boore (1987) scale.
+        Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
+        [Hutton1987]_ California scale.
     mag_min : float
         Minimum magnitude to consider.
     mag_delta : float
@@ -210,8 +210,8 @@ def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
         - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
                            Default is None.
-        - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
-                           Default is 'CAL'.
+        - region:         Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
+                          [Hutton1987]_ California scale. Default is "CAL".
     """
     warnings.warn(
         "_est_min_ml_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude",
@@ -293,10 +293,10 @@ def find_min_ml(
         List of paths to CSV files or DataFrames containing DAS noise data.
     **kwargs : dict
         Additional keyword arguments to control the method and parameters:
-        - method: 'ML' or 'GMPE'. Default is 'ML'.
+        - method: 'ML' or 'GMPE'. Default is "ML".
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
         - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
-        - region: Locality for assumed ML scale parameters ('UK' or 'CAL'). Default is 'CAL'.
+        - region: Locality for assumed ML scale parameters ("UK" or "CAL"). Default is "CAL".
         - array_num: Number of stations required for a detection on an array. Default is 1.
         - obs_stat_num: Number of stations required for a detection on an OBS. Default is 3.
         - nproc: Number of processors to use for parallel processing. Default is 1.
