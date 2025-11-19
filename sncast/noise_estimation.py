@@ -8,14 +8,19 @@ Filename:   noise_estimation.py
 Purpose:    Functions to estimate noise displacement and velocity
             from probabilistic power spectral densities (PPSDs)
             for stations in a given Inventory. Implements equations given in
-            Mölhoff et al., (2019) and Haskov and Alguacil (2016).
+            [Molhoff2019]_ and [Haskov2016]_.
 
 Author:     Joseph Asplet, University of Oxford
+
 Email:      joseph.asplet@earth.ox.ac.uk
+
 Web:        www.jasplet.github.io
+
 Github:     www.github.com/jasplet
+
 Address:    Department of Earth Sciences, University of Oxford,
             South Parks Road, Oxford, OX1 3AN, UK
+
 orcidID:    https://orcid.org/0000-0002-0375-011X
 
 Citation:   Möllhoff, M., Bean, C.J. & Baptie, B.J.,
@@ -292,9 +297,9 @@ def psd_db_convert(psd_in_db):
 def make_noise_estimate_for_ppsds(
     inventory,
     case,
-    file_ext="20230101_20240101_PPSD",
-    unit="displ",
-    ppsd_path=Path.cwd() / "ppsd",
+    file_ext,
+    unit,
+    ppsd_path=None,
     **kwargs,
 ):
     """
@@ -314,9 +319,8 @@ def make_noise_estimate_for_ppsds(
         Case for the noise estimate. Can be 'worst' (95th percentile),
         'mode' (mode of the distribution) or an integer giving the desired
         percentile (e.g. 50 for median). Default is 'worst'.
-    file_ext : str, optional
-        Suffix for the PPSD files. Default is '20230101_20240101_PPSD'.
-        Function assumes files are named as
+    file_ext : str
+        Suffix for the PPSD files. Function assumes files are named as
         '{network}_{station}_{channel}_{file_ext}.npz' and (implicity) are for
         the same date range.
     unit : str
@@ -352,6 +356,8 @@ def make_noise_estimate_for_ppsds(
     }
     if ppsd_path is not None:
         ppsd_path = Path(kwargs["ppsd_path"])
+    else:
+        ppsd_path = Path.cwd() / "ppsd"
     for network in inventory:
         network_ppsd_path = ppsd_path / network.code
         for station in network:
@@ -362,7 +368,7 @@ def make_noise_estimate_for_ppsds(
                 try:
                     ppsd = PPSD.load_npz(network_ppsd_path / ppsd_file)
 
-                    if kind == "displ":
+                    if unit == "displ":
                         if "f0" in kwargs:
                             displ_m = estimate_noise_displacement(
                                 ppsd, case=case, f0=kwargs["f0"]
@@ -370,7 +376,7 @@ def make_noise_estimate_for_ppsds(
                         else:
                             displ_m = estimate_noise_displacement(ppsd, case=case)
                         noise = displ_m * 1e9  # disp in nm
-                    elif kind == "vel":
+                    elif unit == "vel":
                         if "f0" in kwargs:
                             vel_ms = estimate_noise_velocity(
                                 ppsd, case=case, f0=kwargs["f0"]
@@ -381,9 +387,9 @@ def make_noise_estimate_for_ppsds(
 
                 except FileNotFoundError:
                     print(ppsd_file)
-                    if kind == "displ":
+                    if unit == "displ":
                         noise = 10  # nm
-                    elif kind == "vel":
+                    elif unit == "vel":
                         noise = 2e-05  # cm/s
 
                 station_noise_dict["longitude"].append(station.longitude)
