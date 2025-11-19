@@ -82,7 +82,7 @@ def eval_gmpe(mw, epic_dist, gmpe, model_type="PGV", debug=False):
         If True, returns intermediate calculation steps for debugging.
         Default is False.
 
-    Returns:
+    Returns
     -------
     y : float or array-like
         Evaluated ground motion (PGA in g (m/s2) or PGV in m/s).
@@ -224,7 +224,7 @@ def _ak14_yref(coeffs, mw, epic_dist, sof="SS"):
     """
     Evaluates equation 2 in Aker et al., (2014) for ln(Y_REF)
 
-    Parameters:
+    Parameters
     ----------
     coeffs : dict
         Coefficients for the AK14 GMPE, pre-selected from JSON file of coefficients.
@@ -236,7 +236,14 @@ def _ak14_yref(coeffs, mw, epic_dist, sof="SS"):
         Style of faulting. Supported values are "Normal" (or "N"),
         "Reverse" (or "R") and "Strike-Slip" (or "SS"). Default is "SS".
 
-    Dev notes: Work in progress. CHeck maths to ensure we are correctly adding
+    Returns
+    -------
+    y : float or array-like
+        Evaluated ln(Y_REF)
+
+    Notes
+    -----
+    Work in progress. Check maths to ensure we are correctly adding
     the S term in AK14 for Y_REF.
     """
     # if mw <= c1 we use coefficat a2, if mw > c1 we use a7
@@ -271,7 +278,7 @@ def _ak14_site_ampl(coeffs, pga_ref, Vs30, Vsref=750):
     Reference Vs30 if 750 m/s
     V_con is 1000 m/s following Aker et al., (2014)
 
-    Parameters:
+    Parameters
     ----------
     coeffs : dict
         Coefficients for the AK14 GMPE, pre-selected from JSON file of coefficients.
@@ -281,6 +288,11 @@ def _ak14_site_ampl(coeffs, pga_ref, Vs30, Vsref=750):
         Average shear-wave velocity in the top 30m of the site in m/s.
     Vsref : float, optional
         Reference Vs30 in m/s. Default is 750 m/s.
+
+    Returns
+    -------
+    s : float or array-like
+        s term from equation 3 in Aker et al., (2014)
     """
     vcon = 1000  # m/s. Limiting Vs30 after which site amplification is constant
     if Vs30 > Vsref:
