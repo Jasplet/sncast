@@ -6,34 +6,12 @@
 # ------------------------------------------------------------------
 """
 Filename: model_detection_capability.py
-Purpose:  Seismic Network Capability Assessment Software Tool (SNCAST)
-Author:   Martin Möllhoff, DIAS
-Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
-          SN-CAST: seismic network capability assessment software tool
-          for regional networks - examples from Ireland.
-          J Seismol 23, 493-504 (2019).
-          https://doi.org/10.1007/s10950-019-09819-0
 
-   Copyright (C) 2019 Martin Möllhoff, DIAS
-   Copyright (C) 2024 Joseph Asplet, University of Oxford
+Purpose:  Calculate the minimum earthquake detection capability of seismic networks
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
+Author:   Joseph Asplet (refactor of original code by Martin Möllhoff)
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
---------------------------------------------------------------------
-   Changes
-    - Refactor and re-write of entire codebase, [Joseph Asplet, 2025]
-    - Added support for DAS deployments [Joseph Asplet, 2025]
+Changelog:
     - Implementation of GMPE based method (still in development [Joseph Asplet, 2025]
     - Implementation of BGS Local magnitude scale, [Joseph Asplet, 2024]
     - Functionality to calculate of a depth cross-section [Joseph Asplet, 2024]
@@ -41,9 +19,25 @@ Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
       PyGMT [Joseph Asplet, 2024]
     - Added support for seismic arrays and OBS with separate
       detection requirements [Joseph Asplet, 2024]
+    - Refactor and re-write of entire codebase, [Joseph Asplet, 2025]
+    - Added support for DAS deployments [Joseph Asplet, 2025]
 
-     Author: J Asplet
-     email : joseph.asplet@earth.ox.ac.uk
+Copyright (C) 2019 Martin Möllhoff, DIAS
+
+Copyright (C) 2024 Joseph Asplet, University of Oxford
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from decimal import Decimal
