@@ -15,6 +15,21 @@ Address:     Department of Earth Sciences, University of Oxford,
             South Parks Road, Oxford, OX1 3AN, UK
 orcidID:       https://orcid.org/0000-0002-0375-011X
 
+Supported GMPES:
+
+RE19: Edwards, B (2019) Update of the UK stochastic ground motion model using
+    a decade of broadband data. In: SECED 2019 Conference, 2019-9-9 - 2019-9-10,
+    Greenwich, London.
+    https://livrepository.liverpool.ac.uk/3060529/1/SECED_2019_paper_Rietbrock_Edwards_FINAL.pdf
+Notes: Using the 10Mpa model for RE19.
+
+AK14: Akkar, S., Sandıkkaya, M.A., Bommer, J.J., 2014.,
+    Empirical ground-motion models for point- and extended-source crustal
+    earthquake scenarios in Europe and the Middle East. Bull Earthquake Eng 12, 359–387.
+    https://doi.org/10.1007/s10518-013-9461-4
+
+Note: This module is still a work in progress, use with caution.
+
 
 Copyright (C) 2025 Joseph Asplet
 
@@ -31,20 +46,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-Supported GMPES:
-
-RE19: Edwards, B (2019) Update of the UK stochastic ground motion model using
-    a decade of broadband data. In: SECED 2019 Conference, 2019-9-9 - 2019-9-10,
-    Greenwich, London.
-    https://livrepository.liverpool.ac.uk/3060529/1/SECED_2019_paper_Rietbrock_Edwards_FINAL.pdf
-Notes: Using the 10Mpa model for RE19.
-
-AK14: Akkar, S., Sandıkkaya, M.A., Bommer, J.J., 2014.,
-    Empirical ground-motion models for point- and extended-source crustal
-    earthquake scenarios in Europe and the Middle East. Bull Earthquake Eng 12, 359–387.
-    https://doi.org/10.1007/s10518-013-9461-4
-
-Note: This module is still a work in progress, use with caution.
 """
 
 import numpy as np
@@ -82,7 +83,7 @@ def eval_gmpe(mw, epic_dist, gmpe, model_type="PGV", debug=False):
         If True, returns intermediate calculation steps for debugging.
         Default is False.
 
-    Returns:
+    Returns
     -------
     y : float or array-like
         Evaluated ground motion (PGA in g (m/s2) or PGV in m/s).
@@ -224,7 +225,7 @@ def _ak14_yref(coeffs, mw, epic_dist, sof="SS"):
     """
     Evaluates equation 2 in Aker et al., (2014) for ln(Y_REF)
 
-    Parameters:
+    Parameters
     ----------
     coeffs : dict
         Coefficients for the AK14 GMPE, pre-selected from JSON file of coefficients.
@@ -236,7 +237,14 @@ def _ak14_yref(coeffs, mw, epic_dist, sof="SS"):
         Style of faulting. Supported values are "Normal" (or "N"),
         "Reverse" (or "R") and "Strike-Slip" (or "SS"). Default is "SS".
 
-    Dev notes: Work in progress. CHeck maths to ensure we are correctly adding
+    Returns
+    -------
+    y : float or array-like
+        Evaluated ln(Y_REF)
+
+    Notes
+    -----
+    Work in progress. Check maths to ensure we are correctly adding
     the S term in AK14 for Y_REF.
     """
     # if mw <= c1 we use coefficat a2, if mw > c1 we use a7
@@ -271,7 +279,7 @@ def _ak14_site_ampl(coeffs, pga_ref, Vs30, Vsref=750):
     Reference Vs30 if 750 m/s
     V_con is 1000 m/s following Aker et al., (2014)
 
-    Parameters:
+    Parameters
     ----------
     coeffs : dict
         Coefficients for the AK14 GMPE, pre-selected from JSON file of coefficients.
@@ -281,6 +289,11 @@ def _ak14_site_ampl(coeffs, pga_ref, Vs30, Vsref=750):
         Average shear-wave velocity in the top 30m of the site in m/s.
     Vsref : float, optional
         Reference Vs30 in m/s. Default is 750 m/s.
+
+    Returns
+    -------
+    s : float or array-like
+        s term from equation 3 in Aker et al., (2014)
     """
     vcon = 1000  # m/s. Limiting Vs30 after which site amplification is constant
     if Vs30 > Vsref:

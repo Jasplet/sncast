@@ -6,34 +6,12 @@
 # ------------------------------------------------------------------
 """
 Filename: model_detection_capability.py
-Purpose:  Seismic Network Capability Assessment Software Tool (SNCAST)
-Author:   Martin Möllhoff, DIAS
-Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
-          SN-CAST: seismic network capability assessment software tool
-          for regional networks - examples from Ireland.
-          J Seismol 23, 493-504 (2019).
-          https://doi.org/10.1007/s10950-019-09819-0
 
-   Copyright (C) 2019 Martin Möllhoff, DIAS
-   Copyright (C) 2024 Joseph Asplet, University of Oxford
+Purpose:  Calculate the minimum earthquake detection capability of seismic networks
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
+Author:   Joseph Asplet (refactor of original code by Martin Möllhoff)
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
---------------------------------------------------------------------
-   Changes
-    - Refactor and re-write of entire codebase, [Joseph Asplet, 2025]
-    - Added support for DAS deployments [Joseph Asplet, 2025]
+Changelog:
     - Implementation of GMPE based method (still in development [Joseph Asplet, 2025]
     - Implementation of BGS Local magnitude scale, [Joseph Asplet, 2024]
     - Functionality to calculate of a depth cross-section [Joseph Asplet, 2024]
@@ -41,9 +19,25 @@ Citation: Möllhoff, M., Bean, C.J. & Baptie, B.J.,
       PyGMT [Joseph Asplet, 2024]
     - Added support for seismic arrays and OBS with separate
       detection requirements [Joseph Asplet, 2024]
+    - Refactor and re-write of entire codebase, [Joseph Asplet, 2025]
+    - Added support for DAS deployments [Joseph Asplet, 2025]
 
-     Author: J Asplet
-     email : joseph.asplet@earth.ox.ac.uk
+Copyright (C) 2019 Martin Möllhoff, DIAS
+
+Copyright (C) 2024 Joseph Asplet, University of Oxford
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from decimal import Decimal
@@ -72,9 +66,9 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     """
     Calculate the amplitude of a seismic signal given a local magnitude
     and hypocentral distance. Local magnitude scales for the UK and California
-    (Hutton and Boore, 1987) are supported. The Hutton and Boore (1987) scale is
+    [Hutton1987]_ are supported. The [Hutton1987]_ scale is
     the default ML scale reccomended by the IASPEI working group on earthquake magnitude
-    determination and is consistent with the magnitude of Richter (1935).
+    determination and is consistent with the magnitude of [Richter1935]_.
 
     Parameters
     ----------
@@ -83,8 +77,8 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     hypo_dist : float, np.ndarray
         Hypocentral distance in km.
     region : str
-        Seismic region. "UK" for Luckett et al. (2019) scale, "CAL" for
-        Hutton and Boore (1987) scale.
+        Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
+        [Hutton1987]_ California scale.
 
     Returns
     -------
@@ -139,8 +133,8 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
     hypo_dist : float or np.ndarray
         Hypocentral distance in km.
     region : str
-        Seismic region. "UK" for Luckett et al. (2019) scale, "CAL" for
-        Hutton and Boore (1987) scale.
+        Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
+        [Hutton1987]_ California scale.
     mag_min : float
         Minimum magnitude to consider.
     mag_delta : float
@@ -210,8 +204,8 @@ def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
         - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
                            Default is None.
-        - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
-                           Default is 'CAL'.
+        - region:         Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
+                          [Hutton1987]_ California scale. Default is "CAL".
     """
     warnings.warn(
         "_est_min_ml_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude",
@@ -293,10 +287,10 @@ def find_min_ml(
         List of paths to CSV files or DataFrames containing DAS noise data.
     **kwargs : dict
         Additional keyword arguments to control the method and parameters:
-        - method: 'ML' or 'GMPE'. Default is 'ML'.
+        - method: 'ML' or 'GMPE'. Default is "ML".
         - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
         - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
-        - region: Locality for assumed ML scale parameters ('UK' or 'CAL'). Default is 'CAL'.
+        - region: Locality for assumed ML scale parameters ("UK" or "CAL"). Default is "CAL".
         - array_num: Number of stations required for a detection on an array. Default is 1.
         - obs_stat_num: Number of stations required for a detection on an OBS. Default is 3.
         - nproc: Number of processors to use for parallel processing. Default is 1.
@@ -309,9 +303,7 @@ def find_min_ml(
     Returns
     -------
     mag_det : xarray.DataArray
-        A 2D xarray DataArray with the following dimensions:
-            - Latitude: latitude of the grid point in decimal degrees
-            - Longitude: longitude of the grid point in decimal degrees
+        A 2D xarray DataArray with the dimensions in Latitude and Longitude.
         The values in the DataArray are the minimum detectable local magnitude ML
         at that grid point.
     """
@@ -562,9 +554,8 @@ def find_min_ml_x_section(
     Returns
     -------
         array : xarray.DataArray
-            A 2D xarray DataArray with the following dimensions:
-                - depth_km: depth in km
-                - distance_along_xsection_km: distance along the cross-section in km
+            A 2D xarray DataArray with dimenstions in depth (km) and distance (km) along the cross-section
+            from the start point.
             The values in the DataArray are the minimum detectable local magnitude ML
             at that grid point.
     """
