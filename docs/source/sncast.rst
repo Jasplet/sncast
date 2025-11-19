@@ -3,14 +3,14 @@ sncast package
 
 Submodules
 ----------
+sncast.model\_detection\_capability module
+------------------------------------------
 
-sncast.gmpes module
--------------------
-
-.. automodule:: sncast.gmpes
+.. automodule:: sncast.model_detection_capability
    :members:
    :show-inheritance:
    :undoc-members:
+
 
 sncast.magnitude\_conversions module
 ------------------------------------
@@ -20,18 +20,18 @@ sncast.magnitude\_conversions module
    :show-inheritance:
    :undoc-members:
 
-sncast.model\_detection\_capability module
-------------------------------------------
-
-.. automodule:: sncast.model_detection_capability
-   :members:
-   :show-inheritance:
-   :undoc-members:
-
 sncast.noise\_estimation module
 -------------------------------
 
 .. automodule:: sncast.noise_estimation
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+sncast.gmpes module
+-------------------
+
+.. automodule:: sncast.gmpes
    :members:
    :show-inheritance:
    :undoc-members:

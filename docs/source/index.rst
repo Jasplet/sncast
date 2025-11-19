@@ -6,7 +6,7 @@
 SN-CAST documentation
 =====================
 
-SN-CAST (Seismic Network Capability Assessment Software Tool) is a Python library for modelling the earthquake detection capability of Seismic Networtk, Arrays and DAS.
+SN-CAST (Seismic Network Capability Assessment Software Tool) is a Python library for modelling the earthquake detection capability of Seismic Networks, Arrays and DAS.
 
 The original version of this software is available `on Github here <https://github.com/moellhoff/sncast>`_. This version is described in [Molhoff2019]_.
 
