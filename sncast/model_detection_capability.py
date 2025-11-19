@@ -303,9 +303,7 @@ def find_min_ml(
     Returns
     -------
     mag_det : xarray.DataArray
-        A 2D xarray DataArray with the following dimensions:
-            - Latitude: latitude of the grid point in decimal degrees
-            - Longitude: longitude of the grid point in decimal degrees
+        A 2D xarray DataArray with the dimensions in Latitude and Longitude.
         The values in the DataArray are the minimum detectable local magnitude ML
         at that grid point.
     """
@@ -556,9 +554,8 @@ def find_min_ml_x_section(
     Returns
     -------
         array : xarray.DataArray
-            A 2D xarray DataArray with the following dimensions:
-                - depth_km: depth in km
-                - distance_along_xsection_km: distance along the cross-section in km
+            A 2D xarray DataArray with dimenstions in depth (km) and distance (km) along the cross-section
+            from the start point.
             The values in the DataArray are the minimum detectable local magnitude ML
             at that grid point.
     """
