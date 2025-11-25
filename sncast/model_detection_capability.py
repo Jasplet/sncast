@@ -53,6 +53,7 @@ import pygc
 from .gmpes import eval_gmpe
 from .magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
 from .core import SeismicNetwork, SeismicArrayNetwork, ModelConfig, DASFibre
+
 ML_COEFFS = {
     "UK": {"a": 1.11, "b": 0.00189, "c": -2.09, "d": -1.16, "e": -0.2},
     "CAL": {"a": 1.11, "b": 0.00189, "c": -2.09},
@@ -87,7 +88,20 @@ class DetectionCapabilityModel:
     def __repr__(self):
         return f"<DetectionCapabilityModel with {len(self.networks)} networks, {len(self.arrays)} arrays, and {len(self.das_fibres)} DAS fibres>"
 
-    def add_network(self, network)
+    def add_network(self, network):
+        """
+        Add a seismic network to the model.
+        """
+        if isinstance(network, SeismicNetwork):
+            self.networks.append(network)
+            print(f"Seismic network {network.network_code} added to model.")
+        else:
+            net_to_add = SeismicNetwork(stations=network)
+            self.networks.append(net_to_add)
+            print(
+                f"Seismic network {net_to_add.network_code} created and added to model."
+            )
+
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     """
