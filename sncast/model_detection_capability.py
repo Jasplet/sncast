@@ -52,7 +52,7 @@ import pygc
 
 from .gmpes import eval_gmpe
 from .magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
-
+from .core import SeismicNetwork, SeismicArrayNetwork, ModelConfig, DASFibre
 ML_COEFFS = {
     "UK": {"a": 1.11, "b": 0.00189, "c": -2.09, "d": -1.16, "e": -0.2},
     "CAL": {"a": 1.11, "b": 0.00189, "c": -2.09},
@@ -60,6 +60,34 @@ ML_COEFFS = {
 
 SUPPORTED_ML_REGIONS = list(ML_COEFFS.keys())
 
+
+class DetectionCapabilityModel:
+    """
+    A class to represent and model the earthqauake detection capability
+    of seismic networks based on station noise levels and network geometry.
+    """
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a DetectionCapabilityModel instance.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            Additional keyword arguments to control the method and parameters:
+            - method: 'ML' or 'GMPE'. Default is "ML".
+            - region: Locality for assumed ML scale parameters ("UK" or "CAL"). Default is "CAL".
+        """
+        self.config = ModelConfig(**kwargs)
+        self.networks = []
+        self.arrays = []
+        self.das_fibres = []
+        print("Detection Capability Model initialized.")
+
+    def __repr__(self):
+        return f"<DetectionCapabilityModel with {len(self.networks)} networks, {len(self.arrays)} arrays, and {len(self.das_fibres)} DAS fibres>"
+
+    def add_network(self, network)
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     """
