@@ -17,6 +17,8 @@ import pandas as pd
 
 SUPPORTED_METHODS = ["ML", "GMPE"]
 SUPPORTED_REGIONS = ["UK", "CAL"]
+SUPPORTED_GMPES = ["RE19", "AK14"]
+SUPPORTED_GMPE_MODEL_TYPES = ["PGV", "PGA"]
 
 
 class SeismicNetwork:
@@ -138,19 +140,37 @@ class DASFibre:
 
 class ModelConfig:
     """
-    Class representing the model configuration for SNACT.
+    Class representing the model configuration for SNCAST.
+
+    Parameters
+    ----------
+    snr : float, optional
+        Signal-to-noise ratio threshold for detection, by default 3.0
+    foc_depth_km : float, optional
+        Focal depth in kilometers, by default 2.0
+    region : str, optional
+        Geographical region for the model, by default "CAL"
+    nproc : int, optional
+        Number of processors to use for computation, by default 1
+    method : str, optional
+        Method for ground motion prediction, by default "ML"
+    gmpe : str, optional
+        GMPE model to use if method is "GMPE", by default "AK14"
+    gmpe_model_type : str, optional
+        Type of GMPE model, by default "PGV"
     """
 
     def __init__(self, **kwargs):
         self.snr: float = kwargs.get("snr", 3.0)
-
+        self.foc_depth_km: float = kwargs.get("foc_depth_km", 2.0)
+        self.region: str = kwargs.get("region", "CAL")
+        self.nproc: int = kwargs.get("nproc", 1)
         self.method: str = kwargs.get("method", "ML")
         if self.method == "GMPE":
             self.gmpe: str = kwargs.get("gmpe", "AK14")
-            self.gmpe_model_type: str = kwargs.get("gmpe_model_type", "P")
+            self.gmpe_model_type: str = kwargs.get("gmpe_model_type", "PGV")
 
-        self.region: str = kwargs.get("region", "CAL")
-        self.nproc: int = kwargs.get("nproc", 1)
+        self._validate()
 
     def _validate(self):
         """
@@ -161,10 +181,24 @@ class ModelConfig:
             raise ValueError(
                 f"Invalid method: {self.method}. Valid methods are {SUPPORTED_METHODS}."
             )
+        if self.method == "GMPE":
+            if self.gmpe not in SUPPORTED_GMPES:
+                raise ValueError(
+                    f"Invalid GMPE: {self.gmpe}. Valid GMPEs are {SUPPORTED_GMPES}."
+                )
+            if self.gmpe_model_type not in SUPPORTED_GMPE_MODEL_TYPES:
+                raise ValueError(
+                    f"Invalid GMPE model type: {self.gmpe_model_type}. Valid types are {SUPPORTED_GMPE_MODEL_TYPES}."
+                )
+
         if self.region not in SUPPORTED_REGIONS:
             raise ValueError(
                 f"Invalid region: {self.region}. Valid regions are {SUPPORTED_REGIONS}."
             )
+        if self.snr <= 0:
+            raise ValueError("SNR must be a positive value.")
+        if self.foc_depth_km < 0:
+            raise ValueError("Focal depth must be a positive value.")
 
     def __repr__(self):
         return f"<ModelConfig with method={self.method}, region={self.region}, snr={self.snr}>"
