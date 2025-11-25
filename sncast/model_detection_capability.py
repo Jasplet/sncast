@@ -81,8 +81,11 @@ class DetectionCapabilityModel:
         """
         self.config = ModelConfig(**kwargs)
         self.networks = []
+        self.n_networks = 0
         self.arrays = []
+        self.n_arrays = 0
         self.das_fibres = []
+        self.n_das_fibres = 0
         print("Detection Capability Model initialized.")
 
     def __repr__(self):
@@ -94,10 +97,12 @@ class DetectionCapabilityModel:
         """
         if isinstance(network, SeismicNetwork):
             self.networks.append(network)
+            self.n_networks += 1
             print(f"Seismic network {network.network_code} added to model.")
         else:
             net_to_add = SeismicNetwork(stations=network)
             self.networks.append(net_to_add)
+            self.n_networks += 1
             print(
                 f"Seismic network {net_to_add.network_code} created and added to model."
             )
@@ -108,10 +113,12 @@ class DetectionCapabilityModel:
         """
         if isinstance(array, SeismicArrayNetwork):
             self.arrays.append(array)
+            self.n_arrays += 1
             print(f"Seismic array {array.array_code} added to model.")
         else:
             arr_to_add = SeismicArrayNetwork(arrays=array)
             self.arrays.append(arr_to_add)
+            self.n_arrays += 1
             print(f"Seismic array {arr_to_add.array_code} created and added to model.")
 
     def add_das_fibre(self, das_fibre):
@@ -120,10 +127,12 @@ class DetectionCapabilityModel:
         """
         if isinstance(das_fibre, DASFibre):
             self.das_fibres.append(das_fibre)
+            self.n_das_fibres += 1
             print(f"DAS fibre {das_fibre.fibre_code} added to model.")
         else:
             das_to_add = DASFibre(fibres=das_fibre)
             self.das_fibres.append(das_to_add)
+            self.n_das_fibres += 1
             print(f"DAS fibre {das_to_add.fibre_code} created and added to model.")
 
     def create_grid(self, lon0, lon1, lat0, lat1, dlon, dlat):
@@ -220,9 +229,9 @@ class DetectionCapabilityModel:
         """
         # exit if no stations provided
         if (
-            (networks is None)
-            and (kwargs.get("arrays") is None)
-            and (kwargs.get("das") is None)
+            (len(self.networks) == 0)
+            and (len(self.arrays) == 0)
+            and (len(self.das) == 0)
         ):
             raise ValueError("No seismic networks, arrays or DAS provided!")
         # Make kwargs for worker function
