@@ -102,6 +102,291 @@ class DetectionCapabilityModel:
                 f"Seismic network {net_to_add.network_code} created and added to model."
             )
 
+    def add_array(self, array):
+        """
+        Add a seismic array to the model.
+        """
+        if isinstance(array, SeismicArrayNetwork):
+            self.arrays.append(array)
+            print(f"Seismic array {array.array_code} added to model.")
+        else:
+            arr_to_add = SeismicArrayNetwork(arrays=array)
+            self.arrays.append(arr_to_add)
+            print(f"Seismic array {arr_to_add.array_code} created and added to model.")
+
+    def add_das_fibre(self, das_fibre):
+        """
+        Add a DAS fibre to the model.
+        """
+        if isinstance(das_fibre, DASFibre):
+            self.das_fibres.append(das_fibre)
+            print(f"DAS fibre {das_fibre.fibre_code} added to model.")
+        else:
+            das_to_add = DASFibre(fibres=das_fibre)
+            self.das_fibres.append(das_to_add)
+            print(f"DAS fibre {das_to_add.fibre_code} created and added to model.")
+
+    def create_grid(self, lon0, lon1, lat0, lat1, dlon, dlat):
+        """
+        Initialize lat/lon grid for SNCAST model.
+
+        Parameters
+        ----------
+        lon0 : float
+            Minimum longitude of the grid.
+        lon1 : float
+            Maximum longitude of the grid.
+        lat0 : float
+            Minimum latitude of the grid.
+        lat1 : float
+            Maximum latitude of the grid.
+        dlon : float
+            Longitude increment for the grid.
+        dlat : float
+            Latitude increment for the grid.
+        Returns
+        -------
+        lons : np.ndarray
+            Array of longitudes for the grid.
+        lats : np.ndarray
+            Array of latitudes for the grid.
+        nx : int
+            Number of grid points in the x-direction (longitude).
+        ny : int
+            Number of grid points in the y-direction (latitude).
+        """
+        if lon0 > lon1:
+            raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
+        if lat0 > lat1:
+            raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
+        if dlon <= 0 or dlat <= 0:
+            raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
+        if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
+            raise ValueError(
+                f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}"
+            )
+        if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
+            raise ValueError(
+                f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}"
+            )
+
+        nx = int((lon1 - lon0) / dlon) + 1
+        ny = int((lat1 - lat0) / dlat) + 1
+        self.lats = np.linspace(lat1, lat0, ny)
+        self.lons = np.linspace(lon0, lon1, nx)
+        print(f"Grid created with {nx} x {ny} points.")
+
+    def find_min_ml(
+        self,
+        lon0,
+        lon1,
+        lat0,
+        lat1,
+        dlon,
+        dlat,
+    ):
+        """
+        This routine calculates the geographic distribution of the minimum
+        detectable local magnitude ML for a given seismic network.
+
+
+        Example of the input file format for stations and arrays:
+            longitude, latitude, elevation_km, noise [nm], station
+
+        Example of the input file format for DAS:
+            channel_index, fiber_length_m, longitude, latitude, noise_m, elevation_km
+
+        Parameters
+        ----------
+        lon0 : float
+            Minimum longitude of the region.
+        lon1 : float
+            Maximum longitude of the region.
+        lat0 : float
+            Minimum latitude of the region.
+        lat1 : float
+            Maximum latitude of the region.
+        dlon : float
+            Longitude increment for the grid.
+        dlat : float
+            Latitude increment for the grid.
+
+        Returns
+        -------
+        mag_det : xarray.DataArray
+            A 2D xarray DataArray with the dimensions in Latitude and Longitude.
+            The values in the DataArray are the minimum detectable local magnitude ML
+            at that grid point.
+        """
+        # exit if no stations provided
+        if (
+            (networks is None)
+            and (kwargs.get("arrays") is None)
+            and (kwargs.get("das") is None)
+        ):
+            raise ValueError("No seismic networks, arrays or DAS provided!")
+        # Make kwargs for worker function
+        kwargs_worker = {}
+        kwargs_worker["foc_depth"] = foc_depth
+        kwargs_worker["snr"] = kwargs.get("snr", 3.0)
+        kwargs_worker["mag_min"] = kwargs.get("mag_min", -2.0)
+        kwargs_worker["mag_delta"] = kwargs.get("mag_delta", 0.1)
+
+        if kwargs.get("method") == "GMPE":
+            if "gmpe" not in kwargs:
+                raise ValueError(
+                    "GMPE model must be specified if" + "GMPE method is selected"
+                )
+            if "gmpe_model_type" not in kwargs:
+                raise ValueError(
+                    "GMPE model type must be specified if" + "GMPE method is selected"
+                )
+            kwargs_worker["gmpe"] = kwargs["gmpe"]
+            kwargs_worker["gmpe_model_type"] = kwargs["gmpe_model_type"]
+        elif kwargs.get("method") == "ML":
+            kwargs_worker["method"] = "ML"
+            kwargs_worker["gmpe"] = None
+            kwargs_worker["gmpe_model_type"] = None
+
+        else:
+            kwargs_worker["method"] = "ML"
+            warnings.warn("Method not recognised, using ML as default")
+
+        if kwargs.get("region") is None:
+            kwargs_worker["region"] = "CAL"
+            warnings.warn("Region not specified, using CAL as default")
+        elif kwargs["region"] not in SUPPORTED_ML_REGIONS:
+            raise ValueError(
+                f"Region {kwargs['region']} not supported, "
+                + f"supported regions are {SUPPORTED_ML_REGIONS}"
+            )
+        else:
+            kwargs_worker["region"] = kwargs["region"]
+
+        print(f'Method : {kwargs_worker["method"]}')
+        print(f'Region : {kwargs_worker["region"]}')
+
+        if networks is not None:
+            # read in data, file format: "LON, LAT, NOISE [nm], STATION"
+            if isinstance(networks, (list, tuple)):
+                network_noise_dfs = [read_station_data(n) for n in networks]
+            else:
+                network_noise_dfs = [read_station_data(networks)]
+
+            if isinstance(stat_num, int):
+                warnings.warn(
+                    "Single integer provided for stat_num, "
+                    + "assuming this applies to all networks"
+                )
+                stat_num = [stat_num]
+
+            if len(stat_num) != len(network_noise_dfs):
+                warnings.warn(
+                    f"Number of networks ({len(network_noise_dfs)}) does not match "
+                    + f"number of required stations ({len(stat_num)}), "
+                    + f"using first value, {stat_num[0]}, for all networks"
+                )
+                stat_num = [stat_num[0]] * len(network_noise_dfs)
+
+            # check there are enough stations in each network
+            for i, df in enumerate(network_noise_dfs):
+                if len(df) < stat_num[i]:
+                    raise ValueError(
+                        f"Not enough stations in network {i+1}: "
+                        + f"have {len(df)}, need {stat_num[i]}"
+                    )
+            kwargs_worker["network_noise_dfs"] = network_noise_dfs
+            kwargs_worker["stat_num"] = stat_num
+        else:
+            print("No seismic networks provided")
+
+        if kwargs.get("arrays") is not None:
+            print(
+                "Using seismic arrays in model. Arrays are modelled"
+                + " as the central station with a required station number of 1."
+            )
+            if isinstance(kwargs["arrays"], (list, tuple)):
+                array_dfs = [read_station_data(a) for a in kwargs["arrays"]]
+            else:
+                array_dfs = [read_station_data(kwargs["arrays"])]
+
+            array_num = kwargs.get("array_num", 1)
+            if isinstance(array_num, int):
+                array_num = [array_num]
+
+            if len(array_num) != len(array_dfs):
+                warnings.warn(
+                    f"Number of arrays ({len(array_dfs)}) does not match "
+                    + f"number of required stations ({len(array_num)}), "
+                    + f"using first value, {array_num[0]}, for all arrays"
+                )
+                array_num = [array_num[0]] * len(array_dfs)
+
+            kwargs_worker["array_num"] = array_num
+            kwargs_worker["array_dfs"] = array_dfs
+
+            # check there are enough stations in each array
+            for i, df in enumerate(array_dfs):
+                if len(df) < array_num[i]:
+                    raise ValueError(
+                        f"Not enough stations in array {i+1}: "
+                        + f"have {len(df)}, need {array_num[i]}"
+                    )
+
+                array_num = [stat_num[0]] * len(network_noise_dfs)
+
+            # check there are enough stations in each network
+            for i, df in enumerate(network_noise_dfs):
+                if len(df) < stat_num[i]:
+                    raise ValueError(
+                        f"Not enough stations in network {i+1}: "
+                        + f"have {len(df)}, need {stat_num[i]}"
+                    )
+
+            kwargs_worker["array_dfs"] = array_dfs
+
+        if "das" in kwargs:
+            if "detection_length" not in kwargs:
+                warnings.warn("Detection length not specified, using default of 1.0 km")
+                kwargs["detection_length"] = 1e3  # Default to 1 km
+            # Read in DAS noise data
+            das_in = kwargs["das"]
+            if isinstance(das_in, (list, tuple)):
+                das_dfs = [read_das_noise_data(d) for d in das_in]
+            else:
+                das_dfs = [read_das_noise_data(das_in)]
+
+            for df in das_dfs:
+                if len(df) == 0:
+                    raise ValueError("No DAS data found in one of the input files")
+            print(f'DAS detection length: {kwargs["detection_length"]} m')
+            kwargs_worker["das_dfs"] = das_dfs
+
+        lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
+
+        nproc = kwargs.get("nproc", 1)
+        print(f"Using {nproc} cores")
+        # Ensure fixed args are all in kwargs for worker function
+        args_list = [
+            ((ix, iy, lons[ix], lats[iy]), kwargs_worker)
+            for ix in range(nx)
+            for iy in range(ny)
+        ]
+        mag_grid = np.zeros((ny, nx))
+        # Detection capability has to be calulated at each grid point,
+        # Split this up using Pool and imap_unordered to multiple cores
+        # maybe numba would be quicker here?
+
+        with Pool(processes=nproc) as pool:
+            for iy, ix, val in pool.imap_unordered(_wrapper_minml_worker, args_list):
+                mag_grid[iy, ix] = val
+
+        # Make xarray grid to output
+        mag_det = xarray.DataArray(
+            mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
+        )
+        return mag_det
+
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
     """
@@ -217,305 +502,6 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
     # or some other fixed rounding level (the default is 0.1)
     ml = np.maximum(mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min)
     return ml
-
-
-def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
-    """
-    Estimates minimum detectable magnitude at a given station
-
-    Function deprecated for noise displacement input, use calc_local_magnitude
-    with vectorised numpy arrays instead. This function will be removed/replaced in future
-    when work on GMPE method is complete.
-
-    Parameters
-    ----------
-    noise : float
-        Noise level at the station in nm.
-    mag_min : float
-        Minimum local magnitude.
-    mag_delta : float
-        Magnitude increment. Returned magnitude will be rounded up this increment.
-    distance : float
-        Hypocentral distance in km.
-    snr : float
-        Required signal-to-noise ratio for detection.
-    **kwargs : dict
-        Additional keyword arguments to control the method and parameters:
-        - method: 'ML' or 'GMPE'. Default is 'ML'.
-        - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
-        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
-                           Default is None.
-        - region:         Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
-                          [Hutton1987]_ California scale. Default is "CAL".
-    """
-    warnings.warn(
-        "_est_min_ml_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude",
-        DeprecationWarning,
-    )
-    method = kwargs.get("method", "ML")
-    region = kwargs.get("region", "CAL")
-    gmpe = kwargs.get("gmpe", None)
-    gmpe_model_type = kwargs.get("gmpe_model_type", None)
-    if method == "GMPE":
-        signal = 0
-        ml = mag_min - mag_delta
-        while signal < snr * noise:
-            ml = ml + mag_delta
-            mw = convert_ml_to_mw(ml, region)
-            signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)
-            ml = convert_mw_to_ml(mw, region)
-            if ml > 3:
-                break
-        return ml
-    elif method == "ML":
-        raise ValueError("ML no longer supported, use vectorised function")
-    else:
-        raise ValueError(f"Unknown method: {method}")
-
-
-def find_min_ml(
-    lon0,
-    lon1,
-    lat0,
-    lat1,
-    dlon,
-    dlat,
-    foc_depth=0,
-    networks=None,
-    stat_num=[5],
-    **kwargs,
-):
-    """
-    This routine calculates the geographic distribution of the minimum
-    detectable local magnitude ML for a given seismic network.
-
-    Input requirements for seismic stations, arrays, and DAS:
-    - networks: List of paths to CSV files or DataFrames containing station data for each network.
-    - stat_num: List of required number of station detections for each network.
-    - arrays: List of paths to CSV files or DataFrames containing seismic array data (optional).
-    - array_num: List of required number of station detections for each array (default is 1).
-    - das: List of paths to CSV files or DataFrames containing DAS noise data (optional).
-
-    Example of the input file format for stations and arrays:
-        longitude, latitude, elevation_km, noise [nm], station
-
-    Example of the input file format for DAS:
-        channel_index, fiber_length_m, longitude, latitude, noise_m, elevation_km
-
-    Parameters
-    ----------
-    lon0 : float
-        Minimum longitude of the region.
-    lon1 : float
-        Maximum longitude of the region.
-    lat0 : float
-        Minimum latitude of the region.
-    lat1 : float
-        Maximum latitude of the region.
-    dlon : float
-        Longitude increment for the grid.
-    dlat : float
-        Latitude increment for the grid.
-    foc_depth : float, optional
-        Assumed earthquake focal depth in km. Default is 0.
-    networks : list or str or pd.DataFrame, optional
-        List of paths to CSV files or DataFrames containing station data for each network.
-    stat_num : list of int.
-        List of required number of station detections for each network.
-    arrays : list or str or pd.DataFrame, optional
-        List of paths to CSV files or DataFrames containing seismic array data.
-    das : list or str or pd.DataFrame, optional
-        List of paths to CSV files or DataFrames containing DAS noise data.
-    **kwargs : dict
-        Additional keyword arguments to control the method and parameters:
-        - method: 'ML' or 'GMPE'. Default is "ML".
-        - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
-        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'. Default is None.
-        - region: Locality for assumed ML scale parameters ("UK" or "CAL"). Default is "CAL".
-        - array_num: Number of stations required for a detection on an array. Default is 1.
-        - obs_stat_num: Number of stations required for a detection on an OBS. Default is 3.
-        - nproc: Number of processors to use for parallel processing. Default is 1.
-        - detection_length: float, optional. Length of fiber (in meters) required for a detection.
-          Default is 1000 m.
-        - mag_min: float, optional. Minimum local magnitude to consider. Default is -2.0.
-        - mag_delta: float, optional. Increment for local magnitude. Default is 0.1.
-        - snr: float, optional. Required signal-to-noise ratio for detection. Default is 3.0.
-
-    Returns
-    -------
-    mag_det : xarray.DataArray
-        A 2D xarray DataArray with the dimensions in Latitude and Longitude.
-        The values in the DataArray are the minimum detectable local magnitude ML
-        at that grid point.
-    """
-    # exit if no stations provided
-    if (
-        (networks is None)
-        and (kwargs.get("arrays") is None)
-        and (kwargs.get("das") is None)
-    ):
-        raise ValueError("No seismic networks, arrays or DAS provided!")
-    # Make kwargs for worker function
-    kwargs_worker = {}
-    kwargs_worker["foc_depth"] = foc_depth
-    kwargs_worker["snr"] = kwargs.get("snr", 3.0)
-    kwargs_worker["mag_min"] = kwargs.get("mag_min", -2.0)
-    kwargs_worker["mag_delta"] = kwargs.get("mag_delta", 0.1)
-
-    if kwargs.get("method") == "GMPE":
-        if "gmpe" not in kwargs:
-            raise ValueError(
-                "GMPE model must be specified if" + "GMPE method is selected"
-            )
-        if "gmpe_model_type" not in kwargs:
-            raise ValueError(
-                "GMPE model type must be specified if" + "GMPE method is selected"
-            )
-        kwargs_worker["gmpe"] = kwargs["gmpe"]
-        kwargs_worker["gmpe_model_type"] = kwargs["gmpe_model_type"]
-    elif kwargs.get("method") == "ML":
-        kwargs_worker["method"] = "ML"
-        kwargs_worker["gmpe"] = None
-        kwargs_worker["gmpe_model_type"] = None
-
-    else:
-        kwargs_worker["method"] = "ML"
-        warnings.warn("Method not recognised, using ML as default")
-
-    if kwargs.get("region") is None:
-        kwargs_worker["region"] = "CAL"
-        warnings.warn("Region not specified, using CAL as default")
-    elif kwargs["region"] not in SUPPORTED_ML_REGIONS:
-        raise ValueError(
-            f"Region {kwargs['region']} not supported, "
-            + f"supported regions are {SUPPORTED_ML_REGIONS}"
-        )
-    else:
-        kwargs_worker["region"] = kwargs["region"]
-
-    print(f'Method : {kwargs_worker["method"]}')
-    print(f'Region : {kwargs_worker["region"]}')
-
-    if networks is not None:
-        # read in data, file format: "LON, LAT, NOISE [nm], STATION"
-        if isinstance(networks, (list, tuple)):
-            network_noise_dfs = [read_station_data(n) for n in networks]
-        else:
-            network_noise_dfs = [read_station_data(networks)]
-
-        if isinstance(stat_num, int):
-            warnings.warn(
-                "Single integer provided for stat_num, "
-                + "assuming this applies to all networks"
-            )
-            stat_num = [stat_num]
-
-        if len(stat_num) != len(network_noise_dfs):
-            warnings.warn(
-                f"Number of networks ({len(network_noise_dfs)}) does not match "
-                + f"number of required stations ({len(stat_num)}), "
-                + f"using first value, {stat_num[0]}, for all networks"
-            )
-            stat_num = [stat_num[0]] * len(network_noise_dfs)
-
-        # check there are enough stations in each network
-        for i, df in enumerate(network_noise_dfs):
-            if len(df) < stat_num[i]:
-                raise ValueError(
-                    f"Not enough stations in network {i+1}: "
-                    + f"have {len(df)}, need {stat_num[i]}"
-                )
-        kwargs_worker["network_noise_dfs"] = network_noise_dfs
-        kwargs_worker["stat_num"] = stat_num
-    else:
-        print("No seismic networks provided")
-
-    if kwargs.get("arrays") is not None:
-        print(
-            "Using seismic arrays in model. Arrays are modelled"
-            + " as the central station with a required station number of 1."
-        )
-        if isinstance(kwargs["arrays"], (list, tuple)):
-            array_dfs = [read_station_data(a) for a in kwargs["arrays"]]
-        else:
-            array_dfs = [read_station_data(kwargs["arrays"])]
-
-        array_num = kwargs.get("array_num", 1)
-        if isinstance(array_num, int):
-            array_num = [array_num]
-
-        if len(array_num) != len(array_dfs):
-            warnings.warn(
-                f"Number of arrays ({len(array_dfs)}) does not match "
-                + f"number of required stations ({len(array_num)}), "
-                + f"using first value, {array_num[0]}, for all arrays"
-            )
-            array_num = [array_num[0]] * len(array_dfs)
-
-        kwargs_worker["array_num"] = array_num
-        kwargs_worker["array_dfs"] = array_dfs
-
-        # check there are enough stations in each array
-        for i, df in enumerate(array_dfs):
-            if len(df) < array_num[i]:
-                raise ValueError(
-                    f"Not enough stations in array {i+1}: "
-                    + f"have {len(df)}, need {array_num[i]}"
-                )
-
-            array_num = [stat_num[0]] * len(network_noise_dfs)
-
-        # check there are enough stations in each network
-        for i, df in enumerate(network_noise_dfs):
-            if len(df) < stat_num[i]:
-                raise ValueError(
-                    f"Not enough stations in network {i+1}: "
-                    + f"have {len(df)}, need {stat_num[i]}"
-                )
-
-        kwargs_worker["array_dfs"] = array_dfs
-
-    if "das" in kwargs:
-        if "detection_length" not in kwargs:
-            warnings.warn("Detection length not specified, using default of 1.0 km")
-            kwargs["detection_length"] = 1e3  # Default to 1 km
-        # Read in DAS noise data
-        das_in = kwargs["das"]
-        if isinstance(das_in, (list, tuple)):
-            das_dfs = [read_das_noise_data(d) for d in das_in]
-        else:
-            das_dfs = [read_das_noise_data(das_in)]
-
-        for df in das_dfs:
-            if len(df) == 0:
-                raise ValueError("No DAS data found in one of the input files")
-        print(f'DAS detection length: {kwargs["detection_length"]} m')
-        kwargs_worker["das_dfs"] = das_dfs
-
-    lons, lats, nx, ny = create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
-
-    nproc = kwargs.get("nproc", 1)
-    print(f"Using {nproc} cores")
-    # Ensure fixed args are all in kwargs for worker function
-    args_list = [
-        ((ix, iy, lons[ix], lats[iy]), kwargs_worker)
-        for ix in range(nx)
-        for iy in range(ny)
-    ]
-    mag_grid = np.zeros((ny, nx))
-    # Detection capability has to be calulated at each grid point,
-    # Split this up using Pool and imap_unordered to multiple cores
-    # maybe numba would be quicker here?
-
-    with Pool(processes=nproc) as pool:
-        for iy, ix, val in pool.imap_unordered(_wrapper_minml_worker, args_list):
-            mag_grid[iy, ix] = val
-
-    # Make xarray grid to output
-    mag_det = xarray.DataArray(
-        mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
-    )
-    return mag_det
 
 
 def find_min_ml_x_section(
@@ -970,53 +956,6 @@ def _minml_x_section_worker(ix, iz, lon, lat, depth, **kwargs):
     return (iz, ix, min_mag)
 
 
-def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
-    """
-    Initialize lat/lon grid for SNCAST model.
-
-    Parameters
-    ----------
-    lon0 : float
-        Minimum longitude of the grid.
-    lon1 : float
-        Maximum longitude of the grid.
-    lat0 : float
-        Minimum latitude of the grid.
-    lat1 : float
-        Maximum latitude of the grid.
-    dlon : float
-        Longitude increment for the grid.
-    dlat : float
-        Latitude increment for the grid.
-    Returns
-    -------
-    lons : np.ndarray
-        Array of longitudes for the grid.
-    lats : np.ndarray
-        Array of latitudes for the grid.
-    nx : int
-        Number of grid points in the x-direction (longitude).
-    ny : int
-        Number of grid points in the y-direction (latitude).
-    """
-    if lon0 > lon1:
-        raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
-    if lat0 > lat1:
-        raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
-    if dlon <= 0 or dlat <= 0:
-        raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
-    if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
-        raise ValueError(f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}")
-    if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
-        raise ValueError(f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}")
-
-    nx = int((lon1 - lon0) / dlon) + 1
-    ny = int((lat1 - lat0) / dlat) + 1
-    lats = np.linspace(lat1, lat0, ny)
-    lons = np.linspace(lon0, lon1, nx)
-    return lons, lats, nx, ny
-
-
 def calc_min_ml_at_gridpoint(
     stations_df,
     lon,
@@ -1275,6 +1214,60 @@ def calc_min_ml_at_gridpoint_das(
     )
     # Get smallest ML detected at any one window along the fiber
     return np.min(mags)
+
+
+def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
+    """
+    Estimates minimum detectable magnitude at a given station
+
+    Function deprecated for noise displacement input, use calc_local_magnitude
+    with vectorised numpy arrays instead. This function will be removed/replaced in future
+    when work on GMPE method is complete.
+
+    Parameters
+    ----------
+    noise : float
+        Noise level at the station in nm.
+    mag_min : float
+        Minimum local magnitude.
+    mag_delta : float
+        Magnitude increment. Returned magnitude will be rounded up this increment.
+    distance : float
+        Hypocentral distance in km.
+    snr : float
+        Required signal-to-noise ratio for detection.
+    **kwargs : dict
+        Additional keyword arguments to control the method and parameters:
+        - method: 'ML' or 'GMPE'. Default is 'ML'.
+        - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
+        - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                           Default is None.
+        - region:         Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
+                          [Hutton1987]_ California scale. Default is "CAL".
+    """
+    warnings.warn(
+        "_est_min_ml_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude",
+        DeprecationWarning,
+    )
+    method = kwargs.get("method", "ML")
+    region = kwargs.get("region", "CAL")
+    gmpe = kwargs.get("gmpe", None)
+    gmpe_model_type = kwargs.get("gmpe_model_type", None)
+    if method == "GMPE":
+        signal = 0
+        ml = mag_min - mag_delta
+        while signal < snr * noise:
+            ml = ml + mag_delta
+            mw = convert_ml_to_mw(ml, region)
+            signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)
+            ml = convert_mw_to_ml(mw, region)
+            if ml > 3:
+                break
+        return ml
+    elif method == "ML":
+        raise ValueError("ML no longer supported, use vectorised function")
+    else:
+        raise ValueError(f"Unknown method: {method}")
 
 
 # Deprecated function - not currently used
