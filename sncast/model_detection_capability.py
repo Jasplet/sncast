@@ -135,7 +135,7 @@ class DetectionCapabilityModel:
             self.n_das_fibres += 1
             print(f"DAS fibre {das_to_add.fibre_code} created and added to model.")
 
-    def create_grid(self, lon0, lon1, lat0, lat1, dlon, dlat):
+    def _create_grid(self, lon0, lon1, lat0, lat1, dlon, dlat):
         """
         Initialize lat/lon grid for SNCAST model.
 
@@ -181,9 +181,10 @@ class DetectionCapabilityModel:
 
         nx = int((lon1 - lon0) / dlon) + 1
         ny = int((lat1 - lat0) / dlat) + 1
-        self.lats = np.linspace(lat1, lat0, ny)
-        self.lons = np.linspace(lon0, lon1, nx)
+        lats = np.linspace(lat1, lat0, ny)
+        lons = np.linspace(lon0, lon1, nx)
         print(f"Grid created with {nx} x {ny} points.")
+        return lons, lats, nx, ny
 
     def find_min_ml(
         self,
@@ -230,9 +231,10 @@ class DetectionCapabilityModel:
         # exit if no stations provided
         if (self.n_networks == 0) and (self.n_arrays == 0) and (self.n_das_fibres == 0):
             raise ValueError("No seismic networks, arrays or DAS provided!")
-        # Make kwargs for worker function
 
-        print(f"Using {self.nproc} cores")
+        # Initialize grid
+        lons, lats, nx, ny = self._create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
+
         # Ensure fixed args are all in kwargs for worker function
         args_list = [
             ((ix, iy, lons[ix], lats[iy]), kwargs_worker)
@@ -240,11 +242,11 @@ class DetectionCapabilityModel:
             for iy in range(ny)
         ]
         mag_grid = np.zeros((ny, nx))
-        # Detection capability has to be calulated at each grid point,
+        # Detection capability has to be calculated at each grid point,
         # Split this up using Pool and imap_unordered to multiple cores
         # maybe numba would be quicker here?
-
-        with Pool(processes=nproc) as pool:
+        print(f"Using {self.nproc} cores")
+        with Pool(processes=self.nproc) as pool:
             for iy, ix, val in pool.imap_unordered(_wrapper_minml_worker, args_list):
                 mag_grid[iy, ix] = val
 
