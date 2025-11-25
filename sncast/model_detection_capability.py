@@ -45,7 +45,6 @@ from multiprocessing import Pool
 import warnings
 
 import numpy as np
-import pandas as pd
 from scipy.ndimage import maximum_filter1d
 import xarray
 
@@ -1094,87 +1093,6 @@ def calc_min_ml_at_gridpoint(
         return mag[stat_num - 1]
     else:
         raise ValueError(f"Unsupported Method {method}")
-
-
-def read_station_data(stations_in):
-    """
-    Read and validate station data from a DataFrame or CSV file.
-
-    Parameters
-    ----------
-    stations_in : str or pd.DataFrame
-        Path to a CSV file or a DataFrame containing station data.
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame containing the station data with required columns.
-    Raises
-    ------
-    ValueError
-        If required columns are missing from the DataFrame.
-
-    """
-    if isinstance(stations_in, str):
-        stations_df = pd.read_csv(stations_in)
-    else:
-        stations_df = stations_in.copy()
-    if "elevation_m" in stations_df.columns:
-        stations_df["elevation_m"] *= 1e-3
-        stations_df.rename(columns={"elevation_m": "elevation_km"}, inplace=True)
-    required_cols = {
-        "longitude",
-        "latitude",
-        "elevation_km",
-        "noise [nm]",
-        "station",
-    }
-    if not required_cols.issubset(stations_df.columns):
-        raise ValueError(f"Missing columns: {required_cols - set(stations_df.columns)}")
-    return stations_df
-
-
-def read_das_noise_data(das_in):
-    """
-    Read and validate DAS noise data from a DataFrame or CSV file.
-
-    Parameters
-    ----------
-    das_in : str or pd.DataFrame
-        Path to a CSV file or a DataFrame containing DAS noise data.
-        Expected columns are:
-            - channel_index: Index of the DAS channel
-            - fiber_length_m: Length of the fiber in meters
-            - longitude: Longitude of the channel in decimal degrees
-            - latitude: Latitude of the channel in decimal degrees
-            - noise_m: Noise level at the channel in meters
-            - elevation_km: (optional) Elevation of the channel in kilometers
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame containing the DAS noise data with required columns.
-    Raises
-    ------
-    ValueError
-        If required columns are missing from the DataFrame.
-    """
-    if isinstance(das_in, str):
-        das_df = pd.read_csv(das_in)
-    else:
-        das_df = das_in.copy()
-    required_cols = {
-        "channel_index",
-        "fiber_length_m",
-        "longitude",
-        "latitude",
-        "noise_m",
-    }
-    if not required_cols.issubset(das_df.columns):
-        raise ValueError(f"Missing columns: {required_cols - set(das_df.columns)}")
-    if "elevation_km" not in das_df.columns:
-        # If elevation is not provided, set it to zero
-        das_df["elevation_km"] = 0.0
-
-    return das_df
 
 
 def get_das_noise_levels(das_noise, wind_len_idx, model_stacking=True):
