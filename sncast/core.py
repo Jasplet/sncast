@@ -120,7 +120,12 @@ class DASFibre:
     Class representing a DAS fibre with noise estimates for each channel.
     """
 
-    def __init__(self, das_data: str | pd.DataFrame, detection_length_m: int = 1000):
+    def __init__(
+        self,
+        das_data: str | pd.DataFrame,
+        detection_length_m: int = 1000,
+        gauge_length_m: int = 10,
+    ):
         """
         Initialize a DASFibre instance.
 
@@ -132,7 +137,9 @@ class DASFibre:
         self.das_channels = _read_das_noise_data(das_data)
 
         self.detection_length_m = detection_length_m
-        print(f"DAS Fibre initialized with {len(self.das_data)} channels.")
+        self.gauge_length_m = gauge_length_m
+        self._validate()
+        print(f"DAS Fibre initialized with {len(self.das_channels)} channels.")
 
     def __repr__(self):
         return f"<DASFibre with {len(self.das_data)} channels>"
