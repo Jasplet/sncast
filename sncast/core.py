@@ -169,7 +169,9 @@ class ModelConfig:
         if self.method == "GMPE":
             self.gmpe: str = kwargs.get("gmpe", "AK14")
             self.gmpe_model_type: str = kwargs.get("gmpe_model_type", "PGV")
-
+        else:
+            self.gmpe = None
+            self.gmpe_model_type = None
         self._validate()
 
     def _validate(self):
