@@ -218,9 +218,12 @@ class DetectionCapabilityModel:
             "mag_delta": self.config.mag_delta,
             "method": self.config.method,
             "region": self.config.region,
-            "gmpe": self.config.gmpe,
-            "gmpe_model_type": self.config.gmpe_model_type,
+            "nproc": getattr(self.config, "nproc", 1),
+            "model_stacking_das": getattr(self.config, "model_stacking_das", True),
         }
+        if self.config.method == "GMPE":
+            model_kwargs["gmpe"] = self.config.gmpe
+            model_kwargs["gmpe_model_type"] = self.config.gmpe_model_type
         if self.n_networks > 0:
             model_kwargs["networks"] = self.networks
         else:
@@ -258,7 +261,7 @@ class DetectionCapabilityModel:
         return mag_det
 
 
-def find_min_ml(model_kwargs):
+def find_min_ml(**model_kwargs):
     """
     This routine calculates the geographic distribution of the minimum
     detectable local magnitude ML for a given seismic network.
@@ -349,9 +352,9 @@ def _minml_worker(grid_point, **kwargs):
             # spell out kwargs here for clarify and to avoid passing
             # unnecessary data to worker processes
             min_mag_net = calc_min_ml_at_gridpoint(
-                Network.stations,
-                lon,
-                lat,
+                lon=lon,
+                lat=lat,
+                stations_df=Network.stations,
                 stat_num=Network.required_detections,
                 foc_depth=kwargs["foc_depth"],
                 snr=kwargs["snr"],
@@ -365,12 +368,12 @@ def _minml_worker(grid_point, **kwargs):
             min_mag = min(min_mag, min_mag_net)
     # Add arrays if provided
     if "arrays" in kwargs:
-        for array in kwargs["arrays"]:
+        for Array in kwargs["arrays"]:
             min_mag_arrays = calc_min_ml_at_gridpoint(
-                array.stations,
-                lon,
-                lat,
-                stat_num=array.required_detections,
+                lon=lon,
+                lat=lat,
+                stations_df=Array.stations,
+                stat_num=Array.required_detections,
                 foc_depth=kwargs["foc_depth"],
                 snr=kwargs["snr"],
                 mag_min=kwargs["mag_min"],
@@ -387,9 +390,9 @@ def _minml_worker(grid_point, **kwargs):
 
             mag_min_das = (
                 calc_min_ml_at_gridpoint_das(
-                    lon,
-                    lat,
-                    das_fibre.das_channels,
+                    lon=lon,
+                    lat=lat,
+                    fibre=das_fibre.das_channels,
                     detection_length_m=das_fibre.detection_length_m,
                     gauge_length_m=das_fibre.gauge_length_m,
                     foc_depth=kwargs["foc_depth"],
@@ -545,12 +548,12 @@ def _minml_x_section_worker(
     # Handle networks
     if "networks" in kwargs:
         # Normalize inputs to bare DataFrames + required detections
-        for network in kwargs["networks"]:
+        for Network in kwargs["networks"]:
             min_mag_net = calc_min_ml_at_gridpoint(
                 lon=lon,
                 lat=lat,
-                stations_df=network.stations,
-                stat_num=network.required_detections,
+                stations_df=Network.stations,
+                stat_num=Network.required_detections,
                 foc_depth=kwargs["foc_depth"],
                 snr=kwargs["snr"],
                 mag_min=kwargs["mag_min"],
@@ -564,12 +567,12 @@ def _minml_x_section_worker(
 
     # Handle arrays
     if "arrays" in kwargs:
-        for array in kwargs["arrays"]:
+        for Array in kwargs["arrays"]:
             min_mag_arrays = calc_min_ml_at_gridpoint(
                 lon=lon,
                 lat=lat,
-                stations_df=array.stations,
-                stat_num=array.required_detections,
+                stations_df=Array.stations,
+                stat_num=Array.required_detections,
                 foc_depth=kwargs["foc_depth"],
                 snr=kwargs["snr"],
                 mag_min=kwargs["mag_min"],
@@ -583,13 +586,13 @@ def _minml_x_section_worker(
 
     # Handle DAS fibres
     if kwargs["das_fibres"] is not None:
-        for das_fibre in kwargs["das_fibres"]:
+        for DASFibre in kwargs["das_fibres"]:
             mag_min_das = calc_min_ml_at_gridpoint_das(
                 lon=lon,
                 lat=lat,
-                fibre=das_fibre.das_channels,
-                detection_length_m=das_fibre.detection_length_m,
-                gauge_length_m=das_fibre.gauge_length_m,
+                fibre=DASFibre.das_channels,
+                detection_length_m=DASFibre.detection_length_m,
+                gauge_length_m=DASFibre.gauge_length_m,
                 model_stacking=kwargs["model_stacking_das"],
                 foc_depth=kwargs["foc_depth"],
                 snr=kwargs["snr"],
