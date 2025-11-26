@@ -253,6 +253,65 @@ class ModelConfig:
         self.dlon = dlon
         self.dlat = dlat
 
+    def add_xsection_params(
+        self,
+        lon0,
+        lat0,
+        azi,
+        length_km,
+        ddist_km,
+        min_depth_km,
+        max_depth_km,
+        ddepth_km,
+    ):
+        """
+        Add cross-section parameters to the model configuration.
+
+        Parameters
+        ----------
+        lon0 : float
+            Longitude of the start of the cross-section line
+        lat0 : float
+            Latitude of the start of the cross-section line
+        azi : float
+            Azimuth of cross-section in degrees from north
+        length_km : float
+            Cross-section length in km
+        ddist_km : float
+            Distance increment along the cross-section in km.
+        min_depth_km : float
+            Minimum depth of cross-section in km.
+        max_depth_km : float
+            Maximum depth of cross-section in km.
+        ddepth_km : float
+            Depth increment along the cross-section in km.
+        """
+        if length_km <= 0:
+            raise ValueError("length_km must be a positive value.")
+        if ddist_km <= 0:
+            raise ValueError("ddist_km must be a positive value.")
+        if min_depth_km < 0:
+            raise ValueError("min_depth_km must be a non-negative value.")
+        if max_depth_km <= min_depth_km:
+            raise ValueError("max_depth_km must be greater than min_depth_km.")
+        if ddepth_km <= 0:
+            raise ValueError("ddepth_km must be a positive value.")
+        if (Decimal(str(max_depth_km)) - Decimal(str(min_depth_km))) % Decimal(
+            str(ddepth_km)
+        ) != 0:
+            raise ValueError(
+                f"max_depth_km {max_depth_km} - min_depth_km {min_depth_km} must be divisible by ddepth_km {ddepth_km}"
+            )
+
+        self.lon0 = lon0
+        self.lat0 = lat0
+        self.azi = azi
+        self.length_km = length_km
+        self.ddist_km = ddist_km
+        self.min_depth_km = min_depth_km
+        self.max_depth_km = max_depth_km
+        self.ddepth_km = ddepth_km
+
     def __repr__(self):
         return f"<ModelConfig with method={self.method}, region={self.region}, snr={self.snr}>"
 
