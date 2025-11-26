@@ -157,6 +157,50 @@ class DetectionCapabilityModel:
         """
         self.config.add_grid_params(lon0, lon1, lat0, lat1, dlon, dlat)
 
+    def setup_xsection(
+        self,
+        lon0,
+        lat0,
+        azi,
+        length_km,
+        ddist_km,
+        min_depth_km,
+        max_depth_km,
+        ddepth_km,
+    ):
+        """
+        Setup the cross-section grid for the detection capability model.
+
+        Parameters
+        ----------
+        lon0 : float
+            Longitude of the start of the cross-section line
+        lat0 : float
+            Latitude of the start of the cross-section line
+        azi : float
+            Azimuth of cross-section in degrees from north
+        length_km : float
+            Cross-section length in km
+        ddist_km : float
+            Distance increment along the cross-section in km.
+        min_depth_km : float
+            Minimum depth of cross-section in km.
+        max_depth_km : float
+            Maximum depth of cross-section in km.
+        ddepth_km : float
+            Depth increment along the cross-section in km.
+        """
+        self.config.add_xsection_params(
+            lon0,
+            lat0,
+            azi,
+            length_km,
+            ddist_km,
+            min_depth_km,
+            max_depth_km,
+            ddepth_km,
+        )
+
     def _make_model_kwargs(self):
         """
         Makes kwargs dict from Config for passing to model functions.
@@ -382,7 +426,7 @@ def find_min_ml_x_section(
             at that grid point.
     """
 
-    xsection, depths, dist = create_xsection_grid(
+    xsection, depths, distance_km = create_xsection_grid(
         model_kwargs["lon0"],
         model_kwargs["lat0"],
         model_kwargs["azi"],
@@ -396,10 +440,7 @@ def find_min_ml_x_section(
     ndepths = len(depths)
     # Iterate along cross-section
     args_list = [
-        (
-            (ix, iz, xsection["latitude"][ix], xsection["longitude"][ix], depths[iz]),
-            kwargs_worker,
-        )
+        (ix, iz, xsection["latitude"][ix], xsection["longitude"][ix], depths[iz])
         for ix in range(ndists)
         for iz in range(ndepths)
     ]
