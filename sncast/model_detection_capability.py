@@ -386,25 +386,23 @@ def _minml_worker(grid_point, **kwargs):
             min_mag = min(min_mag, min_mag_arrays)
 
     if "das_fibres" in kwargs:
-        for das_fibre in kwargs["das_fibres"]:
+        for DASFibre in kwargs["das_fibres"]:
 
-            mag_min_das = (
-                calc_min_ml_at_gridpoint_das(
-                    lon=lon,
-                    lat=lat,
-                    fibre=das_fibre.das_channels,
-                    detection_length_m=das_fibre.detection_length_m,
-                    gauge_length_m=das_fibre.gauge_length_m,
-                    foc_depth=kwargs["foc_depth"],
-                    snr=kwargs["snr"],
-                    mag_min=kwargs["mag_min"],
-                    mag_delta=kwargs["mag_delta"],
-                    method=kwargs["method"],
-                    region=kwargs["region"],
-                    gmpe=kwargs["gmpe"],
-                    gmpe_model_type=kwargs["gmpe_model_type"],
-                    model_stacking=kwargs["model_stacking_das"],
-                ),
+            mag_min_das = calc_min_ml_at_gridpoint_das(
+                lon=lon,
+                lat=lat,
+                fibre=DASFibre.das_channels,
+                detection_length_m=DASFibre.detection_length_m,
+                gauge_length_m=DASFibre.gauge_length_m,
+                foc_depth=kwargs["foc_depth"],
+                snr=kwargs["snr"],
+                mag_min=kwargs["mag_min"],
+                mag_delta=kwargs["mag_delta"],
+                method=kwargs["method"],
+                region=kwargs["region"],
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"],
+                model_stacking=kwargs["model_stacking_das"],
             )
 
             min_mag = min(min_mag, mag_min_das)
