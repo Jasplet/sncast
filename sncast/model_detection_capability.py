@@ -241,7 +241,9 @@ def find_min_ml(model_kwargs):
     )
 
     # Ensure fixed args are all in kwargs for worker function
-    args_list = [((ix, iy, lons[ix], lats[iy])) for ix in range(nx) for iy in range(ny)]
+    args_list = [
+        (ilat, ilon, lats[ilat], lons[ilon]) for ilat in range(ny) for ilon in range(nx)
+    ]
 
     mag_grid = np.zeros((ny, nx))
     # Detection capability has to be calculated at each grid point,
@@ -260,21 +262,16 @@ def find_min_ml(model_kwargs):
     return mag_det
 
 
-def _minml_worker(self, ix, iy, lon, lat, **kwargs):
+def _minml_worker(grid_point, **kwargs):
     """
     Worker function for minML which allows the magnitude grid to be parallelised
     over multiple processors using multiprocessing.Pool
 
     Parameters
     ----------
-    ix : int
-        x-index of the grid point.
-    iy : int
-        y-index of the grid point.
-    lon : float
-        Longitude of the grid point.
-    lat : float
-        Latitude of the grid point.
+    grid_point : tuple
+        Tuple containing x,y index of grid point and the latitude/longitude
+
     **kwargs : dict
         Additional keyword arguments to pass to the worker function.
 
