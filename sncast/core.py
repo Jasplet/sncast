@@ -12,7 +12,7 @@ Author : Joseph Asplet, University of Oxford
 
 Email : joseph.asplet@earth.ox.ac.uk
 """
-
+from decimal import Decimal
 import pandas as pd
 
 SUPPORTED_METHODS = ["ML", "GMPE"]
@@ -199,6 +199,47 @@ class ModelConfig:
             raise ValueError("SNR must be a positive value.")
         if self.foc_depth_km < 0:
             raise ValueError("Focal depth must be a positive value.")
+
+    def add_grid_params(self, lon0, lon1, lat0, lat1, dlon=0.1, dlat=0.1):
+        """
+        Add grid parameters to the model configuration.
+
+        Parameters
+        ----------
+        lon0 : float
+            Minimum longitude of the grid.
+        lon1 : float
+            Maximum longitude of the grid.
+        lat0 : float
+            Minimum latitude of the grid.
+        lat1 : float
+            Maximum latitude of the grid.
+        dlon : float, optional
+            Longitude step size, by default 0.1
+        dlat : float, optional
+            Latitude step size, by default 0.1
+        """
+        if lon0 > lon1:
+            raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
+        if lat0 > lat1:
+            raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
+        if dlon <= 0 or dlat <= 0:
+            raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
+        if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
+            raise ValueError(
+                f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}"
+            )
+        if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
+            raise ValueError(
+                f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}"
+            )
+
+        self.lon0 = lon0
+        self.lon1 = lon1
+        self.lat0 = lat0
+        self.lat1 = lat1
+        self.dlon = dlon
+        self.dlat = dlat
 
     def __repr__(self):
         return f"<ModelConfig with method={self.method}, region={self.region}, snr={self.snr}>"
