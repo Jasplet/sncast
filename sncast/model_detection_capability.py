@@ -343,9 +343,11 @@ def _minml_worker(grid_point, **kwargs):
 
             mag_min_das = (
                 calc_min_ml_at_gridpoint_das(
-                    das_fibre.das_channels,
                     lon,
                     lat,
+                    das_fibre.das_channels,
+                    detection_length_m=das_fibre.detection_length_m,
+                    gauge_length_m=das_fibre.gauge_length_m,
                     foc_depth=kwargs["foc_depth"],
                     snr=kwargs["snr"],
                     mag_min=kwargs["mag_min"],
@@ -884,9 +886,9 @@ def _minml_x_section_worker(ix, iz, lon, lat, depth, **kwargs):
 
 
 def calc_min_ml_at_gridpoint(
-    stations_df,
     lon,
     lat,
+    stations_df,
     stat_num,
     foc_depth,
     snr,
@@ -1063,7 +1065,19 @@ def get_das_noise_levels(das_noise, wind_len_idx, model_stacking=True):
 
 
 def calc_min_ml_at_gridpoint_das(
-    fibre, lon, lat, detection_length, foc_depth, snr, **kwargs
+    lon,
+    lat,
+    fibre,
+    detection_length_m,
+    gauge_length_m,
+    model_stacking,
+    foc_depth,
+    snr,
+    mag_min,
+    mag_delta,
+    method,
+    region,
+    **kwargs,
 ):
     """
     Calculates the minimum local magnitude which can
@@ -1101,18 +1115,11 @@ def calc_min_ml_at_gridpoint_das(
         Minimum local magnitude that can be detected by a continuous section of fibre
         of the input detection length.
     """
-    method = kwargs["method"]
-    region = kwargs["region"]
-    mag_min = kwargs["mag_min"]
-    mag_delta = kwargs["mag_delta"]
-    # Set model_stacking to True by default
-    model_stacking = kwargs.get("model_stacking", True)
 
     if method != "ML":
         raise ValueError(f"Method: {method} not supported for DAS at this time")
 
-    gauge_len = kwargs.get("gauge_length", 20)
-    window_size = int(np.ceil((detection_length / gauge_len)))
+    window_size = int(np.ceil((detection_length_m / gauge_length_m)))
     # print("~" * 50)
     # print(f"There are {window_size} channels in the sliding window.")
     # Covert noise from metres to nanometres
