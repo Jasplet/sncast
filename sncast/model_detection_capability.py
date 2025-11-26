@@ -412,122 +412,6 @@ def _create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
     return lons, lats, nx, ny
 
 
-def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
-    """
-    Calculate the amplitude of a seismic signal given a local magnitude
-    and hypocentral distance. Local magnitude scales for the UK and California
-    [Hutton1987]_ are supported. The [Hutton1987]_ scale is
-    the default ML scale reccomended by the IASPEI working group on earthquake magnitude
-    determination and is consistent with the magnitude of [Richter1935]_.
-
-    Parameters
-    ----------
-    local_mag : float, np.ndarray
-        Local magnitude to calculate displacement amplitude for.
-    hypo_dist : float, np.ndarray
-        Hypocentral distance in km.
-    region : str
-        Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
-        [Hutton1987]_ California scale.
-
-    Returns
-    -------
-    ampl : float, np.ndarray
-        Displacement amplitude in nm.
-    """
-    #   region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
-    if region == "UK":
-        #   UK Scale uses new ML equation from Luckett et al., (2019)
-        #   https://doi.org/10.1093/gji/ggy484
-        #   Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist
-        #                          + d*exp(e * hypo-dist) + c
-        a = ML_COEFFS[region]["a"]
-        b = ML_COEFFS[region]["b"]
-        c = ML_COEFFS[region]["c"]
-        d = ML_COEFFS[region]["d"]
-        e = ML_COEFFS[region]["e"]
-        ampl = np.power(
-            10,
-            (
-                local_mag
-                - a * np.log10(hypo_dist)
-                - b * hypo_dist
-                - c
-                - d * np.exp(e * hypo_dist)
-            ),
-        )
-
-    elif region == "CAL":
-        # South. California scale, IASPEI (2005),
-        # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
-        a = ML_COEFFS[region]["a"]
-        b = ML_COEFFS[region]["b"]
-        c = ML_COEFFS[region]["c"]
-
-        ampl = np.power(10, (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c))
-
-    return ampl
-
-
-def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
-    """
-    Compute local magnitude (ML) for a given region for a set of amplitudes (in displacement)
-    and hypocentral distances.
-
-    Vectorized for numpy arrays. Magnitudes are snapped to the nearest interval <mag_delta>.
-
-    Parameters
-    ----------
-    required_ampl : float or np.ndarray
-        Displacement amplitude in nm.
-    hypo_dist : float or np.ndarray
-        Hypocentral distance in km.
-    region : str
-        Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
-        [Hutton1987]_ California scale.
-    mag_min : float
-        Minimum magnitude to consider.
-    mag_delta : float
-        Magnitude bin width.
-
-    Returns
-    -------
-    ml: np.ndarray
-        Local magnitudes (ML) for the given amplitudes and distances.
-    """
-    if np.min(required_ampl <= 0):
-        raise ValueError("At least one amplitude <=0!")
-
-    if region == "UK":
-        coeffs = ML_COEFFS[region]
-        a = coeffs["a"]
-        b = coeffs["b"]
-        c = coeffs["c"]
-        d = coeffs["d"]
-        e = coeffs["e"]
-        ml = (
-            np.log10(required_ampl)
-            + a * np.log10(hypo_dist)
-            + b * hypo_dist
-            + c
-            + d * np.exp(e * hypo_dist)
-        )
-    elif region == "CAL":
-        coeffs = ML_COEFFS[region]
-        a = coeffs["a"]
-        b = coeffs["b"]
-        c = coeffs["c"]
-        ml = np.log10(required_ampl) + a * np.log10(hypo_dist) + b * hypo_dist + c
-    else:
-        raise ValueError(f"Unknown region: {region}")
-
-    # Snap to nearest mag_delta step above mag_min as
-    # local magntiude is often only report to 1 decimal place
-    # or some other fixed rounding level (the default is 0.1)
-    ml = np.maximum(mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min)
-    return ml
-
-
 def find_min_ml_x_section(
     lon0,
     lat0,
@@ -1152,6 +1036,122 @@ def calc_min_ml_at_gridpoint_das(
     )
     # Get smallest ML detected at any one window along the fiber
     return np.min(mags)
+
+
+def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
+    """
+    Calculate the amplitude of a seismic signal given a local magnitude
+    and hypocentral distance. Local magnitude scales for the UK and California
+    [Hutton1987]_ are supported. The [Hutton1987]_ scale is
+    the default ML scale reccomended by the IASPEI working group on earthquake magnitude
+    determination and is consistent with the magnitude of [Richter1935]_.
+
+    Parameters
+    ----------
+    local_mag : float, np.ndarray
+        Local magnitude to calculate displacement amplitude for.
+    hypo_dist : float, np.ndarray
+        Hypocentral distance in km.
+    region : str
+        Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
+        [Hutton1987]_ California scale.
+
+    Returns
+    -------
+    ampl : float, np.ndarray
+        Displacement amplitude in nm.
+    """
+    #   region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
+    if region == "UK":
+        #   UK Scale uses new ML equation from Luckett et al., (2019)
+        #   https://doi.org/10.1093/gji/ggy484
+        #   Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist
+        #                          + d*exp(e * hypo-dist) + c
+        a = ML_COEFFS[region]["a"]
+        b = ML_COEFFS[region]["b"]
+        c = ML_COEFFS[region]["c"]
+        d = ML_COEFFS[region]["d"]
+        e = ML_COEFFS[region]["e"]
+        ampl = np.power(
+            10,
+            (
+                local_mag
+                - a * np.log10(hypo_dist)
+                - b * hypo_dist
+                - c
+                - d * np.exp(e * hypo_dist)
+            ),
+        )
+
+    elif region == "CAL":
+        # South. California scale, IASPEI (2005),
+        # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
+        a = ML_COEFFS[region]["a"]
+        b = ML_COEFFS[region]["b"]
+        c = ML_COEFFS[region]["c"]
+
+        ampl = np.power(10, (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c))
+
+    return ampl
+
+
+def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
+    """
+    Compute local magnitude (ML) for a given region for a set of amplitudes (in displacement)
+    and hypocentral distances.
+
+    Vectorized for numpy arrays. Magnitudes are snapped to the nearest interval <mag_delta>.
+
+    Parameters
+    ----------
+    required_ampl : float or np.ndarray
+        Displacement amplitude in nm.
+    hypo_dist : float or np.ndarray
+        Hypocentral distance in km.
+    region : str
+        Regional ML scale to use. "UK" for [Luckett2019]_ UK scale, "CAL" for
+        [Hutton1987]_ California scale.
+    mag_min : float
+        Minimum magnitude to consider.
+    mag_delta : float
+        Magnitude bin width.
+
+    Returns
+    -------
+    ml: np.ndarray
+        Local magnitudes (ML) for the given amplitudes and distances.
+    """
+    if np.min(required_ampl <= 0):
+        raise ValueError("At least one amplitude <=0!")
+
+    if region == "UK":
+        coeffs = ML_COEFFS[region]
+        a = coeffs["a"]
+        b = coeffs["b"]
+        c = coeffs["c"]
+        d = coeffs["d"]
+        e = coeffs["e"]
+        ml = (
+            np.log10(required_ampl)
+            + a * np.log10(hypo_dist)
+            + b * hypo_dist
+            + c
+            + d * np.exp(e * hypo_dist)
+        )
+    elif region == "CAL":
+        coeffs = ML_COEFFS[region]
+        a = coeffs["a"]
+        b = coeffs["b"]
+        c = coeffs["c"]
+        ml = np.log10(required_ampl) + a * np.log10(hypo_dist) + b * hypo_dist + c
+    else:
+        raise ValueError(f"Unknown region: {region}")
+
+    # Snap to nearest mag_delta step above mag_min as
+    # local magntiude is often only report to 1 decimal place
+    # or some other fixed rounding level (the default is 0.1)
+    ml = np.maximum(mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min)
+    return ml
 
 
 def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
