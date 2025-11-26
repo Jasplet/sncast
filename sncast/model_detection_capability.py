@@ -285,7 +285,7 @@ def find_min_ml(model_kwargs):
     """
 
     # Initialize grid
-    lons, lats, nx, ny = _create_grid(
+    lons, lats, nx, ny = create_grid(
         model_kwargs["lon0"],
         model_kwargs["lon1"],
         model_kwargs["lat0"],
@@ -605,7 +605,7 @@ def _minml_x_section_worker(
     return (iz, ix, min_mag)
 
 
-def _create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
+def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
     """
     Initialize lat/lon grid for SNCAST model.
 
