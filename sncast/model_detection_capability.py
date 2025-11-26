@@ -135,76 +135,9 @@ class DetectionCapabilityModel:
             self.n_das_fibres += 1
             print(f"DAS fibre {das_to_add.fibre_code} created and added to model.")
 
-    def _create_grid(self, lon0, lon1, lat0, lat1, dlon, dlat):
+    def run_model(self, lon0, lon1, lat0, lat1, dlon=0.1, dlat=0.1):
         """
-        Initialize lat/lon grid for SNCAST model.
-
-        Parameters
-        ----------
-        lon0 : float
-            Minimum longitude of the grid.
-        lon1 : float
-            Maximum longitude of the grid.
-        lat0 : float
-            Minimum latitude of the grid.
-        lat1 : float
-            Maximum latitude of the grid.
-        dlon : float
-            Longitude increment for the grid.
-        dlat : float
-            Latitude increment for the grid.
-        Returns
-        -------
-        lons : np.ndarray
-            Array of longitudes for the grid.
-        lats : np.ndarray
-            Array of latitudes for the grid.
-        nx : int
-            Number of grid points in the x-direction (longitude).
-        ny : int
-            Number of grid points in the y-direction (latitude).
-        """
-        if lon0 > lon1:
-            raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
-        if lat0 > lat1:
-            raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
-        if dlon <= 0 or dlat <= 0:
-            raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
-        if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
-            raise ValueError(
-                f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}"
-            )
-        if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
-            raise ValueError(
-                f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}"
-            )
-
-        nx = int((lon1 - lon0) / dlon) + 1
-        ny = int((lat1 - lat0) / dlat) + 1
-        lats = np.linspace(lat1, lat0, ny)
-        lons = np.linspace(lon0, lon1, nx)
-        print(f"Grid created with {nx} x {ny} points.")
-        return lons, lats, nx, ny
-
-    def find_min_ml(
-        self,
-        lon0,
-        lon1,
-        lat0,
-        lat1,
-        dlon,
-        dlat,
-    ):
-        """
-        This routine calculates the geographic distribution of the minimum
-        detectable local magnitude ML for a given seismic network.
-
-
-        Example of the input file format for stations and arrays:
-            longitude, latitude, elevation_km, noise [nm], station
-
-        Example of the input file format for DAS:
-            channel_index, fiber_length_m, longitude, latitude, noise_m, elevation_km
+        Run the detection capability model over a specified geographic region.
 
         Parameters
         ----------
@@ -217,9 +150,9 @@ class DetectionCapabilityModel:
         lat1 : float
             Maximum latitude of the region.
         dlon : float
-            Longitude increment for the grid.
+            Longitude increment for the grid. Default is 0.1
         dlat : float
-            Latitude increment for the grid.
+            Latitude increment for the grid. Default is 0.1
 
         Returns
         -------
@@ -232,29 +165,221 @@ class DetectionCapabilityModel:
         if (self.n_networks == 0) and (self.n_arrays == 0) and (self.n_das_fibres == 0):
             raise ValueError("No seismic networks, arrays or DAS provided!")
 
-        # Initialize grid
-        lons, lats, nx, ny = self._create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
-
-        # Ensure fixed args are all in kwargs for worker function
-        args_list = [
-            ((ix, iy, lons[ix], lats[iy]), kwargs_worker)
-            for ix in range(nx)
-            for iy in range(ny)
-        ]
-        mag_grid = np.zeros((ny, nx))
-        # Detection capability has to be calculated at each grid point,
-        # Split this up using Pool and imap_unordered to multiple cores
-        # maybe numba would be quicker here?
-        print(f"Using {self.nproc} cores")
-        with Pool(processes=self.nproc) as pool:
-            for iy, ix, val in pool.imap_unordered(_wrapper_minml_worker, args_list):
-                mag_grid[iy, ix] = val
-
-        # Make xarray grid to output
-        mag_det = xarray.DataArray(
-            mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
+        mag_det = find_min_ml(
+            lon0,
+            lon1,
+            lat0,
+            lat1,
+            dlon,
+            dlat,
+            Config=self.config,
         )
         return mag_det
+
+
+def find_min_ml(
+    lon0,
+    lon1,
+    lat0,
+    lat1,
+    dlon,
+    dlat,
+    Config: ModelConfig,
+):
+    """
+    This routine calculates the geographic distribution of the minimum
+    detectable local magnitude ML for a given seismic network.
+
+
+    Example of the input file format for stations and arrays:
+        longitude, latitude, elevation_km, noise [nm], station
+
+    Example of the input file format for DAS:
+        channel_index, fiber_length_m, longitude, latitude, noise_m, elevation_km
+
+    Parameters
+    ----------
+    lon0 : float
+        Minimum longitude of the region.
+    lon1 : float
+        Maximum longitude of the region.
+    lat0 : float
+        Minimum latitude of the region.
+    lat1 : float
+        Maximum latitude of the region.
+    dlon : float
+        Longitude increment for the grid.
+    dlat : float
+        Latitude increment for the grid.
+
+    Returns
+    -------
+    mag_det : xarray.DataArray
+        A 2D xarray DataArray with the dimensions in Latitude and Longitude.
+        The values in the DataArray are the minimum detectable local magnitude ML
+        at that grid point.
+    """
+
+    # Initialize grid
+    lons, lats, nx, ny = _create_grid(lon0, lon1, lat0, lat1, dlon, dlat)
+
+    # Ensure fixed args are all in kwargs for worker function
+    args_list = [((ix, iy, lons[ix], lats[iy])) for ix in range(nx) for iy in range(ny)]
+
+    mag_grid = np.zeros((ny, nx))
+    # Detection capability has to be calculated at each grid point,
+    # Split this up using Pool and imap_unordered to multiple cores
+    # maybe numba would be quicker here?
+    print(f"Using {self.nproc} cores")
+    with Pool(processes=self.nproc) as pool:
+        for iy, ix, val in pool.imap_unordered(_wrapper_minml_worker, args_list):
+            mag_grid[iy, ix] = val
+
+    # Make xarray grid to output
+    mag_det = xarray.DataArray(
+        mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
+    )
+    return mag_det
+
+    # def _wrapper_minml_worker(self, iy, ix):
+    #     """
+    #     Function to act as a wrapper for the _minml_worker function to allow
+    #     passing multiple arguments using multiprocessing.Pool.imap_unordered
+    #     """
+    #     args
+    # return _minml_worker(*args, **kwargs)
+
+    def _minml_worker(self, ix, iy, lon, lat, **kwargs):
+        """
+        Worker function for minML which allows the magnitude grid to be parallelised
+        over multiple processors using multiprocessing.Pool
+
+        Parameters
+        ----------
+        ix : int
+            x-index of the grid point.
+        iy : int
+            y-index of the grid point.
+        lon : float
+            Longitude of the grid point.
+        lat : float
+            Latitude of the grid point.
+        **kwargs : dict
+            Additional keyword arguments to pass to the worker function.
+
+        Returns
+        -------
+        tuple
+            Tuple containing the y-index, x-index, and minimum magnitude for the grid point.
+        """
+        # Initialize min_mag to absurdly high value
+        min_mag = 100.0
+        if "network_noise_dfs" in kwargs:
+            for n, net_df in enumerate(kwargs["network_noise_dfs"]):
+                # spell out kwargs here for clarify and to avoid passing
+                # unnecessary data to worker processes
+                min_mag_net = calc_min_ml_at_gridpoint(
+                    net_df,
+                    lon,
+                    lat,
+                    kwargs["stat_num"][n],
+                    kwargs["foc_depth"],
+                    kwargs["snr"],
+                    mag_min=kwargs["mag_min"],
+                    mag_delta=kwargs["mag_delta"],
+                    method=kwargs["method"],
+                    region=kwargs["region"],
+                    gmpe=kwargs.get("gmpe", None),
+                    gmpe_model_type=kwargs.get("gmpe_model_type", None),
+                )
+                min_mag = min(min_mag, min_mag_net)
+        # Add arrays if provided
+        if kwargs.get("array_dfs") is not None and not kwargs["array_dfs"].empty:
+            for a, array_df in enumerate(kwargs["array_dfs"]):
+
+                min_mag_arrays = calc_min_ml_at_gridpoint(
+                    array_df,
+                    lon,
+                    lat,
+                    stat_num=kwargs["array_num"][a],
+                    foc_depth=kwargs["foc_depth"],
+                    snr=kwargs["snr"],
+                    mag_min=kwargs["mag_min"],
+                    mag_delta=kwargs["mag_delta"],
+                    method=kwargs["method"],
+                    region=kwargs["region"],
+                    gmpe=kwargs["gmpe"],
+                    gmpe_model_type=kwargs["gmpe_model_type"],
+                )
+                min_mag = min(min_mag, min_mag_arrays)
+
+        if kwargs.get("das_dfs") is not None:
+            for das_df in kwargs["das_dfs"]:
+                if das_df is not None and not das_df.empty:
+                    mag_min_das = calc_min_ml_at_gridpoint_das(
+                        das_df,
+                        lon,
+                        lat,
+                        foc_depth=kwargs["foc_depth"],
+                        snr=kwargs["snr"],
+                        mag_min=kwargs["mag_min"],
+                        mag_delta=kwargs["mag_delta"],
+                        detection_length=kwargs.get("detection_length", 1000),
+                        gmpe=kwargs.get("gmpe", None),
+                        gmpe_model_type=kwargs.get("gmpe_model_type", None),
+                        region=kwargs.get("region", "CAL"),
+                        method=kwargs.get("method", "ML"),
+                    )
+                    min_mag = min(min_mag, mag_min_das)
+        return (iy, ix, min_mag)
+
+
+def _create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
+    """
+    Initialize lat/lon grid for SNCAST model.
+
+    Parameters
+    ----------
+    lon0 : float
+        Minimum longitude of the grid.
+    lon1 : float
+        Maximum longitude of the grid.
+    lat0 : float
+        Minimum latitude of the grid.
+    lat1 : float
+        Maximum latitude of the grid.
+    dlon : float
+        Longitude increment for the grid.
+    dlat : float
+        Latitude increment for the grid.
+    Returns
+    -------
+    lons : np.ndarray
+        Array of longitudes for the grid.
+    lats : np.ndarray
+        Array of latitudes for the grid.
+    nx : int
+        Number of grid points in the x-direction (longitude).
+    ny : int
+        Number of grid points in the y-direction (latitude).
+    """
+    if lon0 > lon1:
+        raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
+    if lat0 > lat1:
+        raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
+    if dlon <= 0 or dlat <= 0:
+        raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
+    if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
+        raise ValueError(f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}")
+    if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
+        raise ValueError(f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}")
+
+    nx = int((lon1 - lon0) / dlon) + 1
+    ny = int((lat1 - lat0) / dlat) + 1
+    lats = np.linspace(lat1, lat0, ny)
+    lons = np.linspace(lon0, lon1, nx)
+    print(f"Grid created with {nx} x {ny} points.")
+    return lons, lats, nx, ny
 
 
 def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
@@ -632,16 +757,6 @@ def find_min_ml_x_section(
     return array
 
 
-def _wrapper_minml_worker(arg):
-    """
-    Function to act as a wrapper for the _minml_worker function to allow
-    passing multiple arguments using multiprocessing.Pool.imap_unordered
-
-    """
-    args, kwargs = arg
-    return _minml_worker(*args, **kwargs)
-
-
 def _wrapper_minml_xsection_worker(arg):
     """
     Function to act as a wrapper for the _minml_x_section_worker function to allow
@@ -650,91 +765,6 @@ def _wrapper_minml_xsection_worker(arg):
     """
     args, kwargs = arg
     return _minml_x_section_worker(*args, **kwargs)
-
-
-def _minml_worker(ix, iy, lon, lat, **kwargs):
-    """
-    Worker function for minML which allows the magnitude grid to be parallelised
-    over multiple processors using multiprocessing.Pool
-
-    Parameters
-    ----------
-    ix : int
-        x-index of the grid point.
-    iy : int
-        y-index of the grid point.
-    lon : float
-        Longitude of the grid point.
-    lat : float
-        Latitude of the grid point.
-    **kwargs : dict
-        Additional keyword arguments to pass to the worker function.
-
-    Returns
-    -------
-    tuple
-        Tuple containing the y-index, x-index, and minimum magnitude for the grid point.
-    """
-    # Initialize min_mag to absurdly high value
-    min_mag = 100.0
-    if "network_noise_dfs" in kwargs:
-        for n, net_df in enumerate(kwargs["network_noise_dfs"]):
-            # spell out kwargs here for clarify and to avoid passing
-            # unnecessary data to worker processes
-            min_mag_net = calc_min_ml_at_gridpoint(
-                net_df,
-                lon,
-                lat,
-                kwargs["stat_num"][n],
-                kwargs["foc_depth"],
-                kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs.get("gmpe", None),
-                gmpe_model_type=kwargs.get("gmpe_model_type", None),
-            )
-            min_mag = min(min_mag, min_mag_net)
-    # Add arrays if provided
-    if kwargs.get("array_dfs") is not None and not kwargs["array_dfs"].empty:
-        for a, array_df in enumerate(kwargs["array_dfs"]):
-
-            min_mag_arrays = calc_min_ml_at_gridpoint(
-                array_df,
-                lon,
-                lat,
-                stat_num=kwargs["array_num"][a],
-                foc_depth=kwargs["foc_depth"],
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
-            )
-            min_mag = min(min_mag, min_mag_arrays)
-
-    if kwargs.get("das_dfs") is not None:
-        for das_df in kwargs["das_dfs"]:
-            if das_df is not None and not das_df.empty:
-                mag_min_das = calc_min_ml_at_gridpoint_das(
-                    das_df,
-                    lon,
-                    lat,
-                    foc_depth=kwargs["foc_depth"],
-                    snr=kwargs["snr"],
-                    mag_min=kwargs["mag_min"],
-                    mag_delta=kwargs["mag_delta"],
-                    detection_length=kwargs.get("detection_length", 1000),
-                    gmpe=kwargs.get("gmpe", None),
-                    gmpe_model_type=kwargs.get("gmpe_model_type", None),
-                    region=kwargs.get("region", "CAL"),
-                    method=kwargs.get("method", "ML"),
-                )
-                min_mag = min(min_mag, mag_min_das)
-    return (iy, ix, min_mag)
 
 
 def _minml_x_section_worker(ix, iz, lon, lat, depth, **kwargs):
