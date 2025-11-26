@@ -162,9 +162,6 @@ class DetectionCapabilityModel:
         Makes kwargs dict from Config for passing to model functions.
         """
         model_kwargs = {
-            "network_noise_dfs": [net.station_df for net in self.networks],
-            "array_noise_dfs": [arr.array_df for arr in self.arrays],
-            "das_noise_dfs": [das.fibre_df for das in self.das_fibres],
             "lon0": self.config.lon0,
             "lon1": self.config.lon1,
             "lat0": self.config.lat0,
@@ -180,6 +177,13 @@ class DetectionCapabilityModel:
             "gmpe": self.config.gmpe,
             "gmpe_model_type": self.config.gmpe_model_type,
         }
+        if self.n_networks > 0:
+            model_kwargs["networks"] = self.networks
+        if self.n_arrays > 0:
+            model_kwargs["arrays"] = self.arrays
+        if self.n_das_fibres > 0:
+            model_kwargs["das_fibres"] = self.das_fibres
+
         return model_kwargs
 
     def run_model(self):
@@ -282,25 +286,29 @@ def _minml_worker(grid_point, **kwargs):
     """
     # Initialize min_mag to absurdly high value
     min_mag = 100.0
-    if "network_noise_dfs" in kwargs:
-        for n, net_df in enumerate(kwargs["network_noise_dfs"]):
-            # spell out kwargs here for clarify and to avoid passing
-            # unnecessary data to worker processes
-            min_mag_net = calc_min_ml_at_gridpoint(
-                net_df,
-                lon,
-                lat,
-                kwargs["stat_num"][n],
-                kwargs["foc_depth"],
-                kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs.get("gmpe", None),
-                gmpe_model_type=kwargs.get("gmpe_model_type", None),
-            )
-            min_mag = min(min_mag, min_mag_net)
+    ilat = grid_point[0]
+    ilon = grid_point[1]
+    lat = grid_point[2]
+    lon = grid_point[3]
+
+    for Network in kwargs["networks"]:
+        # spell out kwargs here for clarify and to avoid passing
+        # unnecessary data to worker processes
+        min_mag_net = calc_min_ml_at_gridpoint(
+            Network.stations,
+            lon,
+            lat,
+            Network.required_detections,
+            kwargs["foc_depth"],
+            kwargs["snr"],
+            mag_min=kwargs["mag_min"],
+            mag_delta=kwargs["mag_delta"],
+            method=kwargs["method"],
+            region=kwargs["region"],
+            gmpe=kwargs["gmpe"],
+            gmpe_model_type=kwargs["gmpe_model_type"],
+        )
+        min_mag = min(min_mag, min_mag_net)
     # Add arrays if provided
     if kwargs.get("array_dfs") is not None and not kwargs["array_dfs"].empty:
         for a, array_df in enumerate(kwargs["array_dfs"]):
@@ -339,7 +347,7 @@ def _minml_worker(grid_point, **kwargs):
                     method=kwargs.get("method", "ML"),
                 )
                 min_mag = min(min_mag, mag_min_das)
-    return (iy, ix, min_mag)
+    return (ilat, ilon, min_mag)
 
 
 def _create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
