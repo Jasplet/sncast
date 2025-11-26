@@ -316,41 +316,96 @@ def find_min_ml(model_kwargs):
     return mag_det
 
 
-def create_xsection_grid(
-    lon0, lat0, azi, length_km, ddist, min_depth, max_depth, ddepth
-):
+def _minml_worker(grid_point, **kwargs):
     """
-    Create a 2-D grid for a cross-section defined by a start lat/lon,
-    azimuth and length (in km) of the line.
+    Worker function for minML which allows the magnitude grid to be parallelised
+    over multiple processors using multiprocessing.Pool
 
     Parameters
     ----------
-        lon0 : float
-            Longitude of the start of the cross-section line
-        lat0 : float
-            Latitude of the start of the cross-section line
-        azi : float
-            Azimuth of cross-section in degrees from north
-        length_km : float
-            Cross-section length in km
-        ddist : float
-            Distance increment along the cross-section in km.
-        min_depth : float
-            Minimum depth of cross-section in km.
-        max_depth : float
-            Maximum depth of cross-section in km.
-        ddepth : float
-            Depth increment along the cross-section in km.
+    grid_point : tuple
+        Tuple containing x,y index of grid point and the latitude/longitude
+
+    **kwargs : dict
+        Additional keyword arguments to pass to the worker function.
+
+    Returns
+    -------
+    tuple
+        Tuple containing the y-index, x-index, and minimum magnitude for the grid point.
     """
-    # Calculate lon/lat co-ordinates for X-section line
-    ndists = int((length_km / ddist) + 1)
-    distance_km = np.linspace(0, length_km, ndists)
-    xsection = pygc.great_circle(
-        latitude=lat0, longitude=lon0, azimuth=azi, distance=distance_km * 1e3
-    )
-    ndepths = int((max_depth - min_depth) / ddepth) + 1
-    depths = np.linspace(min_depth, max_depth, ndepths)
-    return xsection, depths, distance_km
+    # Initialize min_mag to absurdly high value
+    min_mag = 100.0
+    ilat = grid_point[0]
+    ilon = grid_point[1]
+    lat = grid_point[2]
+    lon = grid_point[3]
+
+    if "networks" in kwargs:
+        for Network in kwargs["networks"]:
+            print(
+                f"Calculating min ML at grid point for Seismic Network {Network.network_code}"
+            )
+            # spell out kwargs here for clarify and to avoid passing
+            # unnecessary data to worker processes
+            min_mag_net = calc_min_ml_at_gridpoint(
+                Network.stations,
+                lon,
+                lat,
+                stat_num=Network.required_detections,
+                foc_depth=kwargs["foc_depth"],
+                snr=kwargs["snr"],
+                mag_min=kwargs["mag_min"],
+                mag_delta=kwargs["mag_delta"],
+                method=kwargs["method"],
+                region=kwargs["region"],
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"],
+            )
+            min_mag = min(min_mag, min_mag_net)
+    # Add arrays if provided
+    if "arrays" in kwargs:
+        for array in kwargs["arrays"]:
+            min_mag_arrays = calc_min_ml_at_gridpoint(
+                array.stations,
+                lon,
+                lat,
+                stat_num=array.required_detections,
+                foc_depth=kwargs["foc_depth"],
+                snr=kwargs["snr"],
+                mag_min=kwargs["mag_min"],
+                mag_delta=kwargs["mag_delta"],
+                method=kwargs["method"],
+                region=kwargs["region"],
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"],
+            )
+            min_mag = min(min_mag, min_mag_arrays)
+
+    if "das_fibres" in kwargs:
+        for das_fibre in kwargs["das_fibres"]:
+
+            mag_min_das = (
+                calc_min_ml_at_gridpoint_das(
+                    lon,
+                    lat,
+                    das_fibre.das_channels,
+                    detection_length_m=das_fibre.detection_length_m,
+                    gauge_length_m=das_fibre.gauge_length_m,
+                    foc_depth=kwargs["foc_depth"],
+                    snr=kwargs["snr"],
+                    mag_min=kwargs["mag_min"],
+                    mag_delta=kwargs["mag_delta"],
+                    method=kwargs["method"],
+                    region=kwargs["region"],
+                    gmpe=kwargs["gmpe"],
+                    gmpe_model_type=kwargs["gmpe_model_type"],
+                    model_stacking=kwargs["model_stacking_das"],
+                ),
+            )
+
+            min_mag = min(min_mag, mag_min_das)
+    return (ilat, ilon, min_mag)
 
 
 def find_min_ml_x_section(
@@ -460,156 +515,6 @@ def find_min_ml_x_section(
     return array
 
 
-def _minml_worker(grid_point, **kwargs):
-    """
-    Worker function for minML which allows the magnitude grid to be parallelised
-    over multiple processors using multiprocessing.Pool
-
-    Parameters
-    ----------
-    grid_point : tuple
-        Tuple containing x,y index of grid point and the latitude/longitude
-
-    **kwargs : dict
-        Additional keyword arguments to pass to the worker function.
-
-    Returns
-    -------
-    tuple
-        Tuple containing the y-index, x-index, and minimum magnitude for the grid point.
-    """
-    # Initialize min_mag to absurdly high value
-    min_mag = 100.0
-    ilat = grid_point[0]
-    ilon = grid_point[1]
-    lat = grid_point[2]
-    lon = grid_point[3]
-
-    if "networks" in kwargs:
-        for Network in kwargs["networks"]:
-            print(
-                f"Calculating min ML at grid point for Seismic Network {Network.network_code}"
-            )
-            # spell out kwargs here for clarify and to avoid passing
-            # unnecessary data to worker processes
-            min_mag_net = calc_min_ml_at_gridpoint(
-                Network.stations,
-                lon,
-                lat,
-                stat_num=Network.required_detections,
-                foc_depth=kwargs["foc_depth"],
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
-            )
-            min_mag = min(min_mag, min_mag_net)
-    # Add arrays if provided
-    if "arrays" in kwargs:
-        for array in kwargs["arrays"]:
-            min_mag_arrays = calc_min_ml_at_gridpoint(
-                array.stations,
-                lon,
-                lat,
-                stat_num=array.required_detections,
-                foc_depth=kwargs["foc_depth"],
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
-            )
-            min_mag = min(min_mag, min_mag_arrays)
-
-    if "das_fibres" in kwargs:
-        for das_fibre in kwargs["das_fibres"]:
-
-            mag_min_das = (
-                calc_min_ml_at_gridpoint_das(
-                    lon,
-                    lat,
-                    das_fibre.das_channels,
-                    detection_length_m=das_fibre.detection_length_m,
-                    gauge_length_m=das_fibre.gauge_length_m,
-                    foc_depth=kwargs["foc_depth"],
-                    snr=kwargs["snr"],
-                    mag_min=kwargs["mag_min"],
-                    mag_delta=kwargs["mag_delta"],
-                    method=kwargs["method"],
-                    region=kwargs["region"],
-                    gmpe=kwargs["gmpe"],
-                    gmpe_model_type=kwargs["gmpe_model_type"],
-                    model_stacking=kwargs["model_stacking_das"],
-                ),
-            )
-
-            min_mag = min(min_mag, mag_min_das)
-    return (ilat, ilon, min_mag)
-
-
-def _create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
-    """
-    Initialize lat/lon grid for SNCAST model.
-
-    Parameters
-    ----------
-    lon0 : float
-        Minimum longitude of the grid.
-    lon1 : float
-        Maximum longitude of the grid.
-    lat0 : float
-        Minimum latitude of the grid.
-    lat1 : float
-        Maximum latitude of the grid.
-    dlon : float
-        Longitude increment for the grid.
-    dlat : float
-        Latitude increment for the grid.
-    Returns
-    -------
-    lons : np.ndarray
-        Array of longitudes for the grid.
-    lats : np.ndarray
-        Array of latitudes for the grid.
-    nx : int
-        Number of grid points in the x-direction (longitude).
-    ny : int
-        Number of grid points in the y-direction (latitude).
-    """
-    if lon0 > lon1:
-        raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
-    if lat0 > lat1:
-        raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
-    if dlon <= 0 or dlat <= 0:
-        raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
-    if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
-        raise ValueError(f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}")
-    if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
-        raise ValueError(f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}")
-
-    nx = int((lon1 - lon0) / dlon) + 1
-    ny = int((lat1 - lat0) / dlat) + 1
-    lats = np.linspace(lat1, lat0, ny)
-    lons = np.linspace(lon0, lon1, nx)
-    print(f"Grid created with {nx} x {ny} points.")
-    return lons, lats, nx, ny
-
-
-def _wrapper_minml_xsection_worker(arg):
-    """
-    Function to act as a wrapper for the _minml_x_section_worker function to allow
-    passing multiple arguments using multiprocessing.Pool.imap_unordered
-
-    """
-    args, kwargs = arg
-    return _minml_x_section_worker(*args, **kwargs)
-
-
 def _minml_x_section_worker(ix, iz, lon, lat, depth, **kwargs):
     """
     Worker function for minML x-section which allows the 2-D grid of
@@ -696,6 +601,91 @@ def _minml_x_section_worker(ix, iz, lon, lat, depth, **kwargs):
                 min_mag = min(min_mag, mag_min_das)
 
     return (iz, ix, min_mag)
+
+
+def _create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
+    """
+    Initialize lat/lon grid for SNCAST model.
+
+    Parameters
+    ----------
+    lon0 : float
+        Minimum longitude of the grid.
+    lon1 : float
+        Maximum longitude of the grid.
+    lat0 : float
+        Minimum latitude of the grid.
+    lat1 : float
+        Maximum latitude of the grid.
+    dlon : float
+        Longitude increment for the grid.
+    dlat : float
+        Latitude increment for the grid.
+    Returns
+    -------
+    lons : np.ndarray
+        Array of longitudes for the grid.
+    lats : np.ndarray
+        Array of latitudes for the grid.
+    nx : int
+        Number of grid points in the x-direction (longitude).
+    ny : int
+        Number of grid points in the y-direction (latitude).
+    """
+    if lon0 > lon1:
+        raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
+    if lat0 > lat1:
+        raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
+    if dlon <= 0 or dlat <= 0:
+        raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
+    if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
+        raise ValueError(f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}")
+    if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
+        raise ValueError(f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}")
+
+    nx = int((lon1 - lon0) / dlon) + 1
+    ny = int((lat1 - lat0) / dlat) + 1
+    lats = np.linspace(lat1, lat0, ny)
+    lons = np.linspace(lon0, lon1, nx)
+    print(f"Grid created with {nx} x {ny} points.")
+    return lons, lats, nx, ny
+
+
+def create_xsection_grid(
+    lon0, lat0, azi, length_km, ddist, min_depth, max_depth, ddepth
+):
+    """
+    Create a 2-D grid for a cross-section defined by a start lat/lon,
+    azimuth and length (in km) of the line.
+
+    Parameters
+    ----------
+        lon0 : float
+            Longitude of the start of the cross-section line
+        lat0 : float
+            Latitude of the start of the cross-section line
+        azi : float
+            Azimuth of cross-section in degrees from north
+        length_km : float
+            Cross-section length in km
+        ddist : float
+            Distance increment along the cross-section in km.
+        min_depth : float
+            Minimum depth of cross-section in km.
+        max_depth : float
+            Maximum depth of cross-section in km.
+        ddepth : float
+            Depth increment along the cross-section in km.
+    """
+    # Calculate lon/lat co-ordinates for X-section line
+    ndists = int((length_km / ddist) + 1)
+    distance_km = np.linspace(0, length_km, ndists)
+    xsection = pygc.great_circle(
+        latitude=lat0, longitude=lon0, azimuth=azi, distance=distance_km * 1e3
+    )
+    ndepths = int((max_depth - min_depth) / ddepth) + 1
+    depths = np.linspace(min_depth, max_depth, ndepths)
+    return xsection, depths, distance_km
 
 
 def calc_min_ml_at_gridpoint(
