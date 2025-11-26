@@ -964,6 +964,11 @@ def calc_min_ml_at_gridpoint(
         return sorted_mags[stat_num - 1]
 
     elif method == "GMPE":
+        if "gmpe" not in kwargs or kwargs["gmpe"] is None:
+            raise ValueError("GMPE model must be specified for GMPE method")
+        if "gmpe_model_type" not in kwargs or kwargs["gmpe_model_type"] is None:
+            raise ValueError("GMPE model type must be specified for GMPE method")
+
         noise = stations_df["noise [cm/s]"].values
         # Use pygc to compute great-circle (epicentral) distance
         # pygc returns this in meters, then we convert to km
