@@ -515,88 +515,123 @@ def find_min_ml_x_section(
     return array
 
 
-def _minml_x_section_worker(ix, iz, lon, lat, depth, **kwargs):
+def _minml_x_section_worker(
+    grid_point,
+    networks=None,
+    stat_num=None,
+    arrays=None,
+    array_num=None,
+    das_dfs=None,
+    detection_length=1000,
+    foc_depth=None,
+    snr=3.0,
+    mag_min=-2.0,
+    mag_delta=0.1,
+    method="ML",
+    region="CAL",
+    gmpe=None,
+    gmpe_model_type=None,
+):
     """
-    Worker function for minML x-section which allows the 2-D grid of
-    lat/lon along a cross-section and depth to be parallelised.
+    Parallel worker for cross-section calculations.
+
+    This version is designed to be used with functools.partial so that
+    shared configuration parameters are bound once, and the worker only
+    receives the per-point tuple.
 
     Parameters
     ----------
-    ix : int
-        x-index along cross-section line.
-    iz : int
-        z-index (depth) of the grid point.
-    lon : float
-        Longitude along cross-section line of grid point
-    lat : float
-        Latitude along cross-section line of grid point
-    depth : float
-        Depth of the grid point in km.
-    **kwargs : dict
-        Additional keyword arguments to pass to the worker function.
+    grid_point : tuple
+        (ix, iz, lon, lat, depth_km)
+    networks : list, optional
+        List of station DataFrames (or objects exposing `.stations`).
+    stat_num : list, optional
+        Required detections per network.
+    arrays : list, optional
+        List of array station DataFrames (or objects exposing `.stations`).
+    array_num : list, optional
+        Required detections per array.
+    das_dfs : list, optional
+        List of DAS DataFrames.
+    detection_length : float, optional
+        Detection length for DAS in meters.
+    foc_depth : float, optional
+        Default focal depth in km (overridden by depth from grid_point).
+    snr, mag_min, mag_delta, method, region, gmpe, gmpe_model_type :
+        Calculation parameters as in the functional API.
 
     Returns
     -------
     tuple
-        Tuple containing the z-index, x-index, and minimum magnitude for the grid point.
+        (iz, ix, min_mag)
     """
+    ix, iz, lon, lat, depth = grid_point
+
     # Initialize min_mag to absurdly high value
     min_mag = 100.0
-    if "network_noise_dfs" in kwargs:
-        for n, net_df in enumerate(kwargs["network_noise_dfs"]):
-            # spell out kwargs here for clarify and to avoid passing
-            # unnecessary data to worker processes
+
+    # Handle networks
+    if networks is not None and len(networks) > 0:
+        # Normalize inputs to bare DataFrames + required detections
+        for i, net in enumerate(networks):
+            stations_df = getattr(net, "stations", net)
+            required = stat_num[i] if stat_num else 1
             min_mag_net = calc_min_ml_at_gridpoint(
-                net_df,
-                lon,
-                lat,
-                kwargs["stat_num"][n],
-                depth,
-                kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
+                lon=lon,
+                lat=lat,
+                stations_df=stations_df,
+                stat_num=required,
+                foc_depth=depth,
+                snr=snr,
+                mag_min=mag_min,
+                mag_delta=mag_delta,
+                method=method,
+                region=region,
+                gmpe=gmpe,
+                gmpe_model_type=gmpe_model_type,
             )
             min_mag = min(min_mag, min_mag_net)
-    # Add arrays if provided
-    if kwargs.get("array_dfs") is not None and not kwargs["array_dfs"].empty:
-        for a, array_df in enumerate(kwargs["array_dfs"]):
 
+    # Handle arrays
+    if arrays is not None and len(arrays) > 0:
+        for i, arr in enumerate(arrays):
+            array_df = getattr(arr, "stations", arr)
+            required = array_num[i] if array_num else 1
             min_mag_arrays = calc_min_ml_at_gridpoint(
-                array_df,
-                lon,
-                lat,
+                lon=lon,
+                lat=lat,
+                stations_df=array_df,
+                stat_num=required,
                 foc_depth=depth,
-                stat_num=kwargs["array_num"][a],
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs.get("gmpe", None),
-                gmpe_model_type=kwargs.get("gmpe_model_type", None),
+                snr=snr,
+                mag_min=mag_min,
+                mag_delta=mag_delta,
+                method=method,
+                region=region,
+                gmpe=gmpe,
+                gmpe_model_type=gmpe_model_type,
             )
             min_mag = min(min_mag, min_mag_arrays)
 
-    if kwargs.get("das_dfs") is not None:
-        for das_df in kwargs["das_dfs"]:
-            if das_df is not None and not das_df.empty:
+    # Handle DAS fibres
+    if das_dfs is not None and len(das_dfs) > 0:
+        for das_df in das_dfs:
+            if das_df is not None and not getattr(das_df, "empty", False):
                 mag_min_das = calc_min_ml_at_gridpoint_das(
-                    das_df,
-                    lon,
-                    lat,
+                    lon=lon,
+                    lat=lat,
+                    fibre=das_df,
+                    detection_length_m=detection_length,
+                    gauge_length_m=20,
+                    model_stacking=True,
                     foc_depth=depth,
-                    snr=kwargs["snr"],
-                    mag_min=kwargs["mag_min"],
-                    mag_delta=kwargs["mag_delta"],
-                    detection_length=kwargs.get("detection_length", 1000),
-                    gmpe=kwargs.get("gmpe", None),
-                    gmpe_model_type=kwargs.get("gmpe_model_type", None),
-                    region=kwargs.get("region", "CAL"),
-                    method=kwargs.get("method", "ML"),
+                    snr=snr,
+                    mag_min=mag_min,
+                    mag_delta=mag_delta,
+                    method=method,
+                    region=region,
+                    gmpe=gmpe,
+                    gmpe_model_type=gmpe_model_type,
                 )
                 min_mag = min(min_mag, mag_min_das)
 
