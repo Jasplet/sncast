@@ -272,6 +272,153 @@ def find_min_ml(model_kwargs):
     return mag_det
 
 
+def create_xsection_grid(
+    lon0, lat0, azi, length_km, ddist, min_depth, max_depth, ddepth
+):
+    """
+    Create a 2-D grid for a cross-section defined by a start lat/lon,
+    azimuth and length (in km) of the line.
+
+    Parameters
+    ----------
+        lon0 : float
+            Longitude of the start of the cross-section line
+        lat0 : float
+            Latitude of the start of the cross-section line
+        azi : float
+            Azimuth of cross-section in degrees from north
+        length_km : float
+            Cross-section length in km
+        ddist : float
+            Distance increment along the cross-section in km.
+        min_depth : float
+            Minimum depth of cross-section in km.
+        max_depth : float
+            Maximum depth of cross-section in km.
+        ddepth : float
+            Depth increment along the cross-section in km.
+    """
+    # Calculate lon/lat co-ordinates for X-section line
+    ndists = int((length_km / ddist) + 1)
+    distance_km = np.linspace(0, length_km, ndists)
+    xsection = pygc.great_circle(
+        latitude=lat0, longitude=lon0, azimuth=azi, distance=distance_km * 1e3
+    )
+    ndepths = int((max_depth - min_depth) / ddepth) + 1
+    depths = np.linspace(min_depth, max_depth, ndepths)
+    return xsection, depths, distance_km
+
+
+def find_min_ml_x_section(
+    model_kwargs,
+):
+    """
+    Function to calculate a 2-D cross section of a SNCAST model.
+    X-section line defined by start lat/lon and the azimuth and length (in km)
+    of the line.
+
+    Input should be a csv file (or Pandas DataFrame)
+      longitude, latitude, noise [nm], station name
+    e.g.: -7.5100, 55.0700, 0.53, IDGL
+
+    Parameters
+    ----------
+        lon0 : float
+            Longitude of the start of the cross-section line
+        lat0 : float
+            Latitude of the start of the cross-section line
+        azi : float
+            Azimuth of cross-section in degrees from north
+        length_km : float
+            Cross-section length in km
+        networks : list or str or pd.DataFrame, optional
+            List of paths to CSV files or DataFrames containing station data for each network.
+        min_depth : float, optional
+            Minimum depth of cross-section in km. Default is 0.
+        max_depth : float, optional
+            Maximum depth of cross-section in km. Default is 20.
+        ddist : float, optional
+            Distance increment along the cross-section in km. Default is 5.
+        ddepth : float, optional
+            Depth increment along the cross-section in km. Default is 0.5.
+        stat_num : int, optional
+            Number of stations required for a detection. Default is 4.
+        snr : float, optional
+            Required signal-to-noise ratio for detection. Default is 3.
+        region : str, optional
+            Locality for assumed ML scale parameters ('UK' or 'CAL').
+            Default is 'CAL'.
+        mag_min : float, optional
+            Minimum local magnitude to consider when modelling detections.
+            Default is -3.0.
+        mag_delta : float, optional
+            Increment for local magnitude. Default is 0.1.
+        arrays : DataFrame or csv filename, optional
+            Station information for seismic arrays including lat/lon and noise levels.
+            If provided, the model will include detections from arrays.
+            File is in the same format as stations_in
+        obs : DataFrame or csv filename, optional
+            Station information for OBS including lat/lon and noise levels.
+            If provided, the model will include detections from OBS.
+            File is in the same format as stations_in
+        **kwargs : dict
+            Additional keyword arguments to control the method and parameters:
+            - method: 'ML' or 'GMPE'. Default is 'ML'.
+            - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
+            - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
+                               Default is None.
+            - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
+                               Default is 'CAL'.
+            - array_num: Number of stations required for a detection on an array.
+                            Default is 1.
+            - obs_stat_num: Number of stations required for a detection on an OBS.
+                            Default is 3.
+    Returns
+    -------
+        array : xarray.DataArray
+            A 2D xarray DataArray with dimenstions in depth (km) and distance (km) along the cross-section
+            from the start point.
+            The values in the DataArray are the minimum detectable local magnitude ML
+            at that grid point.
+    """
+
+    xsection, depths, dist = create_xsection_grid(
+        model_kwargs["lon0"],
+        model_kwargs["lat0"],
+        model_kwargs["azi"],
+        model_kwargs["length_km"],
+        model_kwargs["ddist"],
+        model_kwargs["min_depth"],
+        model_kwargs["max_depth"],
+        model_kwargs["ddepth"],
+    )
+    ndists = len(xsection["longitude"])
+    ndepths = len(depths)
+    # Iterate along cross-section
+    args_list = [
+        (
+            (ix, iz, xsection["latitude"][ix], xsection["longitude"][ix], depths[iz]),
+            kwargs_worker,
+        )
+        for ix in range(ndists)
+        for iz in range(ndepths)
+    ]
+    mag_grid = np.zeros((ndepths, ndists))
+
+    print(f"Using {model_kwargs['nproc']} cores")
+    worker_func = partial(_minml_x_section_worker, **model_kwargs)
+    with Pool(processes=model_kwargs["nproc"]) as pool:
+        for iz, ix, val in pool.imap_unordered(worker_func, args_list):
+            mag_grid[iz, ix] = val
+
+    array = xarray.DataArray(
+        mag_grid,
+        coords=[depths, distance_km],
+        dims=["depth_km", "distance_along_xsection_km"],
+    )
+    return array
+
+
 def _minml_worker(grid_point, **kwargs):
     """
     Worker function for minML which allows the magnitude grid to be parallelised
@@ -410,265 +557,6 @@ def _create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
     lons = np.linspace(lon0, lon1, nx)
     print(f"Grid created with {nx} x {ny} points.")
     return lons, lats, nx, ny
-
-
-def find_min_ml_x_section(
-    lon0,
-    lat0,
-    azi,
-    length_km,
-    networks=None,
-    min_depth=0,
-    max_depth=20,
-    ddist=5,
-    ddepth=0.5,
-    stat_num=[5],
-    **kwargs,
-):
-    """
-    Function to calculate a 2-D cross section of a SNCAST model.
-    X-section line defined by start lat/lon and the azimuth and length (in km)
-    of the line.
-
-    Input should be a csv file (or Pandas DataFrame)
-      longitude, latitude, noise [nm], station name
-    e.g.: -7.5100, 55.0700, 0.53, IDGL
-
-    Parameters
-    ----------
-        lon0 : float
-            Longitude of the start of the cross-section line
-        lat0 : float
-            Latitude of the start of the cross-section line
-        azi : float
-            Azimuth of cross-section in degrees from north
-        length_km : float
-            Cross-section length in km
-        networks : list or str or pd.DataFrame, optional
-            List of paths to CSV files or DataFrames containing station data for each network.
-        min_depth : float, optional
-            Minimum depth of cross-section in km. Default is 0.
-        max_depth : float, optional
-            Maximum depth of cross-section in km. Default is 20.
-        ddist : float, optional
-            Distance increment along the cross-section in km. Default is 5.
-        ddepth : float, optional
-            Depth increment along the cross-section in km. Default is 0.5.
-        stat_num : int, optional
-            Number of stations required for a detection. Default is 4.
-        snr : float, optional
-            Required signal-to-noise ratio for detection. Default is 3.
-        region : str, optional
-            Locality for assumed ML scale parameters ('UK' or 'CAL').
-            Default is 'CAL'.
-        mag_min : float, optional
-            Minimum local magnitude to consider when modelling detections.
-            Default is -3.0.
-        mag_delta : float, optional
-            Increment for local magnitude. Default is 0.1.
-        arrays : DataFrame or csv filename, optional
-            Station information for seismic arrays including lat/lon and noise levels.
-            If provided, the model will include detections from arrays.
-            File is in the same format as stations_in
-        obs : DataFrame or csv filename, optional
-            Station information for OBS including lat/lon and noise levels.
-            If provided, the model will include detections from OBS.
-            File is in the same format as stations_in
-        **kwargs : dict
-            Additional keyword arguments to control the method and parameters:
-            - method: 'ML' or 'GMPE'. Default is 'ML'.
-            - gmpe: GMPE model to use if method is 'GMPE'. Default is None.
-            - gmpe_model_type: Type of GMPE model to use if method is 'GMPE'.
-                               Default is None.
-            - region: Locality for assumed ML scale parameters ('UK' or 'CAL').
-                               Default is 'CAL'.
-            - array_num: Number of stations required for a detection on an array.
-                            Default is 1.
-            - obs_stat_num: Number of stations required for a detection on an OBS.
-                            Default is 3.
-    Returns
-    -------
-        array : xarray.DataArray
-            A 2D xarray DataArray with dimenstions in depth (km) and distance (km) along the cross-section
-            from the start point.
-            The values in the DataArray are the minimum detectable local magnitude ML
-            at that grid point.
-    """
-    # exit if no stations provided
-    if (
-        (networks is None)
-        and (kwargs.get("arrays") is None)
-        and (kwargs.get("das") is None)
-    ):
-        raise ValueError("No seismic networks, arrays or DAS provided!")
-
-    kwargs_worker = {}
-    kwargs_worker["snr"] = kwargs.get("snr", 3.0)
-    kwargs_worker["mag_min"] = kwargs.get("mag_min", -2.0)
-    kwargs_worker["mag_delta"] = kwargs.get("mag_delta", 0.1)
-
-    if kwargs.get("method") == "GMPE":
-        if "gmpe" not in kwargs:
-            raise ValueError(
-                "GMPE model must be specified if" + "GMPE method is selected"
-            )
-        if "gmpe_model_type" not in kwargs:
-            raise ValueError(
-                "GMPE model type must be specified if" + "GMPE method is selected"
-            )
-        kwargs_worker["gmpe"] = None
-        kwargs_worker["gmpe_model_type"] = None
-    elif kwargs.get("method") == "ML":
-        kwargs_worker["method"] = "ML"
-        kwargs_worker["gmpe"] = None
-        kwargs_worker["gmpe_model_type"] = None
-
-    else:
-        kwargs_worker["method"] = "ML"
-        warnings.warn("Method not recognised, using ML as default")
-
-    if kwargs.get("region") is None:
-        kwargs_worker["region"] = "CAL"
-        warnings.warn("Region not specified, using CAL as default")
-    elif kwargs["region"] not in SUPPORTED_ML_REGIONS:
-        raise ValueError(
-            f"Region {kwargs['region']} not supported, "
-            + f"supported regions are {SUPPORTED_ML_REGIONS}"
-        )
-    else:
-        kwargs_worker["region"] = kwargs["region"]
-
-    print(f'Method : {kwargs_worker["method"]}')
-    print(f'Region : {kwargs_worker["region"]}')
-
-    if networks is not None:
-        # read in data, file format: "LON, LAT, NOISE [nm], STATION"
-        if isinstance(networks, (list, tuple)):
-            network_noise_dfs = [read_station_data(n) for n in networks]
-        else:
-            network_noise_dfs = [read_station_data(networks)]
-
-        if isinstance(stat_num, int):
-            warnings.warn(
-                "Single integer provided for stat_num, "
-                + "assuming this applies to all networks"
-            )
-            stat_num = [stat_num]
-
-        if len(stat_num) != len(network_noise_dfs):
-            warnings.warn(
-                f"Number of networks ({len(network_noise_dfs)}) does not match "
-                + f"number of required stations ({len(stat_num)}), "
-                + f"using first value, {stat_num[0]}, for all networks"
-            )
-            stat_num = [stat_num[0]] * len(network_noise_dfs)
-
-        # check there are enough stations in each network
-        for i, df in enumerate(network_noise_dfs):
-            if len(df) < stat_num[i]:
-                raise ValueError(
-                    f"Not enough stations in network {i+1}: "
-                    + f"have {len(df)}, need {stat_num[i]}"
-                )
-        kwargs_worker["network_noise_dfs"] = network_noise_dfs
-        kwargs_worker["stat_num"] = stat_num
-    else:
-        print("No seismic networks provided")
-
-    if kwargs.get("arrays") is not None:
-        print(
-            "Using seismic arrays in model. Arrays are modelled"
-            + " as the central station with a required station number of 1."
-        )
-        if isinstance(kwargs["arrays"], (list, tuple)):
-            array_dfs = [read_station_data(a) for a in kwargs["arrays"]]
-        else:
-            array_dfs = [read_station_data(kwargs["arrays"])]
-
-        array_num = kwargs.get("array_num", 1)
-        if isinstance(array_num, int):
-            array_num = [array_num]
-
-        if len(array_num) != len(array_dfs):
-            warnings.warn(
-                f"Number of arrays ({len(array_dfs)}) does not match "
-                + f"number of required stations ({len(array_num)}), "
-                + f"using first value, {array_num[0]}, for all arrays"
-            )
-            array_num = [array_num[0]] * len(array_dfs)
-
-        kwargs_worker["array_num"] = array_num
-        kwargs_worker["array_dfs"] = array_dfs
-
-        # check there are enough stations in each array
-        for i, df in enumerate(array_dfs):
-            if len(df) < array_num[i]:
-                raise ValueError(
-                    f"Not enough stations in array {i+1}: "
-                    + f"have {len(df)}, need {array_num[i]}"
-                )
-
-            array_num = [stat_num[0]] * len(network_noise_dfs)
-
-        # check there are enough stations in each network
-        for i, df in enumerate(network_noise_dfs):
-            if len(df) < stat_num[i]:
-                raise ValueError(
-                    f"Not enough stations in network {i+1}: "
-                    + f"have {len(df)}, need {stat_num[i]}"
-                )
-
-        kwargs_worker["array_dfs"] = array_dfs
-
-    if "das" in kwargs:
-        if "detection_length" not in kwargs:
-            warnings.warn("Detection length not specified, using default of 1.0 km")
-            kwargs["detection_length"] = 1e3  # Default to 1 km
-        # Read in DAS noise data
-        das_in = kwargs["das"]
-        if isinstance(das_in, (list, tuple)):
-            das_dfs = [read_das_noise_data(d) for d in das_in]
-        else:
-            das_dfs = [read_das_noise_data(das_in)]
-
-        for df in das_dfs:
-            if len(df) == 0:
-                raise ValueError("No DAS data found in one of the input files")
-        print(f'DAS detection length: {kwargs["detection_length"]} m')
-        kwargs_worker["das_dfs"] = das_dfs
-
-    # Calculate lon/lat co-ordinates for X-section line
-    ndists = int((length_km / ddist) + 1)
-    distance_km = np.linspace(0, length_km, ndists)
-    xsection = pygc.great_circle(
-        latitude=lat0, longitude=lon0, azimuth=azi, distance=distance_km * 1e3
-    )
-    ndepths = int((max_depth - min_depth) / ddepth) + 1
-    depths = np.linspace(min_depth, max_depth, ndepths)
-    # Iterate along cross-section
-    args_list = [
-        (
-            (ix, iz, xsection["latitude"][ix], xsection["longitude"][ix], depths[iz]),
-            kwargs_worker,
-        )
-        for ix in range(ndists)
-        for iz in range(ndepths)
-    ]
-    mag_grid = np.zeros((ndepths, ndists))
-
-    nproc = kwargs.get("nproc", 1)
-    print(f"Using {nproc} cores")
-    # Make xarray grid to output
-    with Pool(processes=nproc) as pool:
-        for iz, ix, val in pool.imap_unordered(_wrapper_minml_worker, args_list):
-            mag_grid[iz, ix] = val
-
-    array = xarray.DataArray(
-        mag_grid,
-        coords=[depths, distance_km],
-        dims=["depth_km", "distance_along_xsection_km"],
-    )
-    return array
 
 
 def _wrapper_minml_xsection_worker(arg):
