@@ -890,6 +890,10 @@ def calc_min_ml_at_gridpoint(
     stat_num,
     foc_depth,
     snr,
+    mag_min,
+    mag_delta,
+    method,
+    region,
     **kwargs,
 ):
     """
@@ -934,12 +938,7 @@ def calc_min_ml_at_gridpoint(
     float
         Minimum local magnitude that can be detected at the grid point.
     """
-    method = kwargs.get("method", "ML")
-    region = kwargs.get("region", "CAL")
-    mag_min = kwargs.get("mag_min", -2.0)
-    mag_delta = kwargs.get("mag_delta", 0.1)
     if method == "ML":
-
         noise = stations_df["noise [nm]"].values
         distances_km = (
             pygc.great_distance(
