@@ -129,7 +129,7 @@ class DASFibre:
         das_data : str or pd.DataFrame
             Path to a CSV file or a DataFrame containing DAS noise data.
         """
-        self.das_data = _read_das_noise_data(das_data)
+        self.das_channels = _read_das_noise_data(das_data)
 
         self.detection_length_m = detection_length_m
         print(f"DAS Fibre initialized with {len(self.das_data)} channels.")
