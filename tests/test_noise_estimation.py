@@ -7,13 +7,14 @@ from sncast.noise_estimation import get_freq_range_from_centre, get_f0_octaves_f
 from sncast.noise_estimation import psd_db_to_displacement_amplitude
 from sncast.noise_estimation import psd_db_to_velocity
 from sncast.noise_estimation import psd_db_convert
-from sncast.noise_estimation import make_noise_estimate_for_ppsds
+
+# from sncast.noise_estimation import make_noise_estimate_for_ppsds
 
 
 @pytest.mark.parametrize(
     "f0, n, expected_f1, expected_f2",
     [
-        (2.0, 2.0),
+        (2.0, 2.0, 1.0, 4.0),
         (0.5, 2.0, 0.25, 1.0),
         (1.0, 1.0, np.power(2, -0.5), np.power(2, 0.5)),
         (100, 2.0, 50.0, 200.0),
