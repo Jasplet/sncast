@@ -13,11 +13,11 @@ Copyright (C) 2025 Joseph Asplet, University of Oxford
 import numpy as np
 import pandas as pd
 import pygc
-import pytest
+
+# import pytest
 from unittest.mock import patch
 
 # import functions to test
-from sncast.core import _read_das_noise_data
 from sncast.model_detection_capability import get_das_noise_levels
 from sncast.model_detection_capability import calc_min_ml_at_gridpoint_das
 
@@ -114,17 +114,18 @@ def test_calc_min_ml_at_gridpoint_das(
     )
     print(distances_km)
     result = calc_min_ml_at_gridpoint_das(
-        dummy_fibre,
-        100,
-        lon,
-        lat,
+        lon=lon,
+        lat=lat,
+        fibre=dummy_fibre,
+        detection_length_m=100,
+        gauge_length_m=10,
+        model_stacking=True,
         foc_depth=0,
         snr=1,
         region="UK",
         method="ML",
         mag_min=-2,
         mag_delta=0.1,
-        gauge_len=10,
     )
     minmag = min(test_mags)
     assert result == minmag
