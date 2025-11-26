@@ -992,8 +992,8 @@ def calc_min_ml_at_gridpoint(
                 hypo_dist[s],
                 snr,
                 method=kwargs["method"],
-                gmpe=kwargs.get("gmpe", None),
-                gmpe_model_type=kwargs.get("gmpe_model_type", None),
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"],
                 region=kwargs["region"],
             )
             for s in range(len(stations_df))
