@@ -386,14 +386,13 @@ def _minml_worker(grid_point, **kwargs):
             min_mag = min(min_mag, min_mag_arrays)
 
     if "das_fibres" in kwargs:
-        for DASFibre in kwargs["das_fibres"]:
-
+        for Fibre in kwargs["das_fibres"]:
             mag_min_das = calc_min_ml_at_gridpoint_das(
                 lon=lon,
                 lat=lat,
-                fibre=DASFibre.das_channels,
-                detection_length_m=DASFibre.detection_length_m,
-                gauge_length_m=DASFibre.gauge_length_m,
+                fibre=Fibre.das_channels,
+                detection_length_m=Fibre.detection_length_m,
+                gauge_length_m=Fibre.gauge_length_m,
                 foc_depth=kwargs["foc_depth"],
                 snr=kwargs["snr"],
                 mag_min=kwargs["mag_min"],
@@ -552,7 +551,7 @@ def _minml_x_section_worker(
                 lat=lat,
                 stations_df=Network.stations,
                 stat_num=Network.required_detections,
-                foc_depth=kwargs["foc_depth"],
+                foc_depth=depth,
                 snr=kwargs["snr"],
                 mag_min=kwargs["mag_min"],
                 mag_delta=kwargs["mag_delta"],
@@ -571,7 +570,7 @@ def _minml_x_section_worker(
                 lat=lat,
                 stations_df=Array.stations,
                 stat_num=Array.required_detections,
-                foc_depth=kwargs["foc_depth"],
+                foc_depth=depth,
                 snr=kwargs["snr"],
                 mag_min=kwargs["mag_min"],
                 mag_delta=kwargs["mag_delta"],
@@ -584,15 +583,15 @@ def _minml_x_section_worker(
 
     # Handle DAS fibres
     if kwargs["das_fibres"] is not None:
-        for DASFibre in kwargs["das_fibres"]:
+        for Fibre in kwargs["das_fibres"]:
             mag_min_das = calc_min_ml_at_gridpoint_das(
                 lon=lon,
                 lat=lat,
-                fibre=DASFibre.das_channels,
-                detection_length_m=DASFibre.detection_length_m,
-                gauge_length_m=DASFibre.gauge_length_m,
+                fibre=Fibre.das_channels,
+                detection_length_m=Fibre.detection_length_m,
+                gauge_length_m=Fibre.gauge_length_m,
                 model_stacking=kwargs["model_stacking_das"],
-                foc_depth=kwargs["foc_depth"],
+                foc_depth=depth,
                 snr=kwargs["snr"],
                 mag_min=kwargs["mag_min"],
                 mag_delta=kwargs["mag_delta"],
@@ -1043,7 +1042,7 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
     ml: np.ndarray
         Local magnitudes (ML) for the given amplitudes and distances.
     """
-    if np.min(required_ampl <= 0):
+    if np.any(required_ampl <= 0):
         raise ValueError("At least one amplitude <=0!")
 
     if region == "UK":
