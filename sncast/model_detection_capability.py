@@ -545,7 +545,7 @@ def _minml_x_section_worker(
     # Handle networks
     if "networks" in kwargs:
         # Normalize inputs to bare DataFrames + required detections
-        for network in kwargs["networks"]
+        for network in kwargs["networks"]:
             min_mag_net = calc_min_ml_at_gridpoint(
                 lon=lon,
                 lat=lat,
@@ -564,7 +564,6 @@ def _minml_x_section_worker(
 
     # Handle arrays
     if "arrays" in kwargs:
-        arrays = kwargs["arrays"]
         for array in kwargs["arrays"]:
             min_mag_arrays = calc_min_ml_at_gridpoint(
                 lon=lon,
