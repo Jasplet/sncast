@@ -179,10 +179,16 @@ class DetectionCapabilityModel:
         }
         if self.n_networks > 0:
             model_kwargs["networks"] = self.networks
+        else:
+            print("No seismic networks provided to model.")
         if self.n_arrays > 0:
             model_kwargs["arrays"] = self.arrays
+        else:
+            print("No seismic arrays provided to model.")
         if self.n_das_fibres > 0:
             model_kwargs["das_fibres"] = self.das_fibres
+        else:
+            print("No DAS fibres provided to model.")
 
         return model_kwargs
 
@@ -291,33 +297,36 @@ def _minml_worker(grid_point, **kwargs):
     lat = grid_point[2]
     lon = grid_point[3]
 
-    for Network in kwargs["networks"]:
-        # spell out kwargs here for clarify and to avoid passing
-        # unnecessary data to worker processes
-        min_mag_net = calc_min_ml_at_gridpoint(
-            Network.stations,
-            lon,
-            lat,
-            Network.required_detections,
-            kwargs["foc_depth"],
-            kwargs["snr"],
-            mag_min=kwargs["mag_min"],
-            mag_delta=kwargs["mag_delta"],
-            method=kwargs["method"],
-            region=kwargs["region"],
-            gmpe=kwargs["gmpe"],
-            gmpe_model_type=kwargs["gmpe_model_type"],
-        )
-        min_mag = min(min_mag, min_mag_net)
-    # Add arrays if provided
-    if kwargs.get("array_dfs") is not None and not kwargs["array_dfs"].empty:
-        for a, array_df in enumerate(kwargs["array_dfs"]):
-
-            min_mag_arrays = calc_min_ml_at_gridpoint(
-                array_df,
+    if "networks" in kwargs:
+        for Network in kwargs["networks"]:
+            print(
+                f"Calculating min ML at grid point for Seismic Network {Network.network_code}"
+            )
+            # spell out kwargs here for clarify and to avoid passing
+            # unnecessary data to worker processes
+            min_mag_net = calc_min_ml_at_gridpoint(
+                Network.stations,
                 lon,
                 lat,
-                stat_num=kwargs["array_num"][a],
+                stat_num=Network.required_detections,
+                foc_depth=kwargs["foc_depth"],
+                snr=kwargs["snr"],
+                mag_min=kwargs["mag_min"],
+                mag_delta=kwargs["mag_delta"],
+                method=kwargs["method"],
+                region=kwargs["region"],
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"],
+            )
+            min_mag = min(min_mag, min_mag_net)
+    # Add arrays if provided
+    if "arrays" in kwargs:
+        for array in kwargs["arrays"]:
+            min_mag_arrays = calc_min_ml_at_gridpoint(
+                array.stations,
+                lon,
+                lat,
+                stat_num=array.required_detections,
                 foc_depth=kwargs["foc_depth"],
                 snr=kwargs["snr"],
                 mag_min=kwargs["mag_min"],
@@ -329,24 +338,23 @@ def _minml_worker(grid_point, **kwargs):
             )
             min_mag = min(min_mag, min_mag_arrays)
 
-    if kwargs.get("das_dfs") is not None:
-        for das_df in kwargs["das_dfs"]:
-            if das_df is not None and not das_df.empty:
-                mag_min_das = calc_min_ml_at_gridpoint_das(
-                    das_df,
-                    lon,
-                    lat,
-                    foc_depth=kwargs["foc_depth"],
-                    snr=kwargs["snr"],
-                    mag_min=kwargs["mag_min"],
-                    mag_delta=kwargs["mag_delta"],
-                    detection_length=kwargs.get("detection_length", 1000),
-                    gmpe=kwargs.get("gmpe", None),
-                    gmpe_model_type=kwargs.get("gmpe_model_type", None),
-                    region=kwargs.get("region", "CAL"),
-                    method=kwargs.get("method", "ML"),
-                )
-                min_mag = min(min_mag, mag_min_das)
+    if "das_fibres" in kwargs:
+        for das_fibre in kwargs["das_fibres"]:
+
+            mag_min_das = calc_min_ml_at_gridpoint_das(
+                das_fibre.das_channels,
+                lon,
+                lat,
+                foc_depth=kwargs["foc_depth"],
+                snr=kwargs["snr"],
+                mag_min=kwargs["mag_min"],
+                mag_delta=kwargs["mag_delta"],
+                method=kwargs["method"],
+                region=kwargs["region"],
+                gmpe=kwargs["gmpe"],
+                gmpe_model_type=kwargs["gmpe_model_type"]),
+            )
+            min_mag = min(min_mag, mag_min_das)
     return (ilat, ilon, min_mag)
 
 
