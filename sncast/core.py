@@ -166,6 +166,9 @@ class ModelConfig:
         self.region: str = kwargs.get("region", "CAL")
         self.nproc: int = kwargs.get("nproc", 1)
         self.method: str = kwargs.get("method", "ML")
+        self.mag_min: float = kwargs.get("mag_min", -2.0)
+        self.mag_delta: float = kwargs.get("mag_delta", 0.1)
+        self.model_stacking_das: bool = kwargs.get("model_stacking_das", True)
         if self.method == "GMPE":
             self.gmpe: str = kwargs.get("gmpe", "AK14")
             self.gmpe_model_type: str = kwargs.get("gmpe_model_type", "PGV")
