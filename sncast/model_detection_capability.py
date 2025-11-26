@@ -241,19 +241,16 @@ def find_min_ml(model_kwargs):
     )
 
     # Ensure fixed args are all in kwargs for worker function
-    args_list = [
-        ((ix, iy, lons[ix], lats[iy], model_kwargs))
-        for ix in range(nx)
-        for iy in range(ny)
-    ]
+    args_list = [((ix, iy, lons[ix], lats[iy])) for ix in range(nx) for iy in range(ny)]
 
     mag_grid = np.zeros((ny, nx))
     # Detection capability has to be calculated at each grid point,
     # Split this up using Pool and imap_unordered to multiple cores
     # maybe numba would be quicker here?
     print(f"Using {model_kwargs['nproc']} cores")
+    worker_func = partial(_minml_worker, **model_kwargs)
     with Pool(processes=model_kwargs["nproc"]) as pool:
-        for iy, ix, val in pool.imap_unordered(_wrapper_minml_worker, args_list):
+        for iy, ix, val in pool.imap_unordered(worker_func, args_list):
             mag_grid[iy, ix] = val
 
     # Make xarray grid to output
@@ -261,16 +258,6 @@ def find_min_ml(model_kwargs):
         mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
     )
     return mag_det
-
-
-def _wrapper_minml_worker(arg):
-    """
-    Function to act as a wrapper for the _minml_worker function to allow
-    passing multiple arguments using multiprocessing.Pool.imap_unordered
-    """
-    args, kwargs = arg
-
-    return _minml_worker(*args, **kwargs)
 
 
 def _minml_worker(self, ix, iy, lon, lat, **kwargs):
