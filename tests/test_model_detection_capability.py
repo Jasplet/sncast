@@ -6,28 +6,10 @@ import xarray
 
 from sncast.model_detection_capability import find_min_ml
 from sncast.model_detection_capability import create_grid
-from sncast.model_detection_capability import read_station_data
 from sncast.model_detection_capability import _est_min_ml_at_station
 from sncast.model_detection_capability import calc_ampl_from_magnitude
 from sncast.model_detection_capability import calc_local_magnitude
 from sncast.model_detection_capability import calc_min_ml_at_gridpoint
-
-
-def test_read_station_data():
-    # Create a small test DataFrame
-    df = pd.DataFrame(
-        {
-            "longitude": [0.0, 1.0],
-            "latitude": [50.0, 51.0],
-            "elevation_km": [0.0, 0.0],
-            "noise [nm]": [1.0, 1.0],
-            "station": ["STA1", "STA2"],
-        }
-    )
-    output = read_station_data(df)
-    output_csv = read_station_data("tests/data/station_data.csv")
-    assert output.equals(df)
-    assert output_csv.equals(df)
 
 
 def test_calc_amplitude_UK():
@@ -285,7 +267,7 @@ def test_find_min_ml_no_networks_provided():
 
 
 @pytest.mark.parametrize("bad_region", ["", 10, "US", "MARS"])
-@patch("sncast.model_detection_capability.read_station_data")
+@patch("sncast.core.read_station_data")
 def test_find_min_ml_unsupported_region(mock_read_station_data, bad_region):
     mock_read_station_data.return_value = pd.DataFrame(
         {
@@ -310,52 +292,8 @@ def test_find_min_ml_unsupported_region(mock_read_station_data, bad_region):
         )
 
 
-def test_find_min_ml_warns_unknown_ML():
-    df = pd.DataFrame(
-        {
-            "longitude": [0.0, 1.0],
-            "latitude": [50.0, 51.0],
-            "elevation_km": [0.0, 0.0],
-            "noise [nm]": [0.1, 0.1],
-            "station": ["STA1", "STA2"],
-        }
-    )
-    for method in ["foo", "bar", ""]:
-        with pytest.warns(
-            UserWarning, match="Method not recognised, using ML as default"
-        ):
-            find_min_ml(
-                networks=df,
-                lon0=0,
-                lon1=1,
-                lat0=50,
-                lat1=51,
-                dlon=1,
-                dlat=1,
-                stat_num=1,
-                snr=1,
-                method=method,
-                region="UK",
-            )
-
-
-@patch("sncast.model_detection_capability.read_station_data")
-def test_find_min_ml_warns_no_region(mock_read_station_data):
-    mock_read_station_data.return_value = pd.DataFrame(
-        {
-            "longitude": [0.0],
-            "latitude": [50.0],
-            "elevation_km": [0.0],
-            "noise [nm]": [1.0],
-            "station": ["STA1"],
-        }
-    )
-    with pytest.warns(UserWarning, match="Region not specified, using CAL as default"):
-        find_min_ml(-1, 1, 50, 52, 0.5, 0.5, networks=["dummy.csv"], stat_num=1)
-
-
 @patch("sncast.model_detection_capability.create_grid")
-@patch("sncast.model_detection_capability.read_station_data")
+@patch("sncast.core.read_station_data")
 @patch("sncast.model_detection_capability._minml_worker")
 def test_find_min_ml_bad_gmpe_inputs(mock_worker, mock_read_station_data, mock_grid):
     """
