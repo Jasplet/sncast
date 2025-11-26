@@ -341,19 +341,23 @@ def _minml_worker(grid_point, **kwargs):
     if "das_fibres" in kwargs:
         for das_fibre in kwargs["das_fibres"]:
 
-            mag_min_das = calc_min_ml_at_gridpoint_das(
-                das_fibre.das_channels,
-                lon,
-                lat,
-                foc_depth=kwargs["foc_depth"],
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"]),
+            mag_min_das = (
+                calc_min_ml_at_gridpoint_das(
+                    das_fibre.das_channels,
+                    lon,
+                    lat,
+                    foc_depth=kwargs["foc_depth"],
+                    snr=kwargs["snr"],
+                    mag_min=kwargs["mag_min"],
+                    mag_delta=kwargs["mag_delta"],
+                    method=kwargs["method"],
+                    region=kwargs["region"],
+                    gmpe=kwargs["gmpe"],
+                    gmpe_model_type=kwargs["gmpe_model_type"],
+                    model_stacking=kwargs["model_stacking_das"],
+                ),
             )
+
             min_mag = min(min_mag, mag_min_das)
     return (ilat, ilon, min_mag)
 
@@ -1093,10 +1097,10 @@ def calc_min_ml_at_gridpoint_das(
         Minimum local magnitude that can be detected by a continuous section of fibre
         of the input detection length.
     """
-    method = kwargs.get("method", "ML")
-    region = kwargs.get("region", "CAL")
-    mag_min = kwargs.get("mag_min", -2)
-    mag_delta = kwargs.get("mag_delta", 0.1)
+    method = kwargs["method"]
+    region = kwargs["region"]
+    mag_min = kwargs["mag_min"]
+    mag_delta = kwargs["mag_delta"]
     # Set model_stacking to True by default
     model_stacking = kwargs.get("model_stacking", True)
 
