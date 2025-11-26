@@ -17,7 +17,7 @@ import pytest
 from unittest.mock import patch
 
 # import functions to test
-from sncast.model_detection_capability import read_das_noise_data
+from sncast.core import read_das_noise_data
 from sncast.model_detection_capability import get_das_noise_levels
 from sncast.model_detection_capability import calc_min_ml_at_gridpoint_das
 
