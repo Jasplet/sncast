@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 import xarray
 
+from sncast.core import SeismicNetwork, SeismicArrayNetwork
 from sncast.model_detection_capability import find_min_ml
 from sncast.model_detection_capability import create_grid
 from sncast.model_detection_capability import _est_min_ml_at_station
@@ -181,7 +182,9 @@ def test_est_min_ml_at_station_raises_unsupported():
 
 def test_est_min_ml_at_station_deprecation_warning():
     with pytest.warns(DeprecationWarning, match="_est_min_ml_at_station is deprecated"):
-        _est_min_ml_at_station(1.0, -2.0, 0.1, 10.0, 2.0, method="GMPE", region="UK")
+        _est_min_ml_at_station(
+            1.0, -2.0, 0.1, 10.0, 2.0, method="GMPE", gmpe="AK14", region="UK"
+        )
 
 
 def test_est_min_ml_at_station_ml_method_raises():
@@ -244,19 +247,24 @@ def test_find_min_ml_basic():
             "station": ["STA1", "STA2"],
         }
     )
-    result = find_min_ml(
-        networks=df,
-        lon0=0,
-        lon1=1,
-        lat0=50,
-        lat1=51,
-        dlon=1,
-        dlat=1,
-        stat_num=1,
-        snr=1,
-        method="ML",
-        region="UK",
-    )
+    network = SeismicNetwork(stations=df, required_detections=1)
+    model_kwargs = {
+        "lon0": 0,
+        "lon1": 1,
+        "lat0": 50,
+        "lat1": 51,
+        "dlon": 0.5,
+        "dlat": 0.5,
+        "foc_depth": 1,
+        "snr": 3,
+        "mag_min": 0,
+        "mag_delta": 0.1,
+        "method": "ML",
+        "region": "CAL",
+        "nproc": 1,
+    }
+    result = find_min_ml(**model_kwargs)
+
     assert hasattr(result, "shape")
     assert result.shape == (2, 2)
 
