@@ -65,9 +65,71 @@ def test_ModelConfig_negative_snr():
         ModelConfig(snr=-1.0)
 
 
+def test_ModelConfig_negative_foc_depth():
+    with pytest.raises(ValueError, match="Focal depth must be a positive value"):
+        ModelConfig(foc_depth_km=-10.0)
+
+
 def test_ModelConfig_invalid_gmpe():
     with pytest.raises(ValueError, match="Invalid GMPE"):
         ModelConfig(method="GMPE", gmpe="INVALID")
+
+
+@pytest.mark.parametrize(
+    "lon0, lat0, lon1, lat1, dlon, dlat",
+    [
+        (0, 50, 1, 51, 0.1, 0.1),
+        (-10, 30, -9, 31, 0.5, 0.5),
+        (100, -20, 101, -19, 1.0, 1.0),
+    ],
+)
+def test_ModelConfig_create_grid_working_case(lon0, lat0, lon1, lat1, dlon, dlat):
+    config = ModelConfig()
+    config.add_grid_params(lon0, lon1, lat0, lat1, dlon, dlat)
+    assert config.lon0 == lon0
+    assert config.lon1 == lon1
+    assert config.lat0 == lat0
+    assert config.lat1 == lat1
+    assert config.dlon == dlon
+    assert config.dlat == dlat
+
+
+def test_ModelConfig_create_grid_reversed_coords():
+    with pytest.raises(ValueError, match="lon1 must be greater than lon0"):
+        config = ModelConfig()
+        config.add_grid_params(1, 0, 50, 51)
+    with pytest.raises(ValueError, match="lat1 must be greater than lat0"):
+        config = ModelConfig()
+        config.add_grid_params(0, 1, 51, 50)
+
+
+def test_ModelConfig_create_grid_negative_dlon_dlat():
+    with pytest.raises(ValueError, match="dlon must be a positive value"):
+        config = ModelConfig()
+        config.add_grid_params(0, 1, 50, 51, dlon=-0.1)
+    with pytest.raises(ValueError, match="dlat must be a positive value"):
+        config = ModelConfig()
+        config.add_grid_params(0, 1, 50, 51, dlat=0.0)
+
+
+def test_ModelConfig_create_grid_indivisidle():
+    lon0 = 0
+    lon1 = 1
+    lat0 = 50
+    lat1 = 51
+    dlon = 0.3
+    dlat = 0.7
+    with pytest.raises(
+        ValueError, match=f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}"
+    ):
+        config = ModelConfig()
+        config.add_grid_params(lon0, lon1, lat0, lat1, dlon=dlon)
+
+    with pytest.raises(
+        ValueError, match=f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}"
+    ):
+        config = ModelConfig()
+        config.add_grid_params(lon0, lon1, lat0, lat1, dlat=dlat)
 
 
 def test_read_station_data():
