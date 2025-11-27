@@ -95,6 +95,7 @@ def test_ModelConfig_create_grid_working_case(lon0, lat0, lon1, lat1, dlon, dlat
 
 
 def test_ModelConfig_create_grid_reversed_coords():
+
     with pytest.raises(ValueError, match="lon1 must be greater than lon0"):
         config = ModelConfig()
         config.add_grid_params(1, 0, 50, 51)
@@ -104,15 +105,21 @@ def test_ModelConfig_create_grid_reversed_coords():
 
 
 def test_ModelConfig_create_grid_negative_dlon_dlat():
-    with pytest.raises(ValueError, match="dlon must be a positive value"):
+    dlon_neg = -0.1
+    dlat_neg = -1
+    with pytest.raises(
+        ValueError, match=f"dlon and dlat ({dlon_neg, 0.1}) must be positive values"
+    ):
         config = ModelConfig()
-        config.add_grid_params(0, 1, 50, 51, dlon=-0.1)
-    with pytest.raises(ValueError, match="dlat must be a positive value"):
+        config.add_grid_params(0, 1, 50, 51, dlon=dlon_neg, dlat=0.1)
+    with pytest.raises(
+        ValueError, match=f"dlon and dlat ({0.1, dlat_neg}) must be positive values"
+    ):
         config = ModelConfig()
-        config.add_grid_params(0, 1, 50, 51, dlat=0.0)
+        config.add_grid_params(0, 1, 50, 51, dlat=dlat_neg, dlon=0.1)
 
 
-def test_ModelConfig_create_grid_indivisidle():
+def test_ModelConfig_create_grid_indivisible():
     lon0 = 0
     lon1 = 1
     lat0 = 50
