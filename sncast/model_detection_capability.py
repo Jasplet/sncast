@@ -286,7 +286,12 @@ def find_min_ml(**model_kwargs):
         The values in the DataArray are the minimum detectable local magnitude ML
         at that grid point.
     """
-
+    if (
+        ("networks" not in model_kwargs)
+        and ("arrays" not in model_kwargs)
+        and ("das_fibres" not in model_kwargs)
+    ):
+        raise ValueError("No seismic networks, arrays or DAS provided!")
     # Initialize grid
     lons, lats, nx, ny = create_grid(
         model_kwargs["lon0"],
