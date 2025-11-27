@@ -27,7 +27,7 @@ def test_ModelConfig_defaults():
     assert Config_GMPE_default.gmpe_model_type == "PGV"
 
 
-def test_custom_initialization(self):
+def test_custom_initialization():
     """Test initialization with custom parameters"""
     config = ModelConfig(
         snr=5.0,
