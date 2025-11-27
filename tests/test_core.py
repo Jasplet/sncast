@@ -27,6 +27,28 @@ def test_ModelConfig_defaults():
     assert Config_GMPE_default.gmpe_model_type == "PGV"
 
 
+def test_custom_initialization(self):
+    """Test initialization with custom parameters"""
+    config = ModelConfig(
+        snr=5.0,
+        foc_depth_km=10.0,
+        region="UK",
+        nproc=4,
+        method="ML",
+        mag_min=-3.0,
+        mag_delta=0.05,
+        model_stacking_das=False,
+    )
+
+    assert config.snr == 5.0
+    assert config.foc_depth_km == 10.0
+    assert config.region == "UK"
+    assert config.nproc == 4
+    assert config.mag_min == -3.0
+    assert config.mag_delta == 0.05
+    assert config.model_stacking_das is False
+
+
 @pytest.mark.parametrize("bad_region", ["USA", "", 10, "MARS"])
 def test_ModelConfig_bad_regions(bad_region):
     with pytest.raises(ValueError):
@@ -36,6 +58,16 @@ def test_ModelConfig_bad_regions(bad_region):
 def test_ModelConfig_bad_method():
     with pytest.raises(ValueError):
         ModelConfig(method="some junk")
+
+
+def test_ModelConfig_negative_snr():
+    with pytest.raises(ValueError, match="SNR must be a positive value"):
+        ModelConfig(snr=-1.0)
+
+
+def test_ModelConfig_invalid_gmpe():
+    with pytest.raises(ValueError, match="Invalid GMPE"):
+        ModelConfig(method="GMPE", gmpe="INVALID")
 
 
 def test_read_station_data():
