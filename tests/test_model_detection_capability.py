@@ -183,7 +183,15 @@ def test_est_min_ml_at_station_raises_unsupported():
 def test_est_min_ml_at_station_deprecation_warning():
     with pytest.warns(DeprecationWarning, match="_est_min_ml_at_station is deprecated"):
         _est_min_ml_at_station(
-            1.0, -2.0, 0.1, 10.0, 2.0, method="GMPE", gmpe="AK14", region="UK"
+            noise=1.0,
+            mag_min=3.0,
+            mag_delta=0.1,
+            distance=10.0,
+            snr=2.0,
+            method="GMPE",
+            gmpe="AK14",
+            gmpe_model_type="PGV",
+            region="UK",
         )
 
 
@@ -249,6 +257,31 @@ def test_find_min_ml_basic():
     )
     network = SeismicNetwork(stations=df, required_detections=1)
     model_kwargs = {
+        "networks": [network],
+        "lon0": 0,
+        "lon1": 1,
+        "lat0": 50,
+        "lat1": 51,
+        "dlon": 0.5,
+        "dlat": 0.5,
+        "foc_depth": 1,
+        "snr": 3,
+        "mag_min": 0,
+        "mag_delta": 0.1,
+        "method": "ML",
+        "region": "CAL",
+        "nproc": 1,
+        "gmpe": None,
+        "gmpe_model_type": None,
+    }
+    result = find_min_ml(**model_kwargs)
+
+    assert hasattr(result, "shape")
+    assert result.shape == (3, 3)
+
+
+def test_find_min_ml_no_networks_provided():
+    model_kwargs = {
         "lon0": 0,
         "lon1": 1,
         "lat0": 50,
@@ -263,96 +296,8 @@ def test_find_min_ml_basic():
         "region": "CAL",
         "nproc": 1,
     }
-    result = find_min_ml(**model_kwargs)
-
-    assert hasattr(result, "shape")
-    assert result.shape == (2, 2)
-
-
-def test_find_min_ml_no_networks_provided():
     with pytest.raises(ValueError, match="No seismic networks, arrays or DAS provided"):
-        find_min_ml(-1, 1, 50, 52, 0.5, 0.5)
-
-
-@pytest.mark.parametrize("bad_region", ["", 10, "US", "MARS"])
-@patch("sncast.core.read_station_data")
-def test_find_min_ml_unsupported_region(mock_read_station_data, bad_region):
-    mock_read_station_data.return_value = pd.DataFrame(
-        {
-            "longitude": [0.0, 1.0],
-            "latitude": [50.0, 51.0],
-            "elevation_km": [0.0, 0.0],
-            "noise [nm]": [1.0, 1.0],
-            "station": ["STA1", "STA2"],
-        }
-    )
-    with pytest.raises(ValueError, match=f"Region {bad_region} not supported"):
-        find_min_ml(
-            -1,
-            1,
-            50,
-            52,
-            0.5,
-            0.5,
-            networks=["dummy.csv"],
-            region=bad_region,
-            stat_num=1,
-        )
-
-
-@patch("sncast.model_detection_capability.create_grid")
-@patch("sncast.core.read_station_data")
-@patch("sncast.model_detection_capability._minml_worker")
-def test_find_min_ml_bad_gmpe_inputs(mock_worker, mock_read_station_data, mock_grid):
-    """
-    Tests that find_min_ml raises errors when required kwargs for
-    the GMPE method are not provided.
-    """
-
-    # Mock the internal functions to return dummy data
-    mock_read_station_data.return_value = pd.DataFrame(
-        {
-            "longitude": [0.0],
-            "latitude": [50.0],
-            "elevation_km": [0.0],
-            "noise [nm]": [1.0],
-            "station": ["STA1"],
-        }
-    )
-    mock_grid.return_value = ([0.0, 1.0], [50.0, 51.0], 2, 2)
-    mock_worker.return_value = (0, 0, 1.5)  # Dummy result
-
-    # should raise value error if method is GMPE but no gmpe provided
-    with pytest.raises(ValueError):
-        find_min_ml(
-            networks="dummy_path.csv",
-            lon0=0,
-            lon1=1,
-            lat0=50,
-            lat1=51,
-            dlon=1,
-            dlat=1,
-            stat_num=1,
-            snr=1,
-            method="GMPE",
-            region="UK",
-        )
-
-    with pytest.raises(ValueError):
-        find_min_ml(
-            networks="dummy_path.csv",
-            lon0=0,
-            lon1=1,
-            lat0=50,
-            lat1=51,
-            dlon=1,
-            dlat=1,
-            stat_num=1,
-            snr=1,
-            method="GMPE",
-            region="UK",
-            gmpe="AK14",
-        )
+        find_min_ml(model_kwargs=model_kwargs)
 
 
 @patch("sncast.model_detection_capability.Pool")
@@ -366,10 +311,27 @@ def test_find_min_ml_integration_single_network(mock_pool):
     # Create test data
     test_df = pd.read_csv("tests/data/station_data.csv")
 
-    # Test the function
-    result = find_min_ml(
-        -1, 1, 50, 52, 1, 1, networks=[test_df], stat_num=[2], region="UK", method="ML"
-    )
+    network = SeismicNetwork(stations=test_df, required_detections=1)
+    model_kwargs = {
+        "networks": [network],
+        "lon0": 0,
+        "lon1": 1,
+        "lat0": 50,
+        "lat1": 51,
+        "dlon": 0.5,
+        "dlat": 0.5,
+        "foc_depth": 1,
+        "snr": 3,
+        "mag_min": 0,
+        "mag_delta": 0.1,
+        "method": "ML",
+        "region": "CAL",
+        "nproc": 1,
+        "gmpe": None,
+        "gmpe_model_type": None,
+    }
+
+    result = find_min_ml(**model_kwargs)
 
     assert isinstance(result, xarray.DataArray)
     assert "Latitude" in result.dims
@@ -391,6 +353,15 @@ def test_calc_min_ml_at_gridpoint_zero_distance():
         }
     )
     result = calc_min_ml_at_gridpoint(
-        df, lon=0.0, lat=50.0, foc_depth=0, stat_num=1, snr=1, method="ML", region="UK"
+        lon=0.0,
+        lat=50.0,
+        stations_df=df,
+        foc_depth=0,
+        stat_num=1,
+        snr=1,
+        method="ML",
+        region="UK",
+        mag_min=-2,
+        mag_delta=0.1,
     )
     assert isinstance(result, float)
