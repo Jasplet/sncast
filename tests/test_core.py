@@ -5,6 +5,37 @@ import pytest
 
 from sncast.core import _read_station_data
 from sncast.core import _read_das_noise_data
+from sncast.core import ModelConfig
+
+
+def test_ModelConfig_defaults():
+
+    Config = ModelConfig()
+    assert Config.snr == 3.0
+    assert Config.foc_depth_km == 2.0
+    assert Config.region == "CAL"
+    assert Config.nproc == 1
+    assert Config.method == "ML"
+    assert Config.mag_min == -2.0
+    assert Config.mag_delta == 0.1
+    assert Config.model_stacking_das is True
+    assert Config.gmpe is None
+    assert Config.gmpe_model_type is None
+
+    Config_GMPE_default = ModelConfig(method="GMPE")
+    assert Config_GMPE_default.gmpe == "AK14"
+    assert Config_GMPE_default.gmpe_model_type == "PGV"
+
+
+@pytest.mark.parametrize("bad_region", ["USA", "", 10, "MARS"])
+def test_ModelConfig_bad_regions(bad_region):
+    with pytest.raises(ValueError):
+        ModelConfig(region=bad_region)
+
+
+def test_ModelConfig_bad_method():
+    with pytest.raises(ValueError):
+        ModelConfig(method="some junk")
 
 
 def test_read_station_data():
