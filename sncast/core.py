@@ -212,7 +212,15 @@ class ModelConfig:
         if self.foc_depth_km < 0:
             raise ValueError("Focal depth must be a positive value.")
 
-    def add_grid_params(self, lon0, lon1, lat0, lat1, dlon=0.1, dlat=0.1):
+    def add_grid_params(
+        self,
+        lon0: float,
+        lon1: float,
+        lat0: float,
+        lat1: float,
+        dlon: float = 0.1,
+        dlat: float = 0.1,
+    ):
         """
         Add grid parameters to the model configuration.
 
