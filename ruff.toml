@@ -27,6 +27,8 @@ exclude = [
     "site-packages",
     "venv",
 ]
+# add jupyter notebooks
+extend-include = ["*.ipynb"]
 
 # Same as Black.
 line-length = 88
