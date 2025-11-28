@@ -43,7 +43,19 @@ def test_SeismicNetwork_custom_initialization():
 
 def test_SeismicNetwork_empty_initialization():
     with pytest.raises(ValueError, match="No stations in the seismic network."):
-        SeismicNetwork(pd.DataFrame([]))
+        SeismicNetwork(
+            pd.DataFrame(
+                [
+                    {
+                        "station": [],
+                        "longitude": [],
+                        "latitude": [],
+                        "elevation_km": [],
+                        "noise [nm]": [],
+                    }
+                ]
+            )
+        )
 
 
 def test_SeismicNetwork_too_few_stations():
