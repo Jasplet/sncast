@@ -16,8 +16,10 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.3.5",
+    "obspy>=1.4.2",
     "pandas>=2.3.3",
     "pygc>=2.0.0",
+    "xarray>=2025.11.0",
 ]
 
 [dependency-groups]
