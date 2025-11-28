@@ -65,7 +65,6 @@ class SeismicNetwork:
         self.stations = self.stations.append(new_stations, ignore_index=True)
         self.stations.reset_index(drop=True, inplace=True)
         self._validate()
-        self.num_stations = len(self.stations.station.unique())
 
     def __repr__(self):
         return (
@@ -97,7 +96,7 @@ class SeismicNetwork:
         int
             Number of stations in the seismic network.
         """
-        return len(self.stations)
+        return len(self.stations.station.unique())
 
 
 class SeismicArrayNetwork(SeismicNetwork):
