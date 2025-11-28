@@ -14,6 +14,7 @@ Email : joseph.asplet@earth.ox.ac.uk
 """
 
 from decimal import Decimal
+
 import pandas as pd
 
 SUPPORTED_METHODS = ["ML", "GMPE"]
@@ -73,7 +74,7 @@ class SeismicNetwork:
         """
         if len(self.stations) == 0:
             raise ValueError("No stations in the seismic network.")
-        if len(self.stations) < self.required_detections:
+        if len(self.stations) <= self.required_detections:
             raise ValueError(
                 f"Not enough stations in the seismic network. Required: {self.required_detections}, found: {len(self.stations)}"
             )
