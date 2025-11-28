@@ -100,18 +100,14 @@ def test_ModelConfig_create_grid_reversed_coords():
     lon1 = 0
     lat0 = 51
     lat1 = 50
-    with pytest.raises(
-        ValueError, match=f"lon1 {lon1} must be greater than lon0 {lon0}"
-    ):
+    with pytest.raises(ValueError, match=f"lon0 {lon0} must be less than lon1 {lon1}"):
         config = ModelConfig()
         config.add_grid_params(lon0, lon1, lat0, lat1)
     lon0 = 0
     lon1 = 1
     lat0 = 51
     lat1 = 50
-    with pytest.raises(
-        ValueError, match=f"lat1 {lat1} must be greater than lat0 {lat0}"
-    ):
+    with pytest.raises(ValueError, match=f"lat0 {lat0} must be less than lat1 {lat1}"):
         config = ModelConfig()
         config.add_grid_params(lon0, lon1, lat0, lat1)
 
