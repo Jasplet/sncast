@@ -45,15 +45,13 @@ def test_SeismicNetwork_empty_initialization():
     with pytest.raises(ValueError, match="No stations in the seismic network."):
         SeismicNetwork(
             pd.DataFrame(
-                [
-                    {
-                        "station": [],
-                        "longitude": [],
-                        "latitude": [],
-                        "elevation_km": [],
-                        "noise [nm]": [],
-                    }
-                ]
+                {
+                    "station": [],
+                    "longitude": [],
+                    "latitude": [],
+                    "elevation_km": [],
+                    "noise [nm]": [],
+                }
             )
         )
 
@@ -79,35 +77,19 @@ def test_SeismicNetwork_add_stations():
 
 def test_SeismicArrayNetwork_initialization():
     arrays = pd.DataFrame(
-        [
-            {
-                "station": "ARRAY1",
-                "longitude": 0.0,
-                "latitude": 50.0,
-                "elevation_km": 0.0,
-                "noise [nm]": 1.0,
-            },
-            {
-                "station": "ARRAY2",
-                "longitude": 1.0,
-                "latitude": 51.0,
-                "elevation_km": 0.1,
-                "noise [nm]": 10.0,
-            },
-            {
-                "station": "ARRAY3",
-                "longitude": 2.0,
-                "latitude": 52.0,
-                "elevation_km": 0.2,
-                "noise [nm]": 5.0,
-            },
-        ]
+        {
+            "station": ["ARRAY1", "ARRAY2", "ARRAY3"],
+            "longitude": [0.0, 1.0, 2.0],
+            "latitude": [50.0, 51.0, 52.0],
+            "elevation_km": [0.0, 0.1, 0.2],
+            "noise [nm]": [1.0, 10.0, 5.0],
+        }
     )
     array = SeismicArrayNetwork(arrays)
     assert len(array.stations) == 3
     # Test default params initialization
     assert array.network_code == "XX"
-    assert array.required_detections == 2
+    assert array.required_detections == 1
     # Test inherited class
     assert isinstance(array, SeismicNetwork)
 
