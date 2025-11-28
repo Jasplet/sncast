@@ -18,17 +18,18 @@ TEST_STATION_DATA = pd.read_csv("tests/data/station_data.csv")
 
 def test_SeismicNetwork_initialization():
     net = SeismicNetwork(TEST_STATION_DATA)
-    assert len(net.stations) == 2
-    # Test default params initialization
+    assert len(net.stations) == len(
+        TEST_STATION_DATA
+    )  # Test default params initialization
     assert net.network_code == "XX"
     assert net.required_detections == 5
 
 
 def test_SeismicNetwork_csv_initialization():
     net = SeismicNetwork("tests/data/station_data.csv")
-    assert len(net.stations) == 2
-    assert net.stations[0]["station"] == "STA1"
-    assert net.stations[1]["station"] == "STA2"
+    assert len(net.stations) == len(TEST_STATION_DATA)
+    assert net.stations.iloc[0]["station"] == TEST_STATION_DATA.iloc[0]["station"]
+    assert net.stations.iloc[1]["station"] == TEST_STATION_DATA.iloc[1]["station"]
     # Test default params initialization
     assert net.network_code == "XX"
     assert net.required_detections == 5
