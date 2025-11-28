@@ -50,6 +50,7 @@ class SeismicNetwork:
         self.required_detections = required_detections
         self.stations = _read_station_data(stations)
         self._validate()
+        self.num_stations = len(self.stations.station.unique())
 
     def add_stations(self, stations: str | pd.DataFrame):
         """
@@ -61,7 +62,10 @@ class SeismicNetwork:
             The station to add to the network.
         """
         new_stations = _read_station_data(stations)
-        self.stations.append(new_stations)
+        self.stations = self.stations.append(new_stations, ignore_index=True)
+        self.stations.reset_index(drop=True, inplace=True)
+        self._validate()
+        self.num_stations = len(self.stations.station.unique())
 
     def __repr__(self):
         return (
@@ -78,6 +82,10 @@ class SeismicNetwork:
             raise ValueError(
                 f"Not enough stations in the seismic network. Required: {self.required_detections}, found: {len(self.stations)}"
             )
+        # Drop duplicate stations based on station name
+        self.stations.drop_duplicates(
+            subset=["station", "latitude", "longitude"], inplace=True
+        )
 
     @property
     def num_stations(self) -> int:
