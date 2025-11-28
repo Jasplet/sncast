@@ -7,6 +7,7 @@ import pytest
 
 from sncast.core import (
     ModelConfig,
+    SeismicArrayNetwork,
     SeismicNetwork,
     _read_das_noise_data,
     _read_station_data,
@@ -14,13 +15,40 @@ from sncast.core import (
 
 
 def test_SeismicNetwork_initialization():
-    stations = [
-        {"station": "STA1", "longitude": 0.0, "latitude": 50.0, "elevation_km": 0.0},
-        {"station": "STA2", "longitude": 1.0, "latitude": 51.0, "elevation_km": 0.1},
-        {"station": "STA3", "longitude": 2.0, "latitude": 52.0, "elevation_km": 0.2},
-        {"station": "STA4", "longitude": 3.0, "latitude": 53.0, "elevation_km": 0.3},
-        {"station": "STA5", "longitude": 4.0, "latitude": 54.0, "elevation_km": 0.4},
-    ]
+    stations = pd.DataFrame(
+        [
+            {
+                "station": "STA1",
+                "longitude": 0.0,
+                "latitude": 50.0,
+                "elevation_km": 0.0,
+            },
+            {
+                "station": "STA2",
+                "longitude": 1.0,
+                "latitude": 51.0,
+                "elevation_km": 0.1,
+            },
+            {
+                "station": "STA3",
+                "longitude": 2.0,
+                "latitude": 52.0,
+                "elevation_km": 0.2,
+            },
+            {
+                "station": "STA4",
+                "longitude": 3.0,
+                "latitude": 53.0,
+                "elevation_km": 0.3,
+            },
+            {
+                "station": "STA5",
+                "longitude": 4.0,
+                "latitude": 54.0,
+                "elevation_km": 0.4,
+            },
+        ]
+    )
     net = SeismicNetwork(stations)
     assert len(net.stations) == 2
     # Test default params initialization
@@ -39,10 +67,22 @@ def test_SeismicNetwork_csv_initialization():
 
 
 def test_SeismicNetwork_custom_initialization():
-    stations = [
-        {"station": "STA1", "longitude": 0.0, "latitude": 50.0, "elevation_km": 0.0},
-        {"station": "STA2", "longitude": 1.0, "latitude": 51.0, "elevation_km": 0.1},
-    ]
+    stations = pd.DataFrame(
+        [
+            {
+                "station": "STA1",
+                "longitude": 0.0,
+                "latitude": 50.0,
+                "elevation_km": 0.0,
+            },
+            {
+                "station": "STA2",
+                "longitude": 1.0,
+                "latitude": 51.0,
+                "elevation_km": 0.1,
+            },
+        ]
+    )
     net = SeismicNetwork(stations, network_code="AB", required_detections=1)
     assert net.network_code == "AB"
     assert net.required_detections == 1
@@ -54,9 +94,16 @@ def test_SeismicNetwork_empty_initialization():
 
 
 def test_SeismicNetwork_too_few_stations():
-    stations = [
-        {"station": "STA1", "longitude": 0.0, "latitude": 50.0, "elevation_km": 0.0},
-    ]
+    stations = pd.DataFrame(
+        [
+            {
+                "station": "STA1",
+                "longitude": 0.0,
+                "latitude": 50.0,
+                "elevation_km": 0.0,
+            },
+        ]
+    )
     with pytest.raises(
         ValueError,
         match=f"Not enough stations in the seismic network. Required: 5, found: {len(stations)}",
@@ -65,16 +112,54 @@ def test_SeismicNetwork_too_few_stations():
 
 
 def test_SeismicNetwork_add_stations():
-    stations_initial = [
-        {"station": "STA1", "longitude": 0.0, "latitude": 50.0, "elevation_km": 0.0},
-    ]
+    stations_initial = pd.DataFrame(
+        [
+            {
+                "station": "STA1",
+                "longitude": 0.0,
+                "latitude": 50.0,
+                "elevation_km": 0.0,
+            },
+        ]
+    )
     net = SeismicNetwork(stations_initial, required_detections=1)
-    stations_to_add = [
-        {"station": "STA2", "longitude": 1.0, "latitude": 51.0, "elevation_km": 0.1},
-        {"station": "STA3", "longitude": 2.0, "latitude": 52.0, "elevation_km": 0.2},
-    ]
+    stations_to_add = pd.DataFrame(
+        [
+            {
+                "station": "STA2",
+                "longitude": 1.0,
+                "latitude": 51.0,
+                "elevation_km": 0.1,
+            },
+            {
+                "station": "STA3",
+                "longitude": 2.0,
+                "latitude": 52.0,
+                "elevation_km": 0.2,
+            },
+        ]
+    )
     net.add_stations(stations_to_add)
+    comb_df = pd.concat(
+        [stations_initial, stations_to_add], ignore_index=True
+    ).reset_index(drop=True)
+    pd.testing.assert_frame_equal(net.stations, comb_df)
     assert net.num_stations == 3
+
+
+def test_SeismicArrayNetwork_initialization():
+    arrays = [
+        {"station": "ARRAY1", "longitude": 0.0, "latitude": 50.0, "elevation_km": 0.0},
+        {"station": "ARRAY2", "longitude": 1.0, "latitude": 51.0, "elevation_km": 0.1},
+        {"station": "ARRAY3", "longitude": 2.0, "latitude": 52.0, "elevation_km": 0.2},
+    ]
+    array = SeismicArrayNetwork(arrays)
+    assert len(array.stations) == 3
+    # Test default params initialization
+    assert array.network_code == "XX"
+    assert array.required_detections == 2
+    # Test inherited class
+    assert isinstance(array, SeismicNetwork)
 
 
 def test_ModelConfig_defaults():
@@ -95,7 +180,7 @@ def test_ModelConfig_defaults():
     assert Config_GMPE_default.gmpe_model_type == "PGV"
 
 
-def test_custom_initialization():
+def test_ModelConfig_custom_initialization():
     """Test initialization with custom parameters"""
     config = ModelConfig(
         snr=5.0,
