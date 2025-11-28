@@ -1,8 +1,21 @@
 [project]
 name = "sncast"
 version = "0.1.0"
-description = "Add your description here"
+description = "Software for modelling earthquake detection capability for a seismic network"
 readme = "README.md"
+license = "GNU General Public License v3.0 (GPLv3)"
+authors = [
+    { name = "Martin Molhoff" },
+    { name = "Joseph Asplet", email = "joseph.asplet@earth.ox.ac.uk" },
+]
+classifiers = [
+    "License :: OSI Approved :: GNU GPL v3",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+[project.urls]
+Homepage = "https://github.com/Jasplet/sncast"
+
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.3.5",
