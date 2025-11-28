@@ -4,5 +4,7 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "python.formatting.blackArgs": ["--line-length", "78"]
-}
+    "git.confirmSync": false,
+    "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    }
