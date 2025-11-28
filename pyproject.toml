@@ -13,9 +13,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
 ]
-[project.urls]
-Homepage = "https://github.com/Jasplet/sncast"
-
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.3.5",
@@ -27,3 +24,7 @@ dependencies = [
 dev = [
     "pytest>=9.0.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Jasplet/sncast"
+
