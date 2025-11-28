@@ -50,7 +50,6 @@ class SeismicNetwork:
         self.required_detections = required_detections
         self.stations = _read_station_data(stations)
         self._validate()
-        self.num_stations = len(self.stations.station.unique())
 
     def add_stations(self, stations: str | pd.DataFrame):
         """
