@@ -61,7 +61,7 @@ class SeismicNetwork:
             The station to add to the network.
         """
         new_stations = _read_station_data(stations)
-        self.stations = self.stations.append(new_stations, ignore_index=True)
+        self.stations = pd.concat([self.stations, new_stations], ignore_index=True)
         self.stations.reset_index(drop=True, inplace=True)
         self._validate()
 
@@ -74,11 +74,11 @@ class SeismicNetwork:
         """
         Validate the seismic network data.
         """
-        if len(self.stations) == 0:
+        if self.num_stations == 0:
             raise ValueError("No stations in the seismic network.")
-        if len(self.stations) <= self.required_detections:
+        if self.num_stations <= self.required_detections:
             raise ValueError(
-                f"Not enough stations in the seismic network. Required: {self.required_detections}, found: {len(self.stations)}"
+                f"Not enough stations in the seismic network. Required: {self.required_detections}, found: {self.num_stations}"
             )
         # Drop duplicate stations based on station name
         self.stations.drop_duplicates(
