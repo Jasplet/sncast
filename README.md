@@ -25,12 +25,7 @@ SN-CAST (Seismic Network Capability Assessment Software Tool) is a Python packag
 
 ### Requirements
 
-- Python 3.8+
-- numpy
-- pandas
-- obspy
-- pygc
-- xarray
+See pyproject.toml
 
 ### Install from source
 
