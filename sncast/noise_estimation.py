@@ -48,9 +48,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from obspy.signal import PPSD
 
 
@@ -206,9 +207,9 @@ def get_freq_range_from_centre(f0, n=0.5):
 
     """
     if (n <= 0) or not isinstance(n, (int, float)):
-        raise ValueError("n must be a positive number")
+        raise ValueError("n must be a positive int or float")
     if (f0 <= 0) or not isinstance(f0, (int, float)):
-        raise ValueError("f0 must be a positive number")
+        raise ValueError("f0 must be a positive int or float")
     f1 = f0 * 2 ** (-n / 2)  # lower bound of frequency span
     f2 = f0 * 2 ** (n / 2)  # upper bound of frequency span
     return f1, f2
