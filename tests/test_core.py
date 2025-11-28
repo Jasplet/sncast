@@ -5,7 +5,76 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from sncast.core import ModelConfig, _read_das_noise_data, _read_station_data
+from sncast.core import (
+    ModelConfig,
+    SeismicNetwork,
+    _read_das_noise_data,
+    _read_station_data,
+)
+
+
+def test_SeismicNetwork_initialization():
+    stations = [
+        {"station": "STA1", "longitude": 0.0, "latitude": 50.0, "elevation_km": 0.0},
+        {"station": "STA2", "longitude": 1.0, "latitude": 51.0, "elevation_km": 0.1},
+        {"station": "STA3", "longitude": 2.0, "latitude": 52.0, "elevation_km": 0.2},
+        {"station": "STA4", "longitude": 3.0, "latitude": 53.0, "elevation_km": 0.3},
+        {"station": "STA5", "longitude": 4.0, "latitude": 54.0, "elevation_km": 0.4},
+    ]
+    net = SeismicNetwork(stations)
+    assert len(net.stations) == 2
+    # Test default params initialization
+    assert net.network_code == "XX"
+    assert net.required_detections == 5
+
+
+def test_SeismicNetwork_csv_initialization():
+    net = SeismicNetwork("tests/data/station_data.csv")
+    assert len(net.stations) == 2
+    assert net.stations[0]["station"] == "STA1"
+    assert net.stations[1]["station"] == "STA2"
+    # Test default params initialization
+    assert net.network_code == "XX"
+    assert net.required_detections == 5
+
+
+def test_SeismicNetwork_custom_initialization():
+    stations = [
+        {"station": "STA1", "longitude": 0.0, "latitude": 50.0, "elevation_km": 0.0},
+        {"station": "STA2", "longitude": 1.0, "latitude": 51.0, "elevation_km": 0.1},
+    ]
+    net = SeismicNetwork(stations, network_code="AB", required_detections=1)
+    assert net.network_code == "AB"
+    assert net.required_detections == 1
+
+
+def test_SeismicNetwork_empty_initialization():
+    with pytest.raises(ValueError, match="No stations in the seismic network."):
+        SeismicNetwork(pd.DataFrame([]))
+
+
+def test_SeismicNetwork_too_few_stations():
+    stations = [
+        {"station": "STA1", "longitude": 0.0, "latitude": 50.0, "elevation_km": 0.0},
+    ]
+    with pytest.raises(
+        ValueError,
+        match=f"Not enough stations in the seismic network. Required: 5, found: {len(stations)}",
+    ):
+        SeismicNetwork(stations, required_detections=5)
+
+
+def test_SeismicNetwork_add_stations():
+    stations_initial = [
+        {"station": "STA1", "longitude": 0.0, "latitude": 50.0, "elevation_km": 0.0},
+    ]
+    net = SeismicNetwork(stations_initial, required_detections=1)
+    stations_to_add = [
+        {"station": "STA2", "longitude": 1.0, "latitude": 51.0, "elevation_km": 0.1},
+        {"station": "STA3", "longitude": 2.0, "latitude": 52.0, "elevation_km": 0.2},
+    ]
+    net.add_stations(stations_to_add)
+    assert net.num_stations == 3
 
 
 def test_ModelConfig_defaults():
