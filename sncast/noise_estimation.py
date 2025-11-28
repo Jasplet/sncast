@@ -206,9 +206,15 @@ def get_freq_range_from_centre(f0, n=0.5):
         Upper bound of the frequency range in Hz
 
     """
-    if (n <= 0) or not isinstance(n, (int, float)):
+    if isinstance(n, (int, float)):
+        if n <= 0:
+            raise ValueError("n must be greater than 0")
+    else:
         raise ValueError("n must be a positive int or float")
-    if (f0 <= 0) or not isinstance(f0, (int, float)):
+    if isinstance(f0, (int, float)):
+        if f0 <= 0:
+            raise ValueError("f0 must be greater than 0")
+    else:
         raise ValueError("f0 must be a positive int or float")
     f1 = f0 * 2 ** (-n / 2)  # lower bound of frequency span
     f2 = f0 * 2 ** (n / 2)  # upper bound of frequency span
