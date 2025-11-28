@@ -1,12 +1,16 @@
+import re
+
 import numpy as np
 import pytest
 
 # from unittest import patch
-
-from sncast.noise_estimation import get_freq_range_from_centre, get_f0_octaves_from_f1f2
-from sncast.noise_estimation import psd_db_to_displacement_amplitude
-from sncast.noise_estimation import psd_db_to_velocity
-from sncast.noise_estimation import psd_db_convert
+from sncast.noise_estimation import (
+    get_f0_octaves_from_f1f2,
+    get_freq_range_from_centre,
+    psd_db_convert,
+    psd_db_to_displacement_amplitude,
+    psd_db_to_velocity,
+)
 
 # from sncast.noise_estimation import make_noise_estimate_for_ppsds
 
@@ -43,11 +47,17 @@ def test_get_freq_range_math(f0, n):
 
 
 def test_get_freq_range_from_centre_invalid_n():
-    with pytest.raises(ValueError, match="n must be a non-zero number"):
+    with pytest.raises(
+        ValueError, match=re.escape("n must be a positive int or float")
+    ):
         get_freq_range_from_centre(1.0, 0)
-    with pytest.raises(ValueError, match="n must be a non-zero number"):
+    with pytest.raises(
+        ValueError, match=re.escape("n must be a positive int or float")
+    ):
         get_freq_range_from_centre(1.0, "two")
-    with pytest.raises(ValueError, match="n must be a non-zero number"):
+    with pytest.raises(
+        ValueError, match=re.escape("n must be a positive int or float")
+    ):
         get_freq_range_from_centre(1.0, -3)
 
 
