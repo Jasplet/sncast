@@ -181,7 +181,7 @@ def get_f0_octaves_from_f1f2(f1, f2):
         Width of the frequency band in octaves
 
     """
-    n = np.log2(f2 / f1) / 2  # half-width of the frequency band in octaves
+    n = np.log2(f2 / f1)  # width of the frequency band in octaves
     f0 = np.sqrt(f1 * f2)  # centre frequency
     return f0, n
 

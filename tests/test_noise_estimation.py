@@ -62,7 +62,7 @@ def test_get_freq_range_from_centre_invalid_f0():
         get_freq_range_from_centre(0, 1.0)
     with pytest.raises(ValueError, match="f0 must be greater than 0"):
         get_freq_range_from_centre(-1.0, 1.0)
-    with pytest.raises(ValueError, match="f0 must be a positive number"):
+    with pytest.raises(ValueError, match="f0 must be a positive int or float"):
         get_freq_range_from_centre("five", 1.0)
 
 
