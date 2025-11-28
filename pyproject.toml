@@ -27,6 +27,11 @@ dev = [
     "pytest>=9.0.1",
     "ruff>=0.14.6",
 ]
+examples = [
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.7",
+    "pygmt>=0.17.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/Jasplet/sncast"
