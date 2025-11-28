@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from sncast.core import (
+    DASFibre,
     ModelConfig,
     SeismicArrayNetwork,
     SeismicNetwork,
@@ -76,7 +77,7 @@ def test_SeismicNetwork_add_stations():
 
 
 def test_SeismicArrayNetwork_initialization():
-    arrays = pd.DataFrame(
+    arrays_df = pd.DataFrame(
         {
             "station": ["ARRAY1", "ARRAY2", "ARRAY3"],
             "longitude": [0.0, 1.0, 2.0],
@@ -85,13 +86,21 @@ def test_SeismicArrayNetwork_initialization():
             "noise [nm]": [1.0, 10.0, 5.0],
         }
     )
-    array = SeismicArrayNetwork(arrays)
-    assert len(array.stations) == 3
+    array = SeismicArrayNetwork(arrays_df)
+    assert len(array.stations) == len(arrays_df)
     # Test default params initialization
     assert array.network_code == "XX"
     assert array.required_detections == 1
     # Test inherited class
     assert isinstance(array, SeismicNetwork)
+
+
+def test_DASFibre_initialization_from_csv():
+    fibre = DASFibre(
+        "tests/data/das_dummy_data.csv", detection_length_m=1500, gauge_length_m=20
+    )
+    assert fibre.detection_length_m == 1500
+    assert fibre.gauge_length_m == 20
 
 
 def test_ModelConfig_defaults():
@@ -275,6 +284,17 @@ def test_read_station_data_elev_conversion():
     # check elevation_km column exists and is correct
     assert "elevation_km" in out_df.columns
     assert np.allclose(out_df["elevation_km"].values, np.array([1.0, 2.0]))
+
+
+def test_read_station_data_invalid_schema_raises():
+    bad = pd.DataFrame({"foo": [1], "bar": [2]})
+    with pytest.raises(ValueError):
+        _read_station_data(bad)
+
+
+def test_read_das_noise_data_empty_dataframe():
+    with pytest.raises(ValueError):
+        _read_das_noise_data(pd.DataFrame())
 
 
 def test_read_das_noise_data():
