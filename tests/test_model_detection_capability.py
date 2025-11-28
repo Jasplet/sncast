@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 import xarray
 
-from sncast.core import SeismicNetwork, SeismicArrayNetwork
+from sncast.core import SeismicNetwork
 from sncast.model_detection_capability import find_min_ml
 from sncast.model_detection_capability import create_grid
 from sncast.model_detection_capability import _est_min_ml_at_station
@@ -14,7 +14,6 @@ from sncast.model_detection_capability import calc_min_ml_at_gridpoint
 
 
 def test_calc_amplitude_UK():
-
     a = 1.11
     b = 0.00189
     c = -2.09
@@ -34,14 +33,13 @@ def test_calc_amplitude_UK():
                 - d * np.exp(e * hypo_dist)
             ),
         )
-        actual = calc_ampl_from_magnitude(local_mag, hypo_dist, region="UK")
-        assert np.isclose(
-            actual, expect
-        ), f"Failed for local_mag={local_mag}, hypo_dist={hypo_dist}"
+        actual = calc_ampl_from_magnitude(local_mag, hypo_dist, region='UK')
+        assert np.isclose(actual, expect), (
+            f'Failed for local_mag={local_mag}, hypo_dist={hypo_dist}'
+        )
 
 
 def test_calc_amplitude_CAL():
-
     a = 1.11
     b = 0.00189
     c = -2.09
@@ -50,17 +48,17 @@ def test_calc_amplitude_CAL():
         [-3, 0.0, 1.0, 2.0, 3.0, 4.0], [0.1, 10, 20, 30, 100]
     ):
         expect = np.power(10, (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c))
-        actual = calc_ampl_from_magnitude(local_mag, hypo_dist, region="CAL")
-        assert np.isclose(
-            actual, expect
-        ), f"Failed for local_mag={local_mag}, hypo_dist={hypo_dist}"
+        actual = calc_ampl_from_magnitude(local_mag, hypo_dist, region='CAL')
+        assert np.isclose(actual, expect), (
+            f'Failed for local_mag={local_mag}, hypo_dist={hypo_dist}'
+        )
 
 
 @pytest.mark.parametrize(
-    "amplitude, distance, region",
+    'amplitude, distance, region',
     [
-        (10.0, 10, "UK"),
-        (10, 10, "CAL"),
+        (10.0, 10, 'UK'),
+        (10, 10, 'CAL'),
     ],
 )
 def test_calc_local_mag_scalar(
@@ -73,10 +71,10 @@ def test_calc_local_mag_scalar(
 
 
 @pytest.mark.parametrize(
-    "region",
+    'region',
     [
-        ("UK"),
-        ("CAL"),
+        ('UK'),
+        ('CAL'),
     ],
 )
 def test_ml_magnitude_array(region):
@@ -88,7 +86,7 @@ def test_ml_magnitude_array(region):
 
 
 @pytest.mark.parametrize(
-    "ampl, distance, snr, mag_delta, mag_min",
+    'ampl, distance, snr, mag_delta, mag_min',
     [
         (10.0, 1.0, 1, 0.1, -2.0),
         (0.5, 2.0, 2, 0.5, -4),
@@ -117,20 +115,20 @@ def test_calc_local_magnitude_UK(ampl, distance, snr, mag_delta, mag_min):
 
     # Test with default parameters
     result = calc_local_magnitude(
-        ampl * snr, distance, region="UK", mag_min=mag_min, mag_delta=mag_delta
+        ampl * snr, distance, region='UK', mag_min=mag_min, mag_delta=mag_delta
     )
     # Difference between ML calculated for a given noise and distance
     # and the modelled min ML should be less than the mag_delta
-    assert np.isclose(
-        expected - result, 0, atol=mag_delta
-    ), f"Expected {expected}, got {result}, mag_delta {mag_delta}"
-    assert isinstance(
-        result, float
-    ), f"Result {result} is {type(result)}, expected float"
+    assert np.isclose(expected - result, 0, atol=mag_delta), (
+        f'Expected {expected}, got {result}, mag_delta {mag_delta}'
+    )
+    assert isinstance(result, float), (
+        f'Result {result} is {type(result)}, expected float'
+    )
 
 
 @pytest.mark.parametrize(
-    "ampl, distance, snr, mag_delta, mag_min",
+    'ampl, distance, snr, mag_delta, mag_min',
     [
         (10.0, 1.0, 1, 0.1, -2.0),
         (0.5, 2.0, 2, 0.5, -4),
@@ -154,26 +152,26 @@ def test_calc_local_magnitude_CAL(ampl, distance, snr, mag_delta, mag_min):
 
     expected = ml_cal(ampl * snr, distance)
     result = calc_local_magnitude(
-        ampl * snr, distance, region="CAL", mag_min=mag_min, mag_delta=mag_delta
+        ampl * snr, distance, region='CAL', mag_min=mag_min, mag_delta=mag_delta
     )
-    assert np.isclose(
-        expected - result, 0, atol=mag_delta
-    ), f"Failed for CAL region: expected {expected}, got {result}"
+    assert np.isclose(expected - result, 0, atol=mag_delta), (
+        f'Failed for CAL region: expected {expected}, got {result}'
+    )
 
 
 def test_calc_local_magnitude_raises_on_unknown_region():
     with pytest.raises(ValueError):
-        calc_local_magnitude(1.0, 10.0, "MARS", -2, 0.1)
+        calc_local_magnitude(1.0, 10.0, 'MARS', -2, 0.1)
 
 
-@pytest.mark.parametrize("ampl", [0, -10])
+@pytest.mark.parametrize('ampl', [0, -10])
 def test_calc_local_magnitude_raise_on_bad_ampl(ampl):
     with pytest.raises(ValueError):
-        calc_local_magnitude(ampl, 1, "CAL", -2, 0.1)
+        calc_local_magnitude(ampl, 1, 'CAL', -2, 0.1)
 
 
 def test_est_min_ml_at_station_raises_unsupported():
-    for mode in ["foo", "bar"]:
+    for mode in ['foo', 'bar']:
         with pytest.raises(ValueError):
             _est_min_ml_at_station(
                 noise=10, mag_min=-2, mag_delta=0.1, distance=50, snr=3, method=mode
@@ -181,28 +179,28 @@ def test_est_min_ml_at_station_raises_unsupported():
 
 
 def test_est_min_ml_at_station_deprecation_warning():
-    with pytest.warns(DeprecationWarning, match="_est_min_ml_at_station is deprecated"):
+    with pytest.warns(DeprecationWarning, match='_est_min_ml_at_station is deprecated'):
         _est_min_ml_at_station(
             noise=1.0,
             mag_min=3.0,
             mag_delta=0.1,
             distance=10.0,
             snr=2.0,
-            method="GMPE",
-            gmpe="AK14",
-            gmpe_model_type="PGV",
-            region="UK",
+            method='GMPE',
+            gmpe='AK14',
+            gmpe_model_type='PGV',
+            region='UK',
         )
 
 
 def test_est_min_ml_at_station_ml_method_raises():
-    with pytest.raises(ValueError, match="ML no longer supported"):
-        _est_min_ml_at_station(1.0, -2.0, 0.1, 10.0, 2.0, method="ML")
+    with pytest.raises(ValueError, match='ML no longer supported'):
+        _est_min_ml_at_station(1.0, -2.0, 0.1, 10.0, 2.0, method='ML')
 
 
 # Test create_grid function #
 @pytest.mark.parametrize(
-    "inputs, expected",
+    'inputs, expected',
     [
         ((-1, 1, 50, 52, 0.5, 0.5), (5, 5)),
     ],
@@ -222,22 +220,21 @@ def test_create_grid_expected(inputs, expected):
 
 
 def test_create_grid_invalid_bounds():
-    with pytest.raises(ValueError, match="lon0 2 must be less than lon1 -2"):
+    with pytest.raises(ValueError, match='lon0 2 must be less than lon1 -2'):
         create_grid(2, -2, 50, 52, 1, 1)
 
-    with pytest.raises(ValueError, match="lat0 52 must be less than lat1 50"):
+    with pytest.raises(ValueError, match='lat0 52 must be less than lat1 50'):
         create_grid(-2, 2, 52, 50, 1, 1)
 
 
-@pytest.mark.parametrize("dlon, dlat", [(0, 1), (1, 0), (-1, -1), (0, 0)])
+@pytest.mark.parametrize('dlon, dlat', [(0, 1), (1, 0), (-1, -1), (0, 0)])
 def test_create_grid_negative_increments(dlon, dlat):
-
     with pytest.raises(ValueError):
         create_grid(-2, 2, 50, 52, dlon, dlat)
 
 
 def test_create_grid_non_divisible():
-    with pytest.raises(ValueError, match="must be divisible by"):
+    with pytest.raises(ValueError, match='must be divisible by'):
         create_grid(-2, 2, 50, 52.3, 1, 1)  # Non-divisible range
 
 
@@ -248,59 +245,59 @@ def test_find_min_ml_basic():
     # Create a small test DataFrame
     df = pd.DataFrame(
         {
-            "longitude": [0.0, 1.0],
-            "latitude": [50.0, 51.0],
-            "elevation_km": [0.0, 0.0],
-            "noise [nm]": [0.1, 0.1],
-            "station": ["STA1", "STA2"],
+            'longitude': [0.0, 1.0],
+            'latitude': [50.0, 51.0],
+            'elevation_km': [0.0, 0.0],
+            'noise [nm]': [0.1, 0.1],
+            'station': ['STA1', 'STA2'],
         }
     )
     network = SeismicNetwork(stations=df, required_detections=1)
     model_kwargs = {
-        "networks": [network],
-        "lon0": 0,
-        "lon1": 1,
-        "lat0": 50,
-        "lat1": 51,
-        "dlon": 0.5,
-        "dlat": 0.5,
-        "foc_depth": 1,
-        "snr": 3,
-        "mag_min": 0,
-        "mag_delta": 0.1,
-        "method": "ML",
-        "region": "CAL",
-        "nproc": 1,
-        "gmpe": None,
-        "gmpe_model_type": None,
+        'networks': [network],
+        'lon0': 0,
+        'lon1': 1,
+        'lat0': 50,
+        'lat1': 51,
+        'dlon': 0.5,
+        'dlat': 0.5,
+        'foc_depth': 1,
+        'snr': 3,
+        'mag_min': 0,
+        'mag_delta': 0.1,
+        'method': 'ML',
+        'region': 'CAL',
+        'nproc': 1,
+        'gmpe': None,
+        'gmpe_model_type': None,
     }
     result = find_min_ml(**model_kwargs)
 
-    assert hasattr(result, "shape")
+    assert hasattr(result, 'shape')
     assert result.shape == (3, 3)
 
 
 def test_find_min_ml_no_networks_provided():
     model_kwargs = {
-        "lon0": 0,
-        "lon1": 1,
-        "lat0": 50,
-        "lat1": 51,
-        "dlon": 0.5,
-        "dlat": 0.5,
-        "foc_depth": 1,
-        "snr": 3,
-        "mag_min": 0,
-        "mag_delta": 0.1,
-        "method": "ML",
-        "region": "CAL",
-        "nproc": 1,
+        'lon0': 0,
+        'lon1': 1,
+        'lat0': 50,
+        'lat1': 51,
+        'dlon': 0.5,
+        'dlat': 0.5,
+        'foc_depth': 1,
+        'snr': 3,
+        'mag_min': 0,
+        'mag_delta': 0.1,
+        'method': 'ML',
+        'region': 'CAL',
+        'nproc': 1,
     }
-    with pytest.raises(ValueError, match="No seismic networks, arrays or DAS provided"):
+    with pytest.raises(ValueError, match='No seismic networks, arrays or DAS provided'):
         find_min_ml(model_kwargs=model_kwargs)
 
 
-@patch("sncast.model_detection_capability.Pool")
+@patch('sncast.model_detection_capability.Pool')
 def test_find_min_ml_integration_single_network(mock_pool):
     """Test complete workflow with mocked multiprocessing"""
     # Mock the pool to return dummy results
@@ -309,33 +306,33 @@ def test_find_min_ml_integration_single_network(mock_pool):
     mock_pool_instance.imap_unordered.return_value = [(0, 0, 1.5), (0, 1, 1.6)]
 
     # Create test data
-    test_df = pd.read_csv("tests/data/station_data.csv")
+    test_df = pd.read_csv('tests/data/station_data.csv')
 
     network = SeismicNetwork(stations=test_df, required_detections=1)
     model_kwargs = {
-        "networks": [network],
-        "lon0": 0,
-        "lon1": 1,
-        "lat0": 50,
-        "lat1": 51,
-        "dlon": 0.5,
-        "dlat": 0.5,
-        "foc_depth": 1,
-        "snr": 3,
-        "mag_min": 0,
-        "mag_delta": 0.1,
-        "method": "ML",
-        "region": "CAL",
-        "nproc": 1,
-        "gmpe": None,
-        "gmpe_model_type": None,
+        'networks': [network],
+        'lon0': 0,
+        'lon1': 1,
+        'lat0': 50,
+        'lat1': 51,
+        'dlon': 0.5,
+        'dlat': 0.5,
+        'foc_depth': 1,
+        'snr': 3,
+        'mag_min': 0,
+        'mag_delta': 0.1,
+        'method': 'ML',
+        'region': 'CAL',
+        'nproc': 1,
+        'gmpe': None,
+        'gmpe_model_type': None,
     }
 
     result = find_min_ml(**model_kwargs)
 
     assert isinstance(result, xarray.DataArray)
-    assert "Latitude" in result.dims
-    assert "Longitude" in result.dims
+    assert 'Latitude' in result.dims
+    assert 'Longitude' in result.dims
 
 
 # test calc_min_ml_at_gridpoint function ###
@@ -345,11 +342,11 @@ def test_calc_min_ml_at_gridpoint_zero_distance():
     """Test when grid point is exactly at station location"""
     df = pd.DataFrame(
         {
-            "longitude": [0.0],
-            "latitude": [50.0],
-            "elevation_km": [0.0],
-            "noise [nm]": [1.0],
-            "station": ["STA1"],
+            'longitude': [0.0],
+            'latitude': [50.0],
+            'elevation_km': [0.0],
+            'noise [nm]': [1.0],
+            'station': ['STA1'],
         }
     )
     result = calc_min_ml_at_gridpoint(
@@ -359,8 +356,8 @@ def test_calc_min_ml_at_gridpoint_zero_distance():
         foc_depth=0,
         stat_num=1,
         snr=1,
-        method="ML",
-        region="UK",
+        method='ML',
+        region='UK',
         mag_min=-2,
         mag_delta=0.1,
     )

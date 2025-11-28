@@ -40,24 +40,23 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import warnings
 from decimal import Decimal
 from functools import partial
 from multiprocessing import Pool
-import warnings
 
 import numpy as np
-from scipy.ndimage import maximum_filter1d
-import xarray
-
 import pygc
+import xarray
+from scipy.ndimage import maximum_filter1d
 
+from .core import DASFibre, ModelConfig, SeismicArrayNetwork, SeismicNetwork
 from .gmpes import eval_gmpe
 from .magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
-from .core import SeismicNetwork, SeismicArrayNetwork, ModelConfig, DASFibre
 
 ML_COEFFS = {
-    "UK": {"a": 1.11, "b": 0.00189, "c": -2.09, "d": -1.16, "e": -0.2},
-    "CAL": {"a": 1.11, "b": 0.00189, "c": -2.09},
+    'UK': {'a': 1.11, 'b': 0.00189, 'c': -2.09, 'd': -1.16, 'e': -0.2},
+    'CAL': {'a': 1.11, 'b': 0.00189, 'c': -2.09},
 }
 
 SUPPORTED_ML_REGIONS = list(ML_COEFFS.keys())
@@ -87,10 +86,10 @@ class DetectionCapabilityModel:
         self.n_arrays = 0
         self.das_fibres = []
         self.n_das_fibres = 0
-        print("Detection Capability Model initialized.")
+        print('Detection Capability Model initialized.')
 
     def __repr__(self):
-        return f"<DetectionCapabilityModel with {len(self.networks)} networks, {len(self.arrays)} arrays, and {len(self.das_fibres)} DAS fibres>"
+        return f'<DetectionCapabilityModel with {len(self.networks)} networks, {len(self.arrays)} arrays, and {len(self.das_fibres)} DAS fibres>'
 
     def add_network(self, network):
         """
@@ -99,13 +98,13 @@ class DetectionCapabilityModel:
         if isinstance(network, SeismicNetwork):
             self.networks.append(network)
             self.n_networks += 1
-            print(f"Seismic network {network.network_code} added to model.")
+            print(f'Seismic network {network.network_code} added to model.')
         else:
             net_to_add = SeismicNetwork(stations=network)
             self.networks.append(net_to_add)
             self.n_networks += 1
             print(
-                f"Seismic network {net_to_add.network_code} created and added to model."
+                f'Seismic network {net_to_add.network_code} created and added to model.'
             )
 
     def add_array(self, array):
@@ -115,12 +114,12 @@ class DetectionCapabilityModel:
         if isinstance(array, SeismicArrayNetwork):
             self.arrays.append(array)
             self.n_arrays += 1
-            print(f"Seismic array {array.array_code} added to model.")
+            print(f'Seismic array {array.array_code} added to model.')
         else:
             arr_to_add = SeismicArrayNetwork(arrays=array)
             self.arrays.append(arr_to_add)
             self.n_arrays += 1
-            print(f"Seismic array {arr_to_add.array_code} created and added to model.")
+            print(f'Seismic array {arr_to_add.array_code} created and added to model.')
 
     def add_das_fibre(self, das_fibre):
         """
@@ -129,12 +128,12 @@ class DetectionCapabilityModel:
         if isinstance(das_fibre, DASFibre):
             self.das_fibres.append(das_fibre)
             self.n_das_fibres += 1
-            print(f"DAS fibre {das_fibre.fibre_code} added to model.")
+            print(f'DAS fibre {das_fibre.fibre_code} added to model.')
         else:
             das_to_add = DASFibre(fibres=das_fibre)
             self.das_fibres.append(das_to_add)
             self.n_das_fibres += 1
-            print(f"DAS fibre {das_to_add.fibre_code} created and added to model.")
+            print(f'DAS fibre {das_to_add.fibre_code} created and added to model.')
 
     def setup_grid(self, lon0, lon1, lat0, lat1, dlon=0.1, dlat=0.1):
         """
@@ -206,36 +205,36 @@ class DetectionCapabilityModel:
         Makes kwargs dict from Config for passing to model functions.
         """
         model_kwargs = {
-            "lon0": self.config.lon0,
-            "lon1": self.config.lon1,
-            "lat0": self.config.lat0,
-            "lat1": self.config.lat1,
-            "dlon": self.config.dlon,
-            "dlat": self.config.dlat,
-            "foc_depth": self.config.foc_depth_km,
-            "snr": self.config.snr,
-            "mag_min": self.config.mag_min,
-            "mag_delta": self.config.mag_delta,
-            "method": self.config.method,
-            "region": self.config.region,
-            "nproc": getattr(self.config, "nproc", 1),
-            "model_stacking_das": getattr(self.config, "model_stacking_das", True),
+            'lon0': self.config.lon0,
+            'lon1': self.config.lon1,
+            'lat0': self.config.lat0,
+            'lat1': self.config.lat1,
+            'dlon': self.config.dlon,
+            'dlat': self.config.dlat,
+            'foc_depth': self.config.foc_depth_km,
+            'snr': self.config.snr,
+            'mag_min': self.config.mag_min,
+            'mag_delta': self.config.mag_delta,
+            'method': self.config.method,
+            'region': self.config.region,
+            'nproc': getattr(self.config, 'nproc', 1),
+            'model_stacking_das': getattr(self.config, 'model_stacking_das', True),
         }
-        if self.config.method == "GMPE":
-            model_kwargs["gmpe"] = self.config.gmpe
-            model_kwargs["gmpe_model_type"] = self.config.gmpe_model_type
+        if self.config.method == 'GMPE':
+            model_kwargs['gmpe'] = self.config.gmpe
+            model_kwargs['gmpe_model_type'] = self.config.gmpe_model_type
         if self.n_networks > 0:
-            model_kwargs["networks"] = self.networks
+            model_kwargs['networks'] = self.networks
         else:
-            print("No seismic networks provided to model.")
+            print('No seismic networks provided to model.')
         if self.n_arrays > 0:
-            model_kwargs["arrays"] = self.arrays
+            model_kwargs['arrays'] = self.arrays
         else:
-            print("No seismic arrays provided to model.")
+            print('No seismic arrays provided to model.')
         if self.n_das_fibres > 0:
-            model_kwargs["das_fibres"] = self.das_fibres
+            model_kwargs['das_fibres'] = self.das_fibres
         else:
-            print("No DAS fibres provided to model.")
+            print('No DAS fibres provided to model.')
 
         return model_kwargs
 
@@ -252,7 +251,7 @@ class DetectionCapabilityModel:
         """
         # exit if no stations provided
         if (self.n_networks == 0) and (self.n_arrays == 0) and (self.n_das_fibres == 0):
-            raise ValueError("No seismic networks, arrays or DAS provided!")
+            raise ValueError('No seismic networks, arrays or DAS provided!')
 
         model_kwargs = self._make_model_kwargs()
         mag_det = find_min_ml(
@@ -287,19 +286,19 @@ def find_min_ml(**model_kwargs):
         at that grid point.
     """
     if (
-        ("networks" not in model_kwargs)
-        and ("arrays" not in model_kwargs)
-        and ("das_fibres" not in model_kwargs)
+        ('networks' not in model_kwargs)
+        and ('arrays' not in model_kwargs)
+        and ('das_fibres' not in model_kwargs)
     ):
-        raise ValueError("No seismic networks, arrays or DAS provided!")
+        raise ValueError('No seismic networks, arrays or DAS provided!')
     # Initialize grid
     lons, lats, nx, ny = create_grid(
-        model_kwargs["lon0"],
-        model_kwargs["lon1"],
-        model_kwargs["lat0"],
-        model_kwargs["lat1"],
-        model_kwargs["dlon"],
-        model_kwargs["dlat"],
+        model_kwargs['lon0'],
+        model_kwargs['lon1'],
+        model_kwargs['lat0'],
+        model_kwargs['lat1'],
+        model_kwargs['dlon'],
+        model_kwargs['dlat'],
     )
 
     # Ensure fixed args are all in kwargs for worker function
@@ -311,15 +310,15 @@ def find_min_ml(**model_kwargs):
     # Detection capability has to be calculated at each grid point,
     # Split this up using Pool and imap_unordered to multiple cores
     # maybe numba would be quicker here?
-    print(f"Using {model_kwargs['nproc']} cores")
+    print(f'Using {model_kwargs["nproc"]} cores')
     worker_func = partial(_minml_worker, **model_kwargs)
-    with Pool(processes=model_kwargs["nproc"]) as pool:
+    with Pool(processes=model_kwargs['nproc']) as pool:
         for iy, ix, val in pool.imap_unordered(worker_func, args_list):
             mag_grid[iy, ix] = val
 
     # Make xarray grid to output
     mag_det = xarray.DataArray(
-        mag_grid, coords=[lats, lons], dims=["Latitude", "Longitude"]
+        mag_grid, coords=[lats, lons], dims=['Latitude', 'Longitude']
     )
     return mag_det
 
@@ -349,10 +348,10 @@ def _minml_worker(grid_point, **kwargs):
     lat = grid_point[2]
     lon = grid_point[3]
 
-    if "networks" in kwargs:
-        for Network in kwargs["networks"]:
+    if 'networks' in kwargs:
+        for Network in kwargs['networks']:
             print(
-                f"Calculating min ML at grid point for Seismic Network {Network.network_code}"
+                f'Calculating min ML at grid point for Seismic Network {Network.network_code}'
             )
             # spell out kwargs here for clarify and to avoid passing
             # unnecessary data to worker processes
@@ -361,52 +360,52 @@ def _minml_worker(grid_point, **kwargs):
                 lat=lat,
                 stations_df=Network.stations,
                 stat_num=Network.required_detections,
-                foc_depth=kwargs["foc_depth"],
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
+                foc_depth=kwargs['foc_depth'],
+                snr=kwargs['snr'],
+                mag_min=kwargs['mag_min'],
+                mag_delta=kwargs['mag_delta'],
+                method=kwargs['method'],
+                region=kwargs['region'],
+                gmpe=kwargs['gmpe'],
+                gmpe_model_type=kwargs['gmpe_model_type'],
             )
             min_mag = min(min_mag, min_mag_net)
     # Add arrays if provided
-    if "arrays" in kwargs:
-        for Array in kwargs["arrays"]:
+    if 'arrays' in kwargs:
+        for Array in kwargs['arrays']:
             min_mag_arrays = calc_min_ml_at_gridpoint(
                 lon=lon,
                 lat=lat,
                 stations_df=Array.stations,
                 stat_num=Array.required_detections,
-                foc_depth=kwargs["foc_depth"],
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
+                foc_depth=kwargs['foc_depth'],
+                snr=kwargs['snr'],
+                mag_min=kwargs['mag_min'],
+                mag_delta=kwargs['mag_delta'],
+                method=kwargs['method'],
+                region=kwargs['region'],
+                gmpe=kwargs['gmpe'],
+                gmpe_model_type=kwargs['gmpe_model_type'],
             )
             min_mag = min(min_mag, min_mag_arrays)
 
-    if "das_fibres" in kwargs:
-        for Fibre in kwargs["das_fibres"]:
+    if 'das_fibres' in kwargs:
+        for Fibre in kwargs['das_fibres']:
             mag_min_das = calc_min_ml_at_gridpoint_das(
                 lon=lon,
                 lat=lat,
                 fibre=Fibre.das_channels,
                 detection_length_m=Fibre.detection_length_m,
                 gauge_length_m=Fibre.gauge_length_m,
-                foc_depth=kwargs["foc_depth"],
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
-                model_stacking=kwargs["model_stacking_das"],
+                foc_depth=kwargs['foc_depth'],
+                snr=kwargs['snr'],
+                mag_min=kwargs['mag_min'],
+                mag_delta=kwargs['mag_delta'],
+                method=kwargs['method'],
+                region=kwargs['region'],
+                gmpe=kwargs['gmpe'],
+                gmpe_model_type=kwargs['gmpe_model_type'],
+                model_stacking=kwargs['model_stacking_das'],
             )
 
             min_mag = min(min_mag, mag_min_das)
@@ -487,35 +486,35 @@ def find_min_ml_x_section(
     """
 
     xsection, depths, distance_km = create_xsection_grid(
-        model_kwargs["lon0"],
-        model_kwargs["lat0"],
-        model_kwargs["azi"],
-        model_kwargs["length_km"],
-        model_kwargs["ddist"],
-        model_kwargs["min_depth"],
-        model_kwargs["max_depth"],
-        model_kwargs["ddepth"],
+        model_kwargs['lon0'],
+        model_kwargs['lat0'],
+        model_kwargs['azi'],
+        model_kwargs['length_km'],
+        model_kwargs['ddist'],
+        model_kwargs['min_depth'],
+        model_kwargs['max_depth'],
+        model_kwargs['ddepth'],
     )
-    ndists = len(xsection["longitude"])
+    ndists = len(xsection['longitude'])
     ndepths = len(depths)
     # Iterate along cross-section
     args_list = [
-        (ix, iz, xsection["latitude"][ix], xsection["longitude"][ix], depths[iz])
+        (ix, iz, xsection['latitude'][ix], xsection['longitude'][ix], depths[iz])
         for ix in range(ndists)
         for iz in range(ndepths)
     ]
     mag_grid = np.zeros((ndepths, ndists))
 
-    print(f"Using {model_kwargs['nproc']} cores")
+    print(f'Using {model_kwargs["nproc"]} cores')
     worker_func = partial(_minml_x_section_worker, **model_kwargs)
-    with Pool(processes=model_kwargs["nproc"]) as pool:
+    with Pool(processes=model_kwargs['nproc']) as pool:
         for iz, ix, val in pool.imap_unordered(worker_func, args_list):
             mag_grid[iz, ix] = val
 
     array = xarray.DataArray(
         mag_grid,
         coords=[depths, distance_km],
-        dims=["depth_km", "distance_along_xsection_km"],
+        dims=['depth_km', 'distance_along_xsection_km'],
     )
     return array
 
@@ -548,62 +547,62 @@ def _minml_x_section_worker(
     min_mag = 100.0
 
     # Handle networks
-    if "networks" in kwargs:
+    if 'networks' in kwargs:
         # Normalize inputs to bare DataFrames + required detections
-        for Network in kwargs["networks"]:
+        for Network in kwargs['networks']:
             min_mag_net = calc_min_ml_at_gridpoint(
                 lon=lon,
                 lat=lat,
                 stations_df=Network.stations,
                 stat_num=Network.required_detections,
                 foc_depth=depth,
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
+                snr=kwargs['snr'],
+                mag_min=kwargs['mag_min'],
+                mag_delta=kwargs['mag_delta'],
+                method=kwargs['method'],
+                region=kwargs['region'],
+                gmpe=kwargs['gmpe'],
+                gmpe_model_type=kwargs['gmpe_model_type'],
             )
             min_mag = min(min_mag, min_mag_net)
 
     # Handle arrays
-    if "arrays" in kwargs:
-        for Array in kwargs["arrays"]:
+    if 'arrays' in kwargs:
+        for Array in kwargs['arrays']:
             min_mag_arrays = calc_min_ml_at_gridpoint(
                 lon=lon,
                 lat=lat,
                 stations_df=Array.stations,
                 stat_num=Array.required_detections,
                 foc_depth=depth,
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
+                snr=kwargs['snr'],
+                mag_min=kwargs['mag_min'],
+                mag_delta=kwargs['mag_delta'],
+                method=kwargs['method'],
+                region=kwargs['region'],
+                gmpe=kwargs['gmpe'],
+                gmpe_model_type=kwargs['gmpe_model_type'],
             )
             min_mag = min(min_mag, min_mag_arrays)
 
     # Handle DAS fibres
-    if kwargs["das_fibres"] is not None:
-        for Fibre in kwargs["das_fibres"]:
+    if kwargs['das_fibres'] is not None:
+        for Fibre in kwargs['das_fibres']:
             mag_min_das = calc_min_ml_at_gridpoint_das(
                 lon=lon,
                 lat=lat,
                 fibre=Fibre.das_channels,
                 detection_length_m=Fibre.detection_length_m,
                 gauge_length_m=Fibre.gauge_length_m,
-                model_stacking=kwargs["model_stacking_das"],
+                model_stacking=kwargs['model_stacking_das'],
                 foc_depth=depth,
-                snr=kwargs["snr"],
-                mag_min=kwargs["mag_min"],
-                mag_delta=kwargs["mag_delta"],
-                method=kwargs["method"],
-                region=kwargs["region"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
+                snr=kwargs['snr'],
+                mag_min=kwargs['mag_min'],
+                mag_delta=kwargs['mag_delta'],
+                method=kwargs['method'],
+                region=kwargs['region'],
+                gmpe=kwargs['gmpe'],
+                gmpe_model_type=kwargs['gmpe_model_type'],
             )
             min_mag = min(min_mag, mag_min_das)
 
@@ -640,21 +639,21 @@ def create_grid(lon0, lon1, lat0, lat1, dlon, dlat):
         Number of grid points in the y-direction (latitude).
     """
     if lon0 > lon1:
-        raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
+        raise ValueError(f'lon0 {lon0} must be less than lon1 {lon1}')
     if lat0 > lat1:
-        raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
+        raise ValueError(f'lat0 {lat0} must be less than lat1 {lat1}')
     if dlon <= 0 or dlat <= 0:
-        raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
+        raise ValueError(f'dlon and dlat ({dlon, dlat}) must be positive values')
     if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
-        raise ValueError(f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}")
+        raise ValueError(f'lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}')
     if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
-        raise ValueError(f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}")
+        raise ValueError(f'lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}')
 
     nx = int((lon1 - lon0) / dlon) + 1
     ny = int((lat1 - lat0) / dlat) + 1
     lats = np.linspace(lat1, lat0, ny)
     lons = np.linspace(lon0, lon1, nx)
-    print(f"Grid created with {nx} x {ny} points.")
+    print(f'Grid created with {nx} x {ny} points.')
     return lons, lats, nx, ny
 
 
@@ -750,18 +749,18 @@ def calc_min_ml_at_gridpoint(
     float
         Minimum local magnitude that can be detected at the grid point.
     """
-    if method == "ML":
-        noise = stations_df["noise [nm]"].values
+    if method == 'ML':
+        noise = stations_df['noise [nm]'].values
         distances_km = (
             pygc.great_distance(
                 start_latitude=lat,
-                end_latitude=stations_df["latitude"].values,
+                end_latitude=stations_df['latitude'].values,
                 start_longitude=lon,
-                end_longitude=stations_df["longitude"].values,
-            )["distance"]
+                end_longitude=stations_df['longitude'].values,
+            )['distance']
             * 1e-3
         )
-        dz = np.abs(foc_depth - stations_df["elevation_km"].values)
+        dz = np.abs(foc_depth - stations_df['elevation_km'].values)
         # calculate hypcocentral distance
         hypo_dist = np.sqrt(distances_km**2 + dz**2)
         required_ampls = snr * noise
@@ -775,25 +774,25 @@ def calc_min_ml_at_gridpoint(
         sorted_mags = np.sort(mags)
         return sorted_mags[stat_num - 1]
 
-    elif method == "GMPE":
-        if "gmpe" not in kwargs or kwargs["gmpe"] is None:
-            raise ValueError("GMPE model must be specified for GMPE method")
-        if "gmpe_model_type" not in kwargs or kwargs["gmpe_model_type"] is None:
-            raise ValueError("GMPE model type must be specified for GMPE method")
+    elif method == 'GMPE':
+        if 'gmpe' not in kwargs or kwargs['gmpe'] is None:
+            raise ValueError('GMPE model must be specified for GMPE method')
+        if 'gmpe_model_type' not in kwargs or kwargs['gmpe_model_type'] is None:
+            raise ValueError('GMPE model type must be specified for GMPE method')
 
-        noise = stations_df["noise [cm/s]"].values
+        noise = stations_df['noise [cm/s]'].values
         # Use pygc to compute great-circle (epicentral) distance
         # pygc returns this in meters, then we convert to km
         distances_km = (
             pygc.great_distance(
                 start_latitude=lat,
-                end_latitude=stations_df["latitude"].values,
+                end_latitude=stations_df['latitude'].values,
                 start_longitude=lon,
-                end_longitude=stations_df["longitude"].values,
-            )["distance"]
+                end_longitude=stations_df['longitude'].values,
+            )['distance']
             * 1e-3
         )
-        dz = np.abs(foc_depth - stations_df["elevation_km"].values)
+        dz = np.abs(foc_depth - stations_df['elevation_km'].values)
         # calculate hypcocentral distance
         hypo_dist = np.sqrt(distances_km**2 + dz**2)
         mag = [
@@ -803,10 +802,10 @@ def calc_min_ml_at_gridpoint(
                 mag_delta,
                 hypo_dist[s],
                 snr,
-                method=kwargs["method"],
-                gmpe=kwargs["gmpe"],
-                gmpe_model_type=kwargs["gmpe_model_type"],
-                region=kwargs["region"],
+                method=kwargs['method'],
+                gmpe=kwargs['gmpe'],
+                gmpe_model_type=kwargs['gmpe_model_type'],
+                region=kwargs['region'],
             )
             for s in range(len(stations_df))
         ]
@@ -816,7 +815,7 @@ def calc_min_ml_at_gridpoint(
         mag = sorted(mag)
         return mag[stat_num - 1]
     else:
-        raise ValueError(f"Unsupported Method {method}")
+        raise ValueError(f'Unsupported Method {method}')
 
 
 def get_das_noise_levels(das_noise, wind_len_idx, model_stacking=True):
@@ -839,7 +838,7 @@ def get_das_noise_levels(das_noise, wind_len_idx, model_stacking=True):
     np.ndarray
         Array of noise levels for each section of the fibre.
     """
-    max_filtered_noise = maximum_filter1d(das_noise, size=wind_len_idx, mode="nearest")
+    max_filtered_noise = maximum_filter1d(das_noise, size=wind_len_idx, mode='nearest')
     # model includes a assumed improvment in signal/noise from stacking
     # over the length of the fibre section
     if model_stacking:
@@ -867,9 +866,9 @@ def get_das_noise_levels(das_noise, wind_len_idx, model_stacking=True):
 
         # raise value error if any values in max_filtered_noise are zero or negative
         if np.any(max_filtered_noise <= 0):
-            raise ValueError("Filtered noise levels contain zero or negative values.")
+            raise ValueError('Filtered noise levels contain zero or negative values.')
         elif np.any(np.isnan(max_filtered_noise)):
-            raise ValueError("Filtered noise levels contain NaN values.")
+            raise ValueError('Filtered noise levels contain NaN values.')
 
     return max_filtered_noise
 
@@ -926,14 +925,14 @@ def calc_min_ml_at_gridpoint_das(
         of the input detection length.
     """
 
-    if method != "ML":
-        raise ValueError(f"Method: {method} not supported for DAS at this time")
+    if method != 'ML':
+        raise ValueError(f'Method: {method} not supported for DAS at this time')
 
     window_size = int(np.ceil((detection_length_m / gauge_length_m)))
     # print("~" * 50)
     # print(f"There are {window_size} channels in the sliding window.")
     # Covert noise from metres to nanometres
-    noise_nm = fibre["noise_m"].values * 1e9
+    noise_nm = fibre['noise_m'].values * 1e9
     # Apply moving maximum filter to get max noise level along fibre section
     # of length detection_length
     windowed_noise_nm = get_das_noise_levels(noise_nm, window_size, model_stacking)
@@ -942,14 +941,14 @@ def calc_min_ml_at_gridpoint_das(
     # pygc gives distances in metres so convert to km
     distances_km = (
         pygc.great_distance(
-            start_latitude=fibre["latitude"].values,
+            start_latitude=fibre['latitude'].values,
             end_latitude=lat,
-            start_longitude=fibre["longitude"].values,
+            start_longitude=fibre['longitude'].values,
             end_longitude=lon,
-        )["distance"]
+        )['distance']
         * 1e-3
     )
-    dz = np.abs(foc_depth - fibre["elevation_km"].values)
+    dz = np.abs(foc_depth - fibre['elevation_km'].values)
     hypo_distances = np.sqrt(distances_km**2 + dz**2)
     # Calculate the minimum local magnitude for each section of the fibre
     required_ampls = snr * windowed_noise_nm
@@ -988,16 +987,16 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
         Displacement amplitude in nm.
     """
     #   region specific ML = log(ampl) + a*log(hypo-dist) + b*hypo_dist + c
-    if region == "UK":
+    if region == 'UK':
         #   UK Scale uses new ML equation from Luckett et al., (2019)
         #   https://doi.org/10.1093/gji/ggy484
         #   Takes form local_mag = log(amp) + a*log(hypo-dist) + b*hypo-dist
         #                          + d*exp(e * hypo-dist) + c
-        a = ML_COEFFS[region]["a"]
-        b = ML_COEFFS[region]["b"]
-        c = ML_COEFFS[region]["c"]
-        d = ML_COEFFS[region]["d"]
-        e = ML_COEFFS[region]["e"]
+        a = ML_COEFFS[region]['a']
+        b = ML_COEFFS[region]['b']
+        c = ML_COEFFS[region]['c']
+        d = ML_COEFFS[region]['d']
+        e = ML_COEFFS[region]['e']
         ampl = np.power(
             10,
             (
@@ -1009,12 +1008,12 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
             ),
         )
 
-    elif region == "CAL":
+    elif region == 'CAL':
         # South. California scale, IASPEI (2005),
         # www.iaspei.org/commissions/CSOI/summary_of_WG_recommendations_2005.pdf
-        a = ML_COEFFS[region]["a"]
-        b = ML_COEFFS[region]["b"]
-        c = ML_COEFFS[region]["c"]
+        a = ML_COEFFS[region]['a']
+        b = ML_COEFFS[region]['b']
+        c = ML_COEFFS[region]['c']
 
         ampl = np.power(10, (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c))
 
@@ -1048,15 +1047,15 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
         Local magnitudes (ML) for the given amplitudes and distances.
     """
     if np.any(required_ampl <= 0):
-        raise ValueError("At least one amplitude <=0!")
+        raise ValueError('At least one amplitude <=0!')
 
-    if region == "UK":
+    if region == 'UK':
         coeffs = ML_COEFFS[region]
-        a = coeffs["a"]
-        b = coeffs["b"]
-        c = coeffs["c"]
-        d = coeffs["d"]
-        e = coeffs["e"]
+        a = coeffs['a']
+        b = coeffs['b']
+        c = coeffs['c']
+        d = coeffs['d']
+        e = coeffs['e']
         ml = (
             np.log10(required_ampl)
             + a * np.log10(hypo_dist)
@@ -1064,14 +1063,14 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
             + c
             + d * np.exp(e * hypo_dist)
         )
-    elif region == "CAL":
+    elif region == 'CAL':
         coeffs = ML_COEFFS[region]
-        a = coeffs["a"]
-        b = coeffs["b"]
-        c = coeffs["c"]
+        a = coeffs['a']
+        b = coeffs['b']
+        c = coeffs['c']
         ml = np.log10(required_ampl) + a * np.log10(hypo_dist) + b * hypo_dist + c
     else:
-        raise ValueError(f"Unknown region: {region}")
+        raise ValueError(f'Unknown region: {region}')
 
     # Snap to nearest mag_delta step above mag_min as
     # local magntiude is often only report to 1 decimal place
@@ -1110,14 +1109,14 @@ def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
                           [Hutton1987]_ California scale. Default is "CAL".
     """
     warnings.warn(
-        "_est_min_ml_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude",
+        '_est_min_ml_at_station is deprecated and only for GMPE dev use, use calc_local_magnitude',
         DeprecationWarning,
     )
-    method = kwargs.get("method", "ML")
-    region = kwargs.get("region", "CAL")
-    gmpe = kwargs.get("gmpe", None)
-    gmpe_model_type = kwargs.get("gmpe_model_type", None)
-    if method == "GMPE":
+    method = kwargs.get('method', 'ML')
+    region = kwargs.get('region', 'CAL')
+    gmpe = kwargs.get('gmpe', None)
+    gmpe_model_type = kwargs.get('gmpe_model_type', None)
+    if method == 'GMPE':
         signal = 0
         ml = mag_min - mag_delta
         while signal < snr * noise:
@@ -1128,10 +1127,10 @@ def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
             if ml > 3:
                 break
         return ml
-    elif method == "ML":
-        raise ValueError("ML no longer supported, use vectorised function")
+    elif method == 'ML':
+        raise ValueError('ML no longer supported, use vectorised function')
     else:
-        raise ValueError(f"Unknown method: {method}")
+        raise ValueError(f'Unknown method: {method}')
 
 
 # Deprecated function - not currently used

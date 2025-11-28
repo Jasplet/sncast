@@ -22,7 +22,6 @@ from sncast.noise_estimation import psd_db_convert
     ],
 )
 def test_get_freq_range_from_centre(f0, n, expected_f1, expected_f2):
-
     f1, f2 = get_freq_range_from_centre(f0, n)
     assert np.isclose(f1, expected_f1)
     assert np.isclose(f2, expected_f2)

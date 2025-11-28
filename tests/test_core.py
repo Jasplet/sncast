@@ -9,7 +9,6 @@ from sncast.core import ModelConfig
 
 
 def test_ModelConfig_defaults():
-
     Config = ModelConfig()
     assert Config.snr == 3.0
     assert Config.foc_depth_km == 2.0
@@ -95,7 +94,6 @@ def test_ModelConfig_create_grid_working_case(lon0, lat0, lon1, lat1, dlon, dlat
 
 
 def test_ModelConfig_create_grid_reversed_coords():
-
     lon0 = 1
     lon1 = 0
     lat0 = 51
