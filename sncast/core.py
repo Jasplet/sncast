@@ -103,7 +103,7 @@ class SeismicNetwork:
 class SeismicArrayNetwork(SeismicNetwork):
     """
     A class representing a network of seismic arrays, which we will handle differently
-    to traditional seismic networks. The noise is calcualted differently (in advance) and we
+    to traditional seismic networks. The noise is calculated differently (in advance) and we
     want to set different detection thresholds.
     Here we treat each array as a single station, even though they are a collection
     of several closely space stations.
