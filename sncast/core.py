@@ -66,9 +66,7 @@ class SeismicNetwork:
         self._validate()
 
     def __repr__(self):
-        return (
-            f"<SeismicNetwork {self.network_code} with {len(self.stations)} stations>"
-        )
+        return f"<SeismicNetwork {self.network_code} with {len(self.stations)} stations. Required detections: {self.required_detections}>"
 
     def _validate(self):
         """
@@ -120,7 +118,7 @@ class SeismicArrayNetwork(SeismicNetwork):
         )
 
     def __repr__(self):
-        return f"<SeismicArray {self.array_code} with {len(self.arrays)} DAS channels>"
+        return f"<SeismicArrayNetwork {self.network_code} with {self.num_stations} arrays. Required detections: {self.required_detections}>"
 
 
 class DASFibre:
@@ -151,6 +149,17 @@ class DASFibre:
 
     def __repr__(self):
         return f"<DASFibre with {len(self.das_data)} channels>"
+
+    def _validate(self):
+        """
+        Validate the DAS fibre data.
+        """
+        if len(self.das_channels) == 0:
+            raise ValueError("No DAS channels in the fibre.")
+        if self.detection_length_m <= 0:
+            raise ValueError("detection_length_m must be a positive value.")
+        if self.gauge_length_m <= 0:
+            raise ValueError("gauge_length_m must be a positive value.")
 
 
 class ModelConfig:
