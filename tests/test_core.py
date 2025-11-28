@@ -26,6 +26,19 @@ def test_SeismicNetwork_initialization():
     assert net.required_detections == 5
 
 
+def test_SeismicNetwork_repr():
+    netcode = "AB"
+    required_detections = 3
+    net = SeismicNetwork(
+        TEST_STATION_DATA, network_code=netcode, required_detections=required_detections
+    )
+    repr_str = repr(net)
+    assert "SeismicNetwork" in repr_str
+    assert netcode in repr_str
+    assert f"Required detections: {required_detections}" in repr_str
+    assert f"{net.num_stations} stations" in repr_str
+
+
 def test_SeismicNetwork_csv_initialization():
     net = SeismicNetwork("tests/data/station_data.csv")
     assert len(net.stations) == len(TEST_STATION_DATA)
@@ -87,7 +100,7 @@ def test_SeismicArrayNetwork_initialization():
         }
     )
     array = SeismicArrayNetwork(arrays_df)
-    assert len(array.stations) == len(arrays_df)
+    assert array.num_stations == len(arrays_df)
     # Test default params initialization
     assert array.network_code == "XX"
     assert array.required_detections == 1
@@ -101,6 +114,24 @@ def test_DASFibre_initialization_from_csv():
     )
     assert fibre.detection_length_m == 1500
     assert fibre.gauge_length_m == 20
+
+
+def test_DASFibre_initialization_from_df():
+    df = pd.read_csv("tests/data/das_dummy_data.csv")
+    fibre = DASFibre(df, detection_length_m=2000, gauge_length_m=10)
+    assert fibre.detection_length_m == 2000
+    assert fibre.gauge_length_m == 10
+
+
+def test_DASFibre_invalid_initialization():
+    with pytest.raises(ValueError, match="detection_length_m must be a positive value"):
+        DASFibre(
+            "tests/data/das_dummy_data.csv", detection_length_m=-100, gauge_length_m=20
+        )
+    with pytest.raises(ValueError, match="gauge_length_m must be a positive value"):
+        DASFibre(
+            "tests/data/das_dummy_data.csv", detection_length_m=1000, gauge_length_m=-5
+        )
 
 
 def test_ModelConfig_defaults():
