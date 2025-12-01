@@ -66,9 +66,11 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "*.ipynb"
+
 ]
 # add jupyter notebooks
-extend-include = ["*.ipynb"]
+# extend-include = ["*.ipynb"]
 
 # Same as Black.
 line-length = 88
