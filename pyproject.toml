@@ -9,9 +9,10 @@ authors = [
     { name = "Joseph Asplet", email = "joseph.asplet@earth.ox.ac.uk" },
 ]
 classifiers = [
-    "License :: OSI Approved :: GNU GPL v3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
 ]
 requires-python = ">=3.12"
 dependencies = [
@@ -73,7 +74,7 @@ extend-include = ["*.ipynb"]
 line-length = 88
 indent-width = 4
 
-# Assume Python 3.12
+# Min support Python version is 3.12
 target-version = "py312"
 
 [tool.ruff.lint]
