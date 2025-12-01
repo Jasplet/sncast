@@ -54,12 +54,12 @@ from pathlib import Path
 import numpy as np
 
 base_path = Path(__file__).resolve().parent.parent
-data_path = base_path / "data" / "gmpe_coeffs.json"
+data_path = base_path / 'data' / 'gmpe_coeffs.json'
 
-SUPPORT_GMPES = ["RE19", "AK14"]
+SUPPORT_GMPES = ['RE19', 'AK14']
 
 
-def eval_gmpe(mw, epic_dist, gmpe, model_type="PGV", debug=False):
+def eval_gmpe(mw, epic_dist, gmpe, model_type='PGV', debug=False):
     """
     Evaluates a chosen ground motion prediction equation (GMPE) for a given
     moment magnitude and epicentral distance.
@@ -90,17 +90,17 @@ def eval_gmpe(mw, epic_dist, gmpe, model_type="PGV", debug=False):
         Evaluated ground motion (PGA in g (m/s2) or PGV in m/s).
     """
     if gmpe not in SUPPORT_GMPES:
-        raise ValueError(f"GMPE {gmpe} not supported")
+        raise ValueError(f'GMPE {gmpe} not supported')
 
     with open(data_path) as f:
         GMPES = json.load(f)
 
     coeffs = GMPES[gmpe][model_type]
-    if gmpe == "RE19":
+    if gmpe == 'RE19':
         y = _eval_re19(coeffs, mw, epic_dist, debug=debug)
 
-    elif gmpe == "AK14":
-        coeffs_pga = GMPES["AK14"]["PGA"]
+    elif gmpe == 'AK14':
+        coeffs_pga = GMPES['AK14']['PGA']
         y = _eval_ak14(coeffs, coeffs_pga, mw, epic_dist)
 
     return y
@@ -133,16 +133,16 @@ def _eval_re19(coeffs, mw, epic_dist, debug=False):
         Intermediate calculation steps for debugging.
 
     """
-    dist = np.sqrt(coeffs["c11"] ** 2 + epic_dist)
+    dist = np.sqrt(coeffs['c11'] ** 2 + epic_dist)
     f0, f1, f2 = _re19_f_terms(dist)
     #
     # y can be either PGA, PGV or one of the periods if those
     # coefficiants are added.
-    y1 = coeffs["c1"] + coeffs["c2"] * mw + coeffs["c3"] * (mw**2)
-    y2 = f0 * (coeffs["c4"] + coeffs["c5"] * mw)
-    y3 = f1 * (coeffs["c6"] + coeffs["c7"] * mw)
-    y4 = f2 * (coeffs["c8"] + coeffs["c9"] * mw)
-    y5 = coeffs["c10"] * dist
+    y1 = coeffs['c1'] + coeffs['c2'] * mw + coeffs['c3'] * (mw**2)
+    y2 = f0 * (coeffs['c4'] + coeffs['c5'] * mw)
+    y3 = f1 * (coeffs['c6'] + coeffs['c7'] * mw)
+    y4 = f2 * (coeffs['c8'] + coeffs['c9'] * mw)
+    y5 = coeffs['c10'] * dist
     log10y = y1 + y2 + y3 + y4 + y5
     y = np.power(10, log10y)
     if debug:
@@ -210,19 +210,19 @@ def _eval_ak14(coeffs, pga_coeffs, mw, dist, vs30=750, nstd=1):
         Evaluated ground motion (PGA in g (m/s2) or PGV in m/s).
     """
     # First calculate PGA_REF, which is done for a refenrece Vs30=750m/s
-    ln_pga_750 = _ak14_yref(pga_coeffs, mw, dist, sof="SS")
+    ln_pga_750 = _ak14_yref(pga_coeffs, mw, dist, sof='SS')
     pga_750 = np.exp(ln_pga_750)
     # Calculate the site amplification
     site_ampl = _ak14_site_ampl(coeffs, pga_750, vs30)
     # Calculate total aleatory variability/ standard deviation
-    sigma = np.sqrt(coeffs["tau"] ** 2 + coeffs["phi"] ** 2)
+    sigma = np.sqrt(coeffs['tau'] ** 2 + coeffs['phi'] ** 2)
     # Calculate the final ground motion
-    ln_yref = _ak14_yref(coeffs, mw, dist, sof="SS")
+    ln_yref = _ak14_yref(coeffs, mw, dist, sof='SS')
     ln_y = ln_yref + site_ampl + nstd * sigma
     return np.exp(ln_y)
 
 
-def _ak14_yref(coeffs, mw, epic_dist, sof="SS"):
+def _ak14_yref(coeffs, mw, epic_dist, sof='SS'):
     """
     Evaluates equation 2 in Aker et al., (2014) for ln(Y_REF)
 
@@ -250,24 +250,24 @@ def _ak14_yref(coeffs, mw, epic_dist, sof="SS"):
     """
     # if mw <= c1 we use coefficat a2, if mw > c1 we use a7
 
-    if sof in ["Normal", "normal", "N"]:
+    if sof in ['Normal', 'normal', 'N']:
         sof_N = 1
-    elif sof in ["Reverse", "reverse", "R"]:
+    elif sof in ['Reverse', 'reverse', 'R']:
         sof_R = 1
     else:
         sof_N = 0
         sof_R = 0
 
-    if mw <= coeffs["c1"]:
-        y1 = coeffs["a1"] + coeffs["a2"] * (mw - coeffs["c1"])
+    if mw <= coeffs['c1']:
+        y1 = coeffs['a1'] + coeffs['a2'] * (mw - coeffs['c1'])
     else:
-        y1 = coeffs["a1"] + coeffs["a7"] * (mw - coeffs["c1"])
+        y1 = coeffs['a1'] + coeffs['a7'] * (mw - coeffs['c1'])
 
-    y2 = coeffs["a3"] * (8.5 - mw) ** 2
-    y3 = (coeffs["a4"] + coeffs["a5"] * (mw - coeffs["c1"])) * np.log(
-        np.sqrt(epic_dist**2 + coeffs["a6"] ** 2)
+    y2 = coeffs['a3'] * (8.5 - mw) ** 2
+    y3 = (coeffs['a4'] + coeffs['a5'] * (mw - coeffs['c1'])) * np.log(
+        np.sqrt(epic_dist**2 + coeffs['a6'] ** 2)
     )
-    y4 = coeffs["a8"] * sof_N + coeffs["a9"] * sof_R
+    y4 = coeffs['a8'] * sof_N + coeffs['a9'] * sof_R
     y = y1 + y2 + y3 + y4
 
     return y
@@ -298,12 +298,12 @@ def _ak14_site_ampl(coeffs, pga_ref, Vs30, Vsref=750):
     """
     vcon = 1000  # m/s. Limiting Vs30 after which site amplification is constant
     if Vs30 > Vsref:
-        s = coeffs["b1"] * np.log(np.min([Vs30, vcon]) / Vsref)
+        s = coeffs['b1'] * np.log(np.min([Vs30, vcon]) / Vsref)
     else:
-        s1 = coeffs["b1"] * np.log(Vs30 / Vsref)
-        numer = pga_ref + coeffs["c"] * (Vs30 / Vsref) ** coeffs["n"]
-        denom = (pga_ref + coeffs["c"]) * (Vsref / Vsref) ** coeffs["n"]
-        s2 = coeffs["b2"] * np.log(numer / denom)
+        s1 = coeffs['b1'] * np.log(Vs30 / Vsref)
+        numer = pga_ref + coeffs['c'] * (Vs30 / Vsref) ** coeffs['n']
+        denom = (pga_ref + coeffs['c']) * (Vsref / Vsref) ** coeffs['n']
+        s2 = coeffs['b2'] * np.log(numer / denom)
         s = s1 + s2
 
     return s

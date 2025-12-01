@@ -90,8 +90,8 @@ def test_get_das_noise_levels_stacking_edges_odd():
 
 
 #   test calc_min_ml_at_gridpoint_das
-@patch("sncast.model_detection_capability.get_das_noise_levels")
-@patch("sncast.model_detection_capability.calc_local_magnitude")
+@patch('sncast.model_detection_capability.get_das_noise_levels')
+@patch('sncast.model_detection_capability.calc_local_magnitude')
 def test_calc_min_ml_at_gridpoint_das(
     mock_calc_local_magnitude, mock_get_das_noise_levels
 ):
@@ -100,16 +100,16 @@ def test_calc_min_ml_at_gridpoint_das(
     test_noise = np.array([6e-9, 6e-9, 6e-9, 6e-9])
     mock_calc_local_magnitude.return_value = test_mags
     mock_get_das_noise_levels.return_value = test_noise
-    dummy_fibre = pd.read_csv("tests/data/das_dummy_data.csv")
+    dummy_fibre = pd.read_csv('tests/data/das_dummy_data.csv')
     lat = 1
     lon = 50
     distances_km = (
         pygc.great_distance(
-            start_latitude=dummy_fibre["latitude"].values,
+            start_latitude=dummy_fibre['latitude'].values,
             end_latitude=lat,
-            start_longitude=dummy_fibre["longitude"].values,
+            start_longitude=dummy_fibre['longitude'].values,
             end_longitude=lon,
-        )["distance"]
+        )['distance']
         * 1e-3
     )
     print(distances_km)
@@ -122,8 +122,8 @@ def test_calc_min_ml_at_gridpoint_das(
         model_stacking=True,
         foc_depth=0,
         snr=1,
-        region="UK",
-        method="ML",
+        region='UK',
+        method='ML',
         mag_min=-2,
         mag_delta=0.1,
     )

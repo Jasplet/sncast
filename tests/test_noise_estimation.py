@@ -16,7 +16,7 @@ from sncast.noise_estimation import (
 
 
 @pytest.mark.parametrize(
-    "f0, n, expected_f1, expected_f2",
+    'f0, n, expected_f1, expected_f2',
     [
         (2.0, 2.0, 1.0, 4.0),
         (0.5, 2.0, 0.25, 1.0),
@@ -33,7 +33,7 @@ def test_get_freq_range_from_centre(f0, n, expected_f1, expected_f2):
 
 
 @pytest.mark.parametrize(
-    "f0, n",
+    'f0, n',
     [(2.0, 2.0), (0.5, 2.0), (1.0, 0.2), (100, 3.2), (100, 0.4), (2000, 4)],
 )
 def test_get_freq_range_math(f0, n):
@@ -47,28 +47,28 @@ def test_get_freq_range_math(f0, n):
 
 
 def test_get_freq_range_from_centre_invalid_n():
-    with pytest.raises(ValueError, match=re.escape("n must be greater than 0")):
+    with pytest.raises(ValueError, match=re.escape('n must be greater than 0')):
         get_freq_range_from_centre(1.0, 0)
-    with pytest.raises(ValueError, match=re.escape("n must be greater than 0")):
+    with pytest.raises(ValueError, match=re.escape('n must be greater than 0')):
         get_freq_range_from_centre(1.0, -3)
     with pytest.raises(
-        ValueError, match=re.escape("n must be a positive int or float")
+        ValueError, match=re.escape('n must be a positive int or float')
     ):
-        get_freq_range_from_centre(1.0, "two")
+        get_freq_range_from_centre(1.0, 'two')
 
 
 def test_get_freq_range_from_centre_invalid_f0():
-    with pytest.raises(ValueError, match="f0 must be greater than 0"):
+    with pytest.raises(ValueError, match='f0 must be greater than 0'):
         get_freq_range_from_centre(0, 1.0)
-    with pytest.raises(ValueError, match="f0 must be greater than 0"):
+    with pytest.raises(ValueError, match='f0 must be greater than 0'):
         get_freq_range_from_centre(-1.0, 1.0)
-    with pytest.raises(ValueError, match="f0 must be a positive int or float"):
-        get_freq_range_from_centre("five", 1.0)
+    with pytest.raises(ValueError, match='f0 must be a positive int or float'):
+        get_freq_range_from_centre('five', 1.0)
 
 
 # test get f0_octaves_from_f1f2
 @pytest.mark.parametrize(
-    "f1, f2, expected_f0, expected_n",
+    'f1, f2, expected_f0, expected_n',
     [
         (1.0, 4.0, 2.0, 2.0),
         (10, 20, np.sqrt(200), 1.0),
@@ -86,7 +86,7 @@ def test_get_f0_octaves_from_f1f2(f1, f2, expected_f0, expected_n):
 
 
 @pytest.mark.parametrize(
-    "psd_in_db, expected_psd",
+    'psd_in_db, expected_psd',
     [
         (-120, 1e-12),
         (-110, 1e-11),
@@ -104,7 +104,7 @@ def test_psd_db_convert(psd_in_db, expected_psd):
 
 
 @pytest.mark.parametrize(
-    "psd_db, f1, f2",
+    'psd_db, f1, f2',
     [
         (-120, 0.5, 2),
         (-110, 0.5, 2),
@@ -135,7 +135,7 @@ def test_psd_db_to_displacement_amplitude_values():
 
 
 @pytest.mark.parametrize(
-    "psd_db, f1, f2",
+    'psd_db, f1, f2',
     [
         (-120, 0.5, 2),
         (-110, 0.5, 2),

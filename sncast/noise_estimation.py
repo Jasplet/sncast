@@ -55,7 +55,7 @@ import pandas as pd
 from obspy.signal import PPSD
 
 
-def estimate_noise_displacement(station_ppsd, f0=5, n=0.5, case="worst", verbose=False):
+def estimate_noise_displacement(station_ppsd, f0=5, n=0.5, case='worst', verbose=False):
     """
     Implements equation 5 from Mölhoff et al., (2019) to estimate noise displacement
     within a narrow frequency band of interest.
@@ -95,11 +95,11 @@ def estimate_noise_displacement(station_ppsd, f0=5, n=0.5, case="worst", verbose
 
     f1, f2 = get_freq_range_from_centre(f0, n)
     if verbose:
-        print(f"{case} noise estimate. f0={f0:4.2f}, n={n:2.1f}")
-    if case == "worst":
+        print(f'{case} noise estimate. f0={f0:4.2f}, n={n:2.1f}')
+    if case == 'worst':
         period, psd_accl = station_ppsd.get_percentile(95)
         freqs_psd = 1 / period
-    elif case == "mode":
+    elif case == 'mode':
         period, psd_accl = station_ppsd.get_mode()
         freqs_psd = 1 / period
     elif type(case) is int:
@@ -113,7 +113,7 @@ def estimate_noise_displacement(station_ppsd, f0=5, n=0.5, case="worst", verbose
     return displacement
 
 
-def estimate_noise_velocity(station_ppsd, f0=5, n=0.5, case="worst", verbose=False):
+def estimate_noise_velocity(station_ppsd, f0=5, n=0.5, case='worst', verbose=False):
     """
     Estimates 95-percentile noise values in velocity [m/s] in a frequency band
     centered on f0. Similar to estimate_noise_displacement but we are only integrating
@@ -143,11 +143,11 @@ def estimate_noise_velocity(station_ppsd, f0=5, n=0.5, case="worst", verbose=Fal
     """
     f1, f2 = get_freq_range_from_centre(f0, n)
     if verbose:
-        print(f"{case} noise estimate. f0={f0:4.2f}, n={n:2.1f}")
-    if case == "worst":
+        print(f'{case} noise estimate. f0={f0:4.2f}, n={n:2.1f}')
+    if case == 'worst':
         period, psd_accl = station_ppsd.get_percentile(95)
         freqs_psd = 1 / period
-    elif case == "mode":
+    elif case == 'mode':
         period, psd_accl = station_ppsd.get_mode()
         freqs_psd = 1 / period
     elif type(case) is int:
@@ -208,14 +208,14 @@ def get_freq_range_from_centre(f0, n=0.5):
     """
     if isinstance(n, (int, float)):
         if n <= 0:
-            raise ValueError("n must be greater than 0")
+            raise ValueError('n must be greater than 0')
     else:
-        raise ValueError("n must be a positive int or float")
+        raise ValueError('n must be a positive int or float')
     if isinstance(f0, (int, float)):
         if f0 <= 0:
-            raise ValueError("f0 must be greater than 0")
+            raise ValueError('f0 must be greater than 0')
     else:
-        raise ValueError("f0 must be a positive int or float")
+        raise ValueError('f0 must be a positive int or float')
     f1 = f0 * 2 ** (-n / 2)  # lower bound of frequency span
     f2 = f0 * 2 ** (n / 2)  # upper bound of frequency span
     return f1, f2
@@ -348,45 +348,45 @@ def make_noise_estimate_for_ppsds(
     - This function assumes that the PPSD files are stored in a specific directory structure.
       This needs to be fixed before release.
     """
-    if unit not in ["displ", "vel"]:
+    if unit not in ['displ', 'vel']:
         raise ValueError(f'unit must be one of ["displ", "vel"] not {unit}')
-    elif unit == "displ":
-        noise_key = "noise [nm]"
-    elif unit == "vel":
-        noise_key = "noise [cm/s]"
+    elif unit == 'displ':
+        noise_key = 'noise [nm]'
+    elif unit == 'vel':
+        noise_key = 'noise [cm/s]'
     station_noise_dict = {
-        "longitude": [],
-        "latitude": [],
-        "elevation_km": [],
+        'longitude': [],
+        'latitude': [],
+        'elevation_km': [],
         noise_key: [],
-        "station": [],
+        'station': [],
     }
     if ppsd_path is not None:
-        ppsd_path = Path(kwargs["ppsd_path"])
+        ppsd_path = Path(kwargs['ppsd_path'])
     else:
-        ppsd_path = Path.cwd() / "ppsd"
+        ppsd_path = Path.cwd() / 'ppsd'
     for network in inventory:
         network_ppsd_path = ppsd_path / network.code
         for station in network:
             for channel in station:
                 ppsd_file = (
-                    f"{network.code}_{station.code}_{channel.code}_{file_ext}.npz"
+                    f'{network.code}_{station.code}_{channel.code}_{file_ext}.npz'
                 )
                 try:
                     ppsd = PPSD.load_npz(network_ppsd_path / ppsd_file)
 
-                    if unit == "displ":
-                        if "f0" in kwargs:
+                    if unit == 'displ':
+                        if 'f0' in kwargs:
                             displ_m = estimate_noise_displacement(
-                                ppsd, case=case, f0=kwargs["f0"]
+                                ppsd, case=case, f0=kwargs['f0']
                             )
                         else:
                             displ_m = estimate_noise_displacement(ppsd, case=case)
                         noise = displ_m * 1e9  # disp in nm
-                    elif unit == "vel":
-                        if "f0" in kwargs:
+                    elif unit == 'vel':
+                        if 'f0' in kwargs:
                             vel_ms = estimate_noise_velocity(
-                                ppsd, case=case, f0=kwargs["f0"]
+                                ppsd, case=case, f0=kwargs['f0']
                             )
                         else:
                             vel_ms = estimate_noise_velocity(ppsd, case=case)
@@ -394,16 +394,16 @@ def make_noise_estimate_for_ppsds(
 
                 except FileNotFoundError:
                     print(ppsd_file)
-                    if unit == "displ":
+                    if unit == 'displ':
                         noise = 10  # nm
-                    elif unit == "vel":
+                    elif unit == 'vel':
                         noise = 2e-05  # cm/s
 
-                station_noise_dict["longitude"].append(station.longitude)
-                station_noise_dict["latitude"].append(station.latitude)
-                station_noise_dict["elevation_km"].append(station.elevation * 1e-3)
+                station_noise_dict['longitude'].append(station.longitude)
+                station_noise_dict['latitude'].append(station.latitude)
+                station_noise_dict['elevation_km'].append(station.elevation * 1e-3)
                 station_noise_dict[noise_key].append(noise)
-                station_noise_dict["station"].append(station.code)
-                station_noise_dict["channel"].append(channel.code)
+                station_noise_dict['station'].append(station.code)
+                station_noise_dict['channel'].append(channel.code)
 
     return pd.DataFrame(station_noise_dict)

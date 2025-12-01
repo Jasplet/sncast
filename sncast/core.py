@@ -17,10 +17,10 @@ from decimal import Decimal
 
 import pandas as pd
 
-SUPPORTED_METHODS = ["ML", "GMPE"]
-SUPPORTED_REGIONS = ["UK", "CAL"]
-SUPPORTED_GMPES = ["RE19", "AK14"]
-SUPPORTED_GMPE_MODEL_TYPES = ["PGV", "PGA"]
+SUPPORTED_METHODS = ['ML', 'GMPE']
+SUPPORTED_REGIONS = ['UK', 'CAL']
+SUPPORTED_GMPES = ['RE19', 'AK14']
+SUPPORTED_GMPE_MODEL_TYPES = ['PGV', 'PGA']
 
 
 class SeismicNetwork:
@@ -32,7 +32,7 @@ class SeismicNetwork:
     def __init__(
         self,
         stations: str | pd.DataFrame,
-        network_code: str = "XX",
+        network_code: str = 'XX',
         required_detections: int = 5,
     ):
         """
@@ -66,21 +66,21 @@ class SeismicNetwork:
         self._validate()
 
     def __repr__(self):
-        return f"<SeismicNetwork {self.network_code} with {len(self.stations)} stations. Required detections: {self.required_detections}>"
+        return f'<SeismicNetwork {self.network_code} with {len(self.stations)} stations. Required detections: {self.required_detections}>'
 
     def _validate(self):
         """
         Validate the seismic network data.
         """
         if self.num_stations == 0:
-            raise ValueError("No stations in the seismic network.")
+            raise ValueError('No stations in the seismic network.')
         if self.num_stations <= self.required_detections:
             raise ValueError(
-                f"Not enough stations in the seismic network. Required: {self.required_detections}, found: {self.num_stations}"
+                f'Not enough stations in the seismic network. Required: {self.required_detections}, found: {self.num_stations}'
             )
         # Drop duplicate stations based on station name
         self.stations.drop_duplicates(
-            subset=["station", "latitude", "longitude"], inplace=True
+            subset=['station', 'latitude', 'longitude'], inplace=True
         )
 
     @property
@@ -108,7 +108,7 @@ class SeismicArrayNetwork(SeismicNetwork):
     def __init__(
         self,
         arrays: str | pd.DataFrame,
-        array_code: str = "XX",
+        array_code: str = 'XX',
         required_detections: int = 1,
     ):
         super().__init__(
@@ -118,7 +118,7 @@ class SeismicArrayNetwork(SeismicNetwork):
         )
 
     def __repr__(self):
-        return f"<SeismicArrayNetwork {self.network_code} with {self.num_stations} arrays. Required detections: {self.required_detections}>"
+        return f'<SeismicArrayNetwork {self.network_code} with {self.num_stations} arrays. Required detections: {self.required_detections}>'
 
 
 class DASFibre:
@@ -145,21 +145,21 @@ class DASFibre:
         self.detection_length_m = detection_length_m
         self.gauge_length_m = gauge_length_m
         self._validate()
-        print(f"DAS Fibre initialized with {len(self.das_channels)} channels.")
+        print(f'DAS Fibre initialized with {len(self.das_channels)} channels.')
 
     def __repr__(self):
-        return f"<DASFibre with {len(self.das_data)} channels>"
+        return f'<DASFibre with {len(self.das_data)} channels>'
 
     def _validate(self):
         """
         Validate the DAS fibre data.
         """
         if len(self.das_channels) == 0:
-            raise ValueError("No DAS channels in the fibre.")
+            raise ValueError('No DAS channels in the fibre.')
         if self.detection_length_m <= 0:
-            raise ValueError("detection_length_m must be a positive value.")
+            raise ValueError('detection_length_m must be a positive value.')
         if self.gauge_length_m <= 0:
-            raise ValueError("gauge_length_m must be a positive value.")
+            raise ValueError('gauge_length_m must be a positive value.')
 
 
 class ModelConfig:
@@ -185,17 +185,17 @@ class ModelConfig:
     """
 
     def __init__(self, **kwargs):
-        self.snr: float = kwargs.get("snr", 3.0)
-        self.foc_depth_km: float = kwargs.get("foc_depth_km", 2.0)
-        self.region: str = kwargs.get("region", "CAL")
-        self.nproc: int = kwargs.get("nproc", 1)
-        self.method: str = kwargs.get("method", "ML")
-        self.mag_min: float = kwargs.get("mag_min", -2.0)
-        self.mag_delta: float = kwargs.get("mag_delta", 0.1)
-        self.model_stacking_das: bool = kwargs.get("model_stacking_das", True)
-        if self.method == "GMPE":
-            self.gmpe: str = kwargs.get("gmpe", "AK14")
-            self.gmpe_model_type: str = kwargs.get("gmpe_model_type", "PGV")
+        self.snr: float = kwargs.get('snr', 3.0)
+        self.foc_depth_km: float = kwargs.get('foc_depth_km', 2.0)
+        self.region: str = kwargs.get('region', 'CAL')
+        self.nproc: int = kwargs.get('nproc', 1)
+        self.method: str = kwargs.get('method', 'ML')
+        self.mag_min: float = kwargs.get('mag_min', -2.0)
+        self.mag_delta: float = kwargs.get('mag_delta', 0.1)
+        self.model_stacking_das: bool = kwargs.get('model_stacking_das', True)
+        if self.method == 'GMPE':
+            self.gmpe: str = kwargs.get('gmpe', 'AK14')
+            self.gmpe_model_type: str = kwargs.get('gmpe_model_type', 'PGV')
         else:
             self.gmpe = None
             self.gmpe_model_type = None
@@ -208,26 +208,26 @@ class ModelConfig:
 
         if self.method not in SUPPORTED_METHODS:
             raise ValueError(
-                f"Invalid method: {self.method}. Valid methods are {SUPPORTED_METHODS}."
+                f'Invalid method: {self.method}. Valid methods are {SUPPORTED_METHODS}.'
             )
-        if self.method == "GMPE":
+        if self.method == 'GMPE':
             if self.gmpe not in SUPPORTED_GMPES:
                 raise ValueError(
-                    f"Invalid GMPE: {self.gmpe}. Valid GMPEs are {SUPPORTED_GMPES}."
+                    f'Invalid GMPE: {self.gmpe}. Valid GMPEs are {SUPPORTED_GMPES}.'
                 )
             if self.gmpe_model_type not in SUPPORTED_GMPE_MODEL_TYPES:
                 raise ValueError(
-                    f"Invalid GMPE model type: {self.gmpe_model_type}. Valid types are {SUPPORTED_GMPE_MODEL_TYPES}."
+                    f'Invalid GMPE model type: {self.gmpe_model_type}. Valid types are {SUPPORTED_GMPE_MODEL_TYPES}.'
                 )
 
         if self.region not in SUPPORTED_REGIONS:
             raise ValueError(
-                f"Invalid region: {self.region}. Valid regions are {SUPPORTED_REGIONS}."
+                f'Invalid region: {self.region}. Valid regions are {SUPPORTED_REGIONS}.'
             )
         if self.snr <= 0:
-            raise ValueError("SNR must be a positive value.")
+            raise ValueError('SNR must be a positive value.')
         if self.foc_depth_km < 0:
-            raise ValueError("Focal depth must be a positive value.")
+            raise ValueError('Focal depth must be a positive value.')
 
     def add_grid_params(
         self,
@@ -257,18 +257,18 @@ class ModelConfig:
             Latitude step size, by default 0.1
         """
         if lon0 > lon1:
-            raise ValueError(f"lon0 {lon0} must be less than lon1 {lon1}")
+            raise ValueError(f'lon0 {lon0} must be less than lon1 {lon1}')
         if lat0 > lat1:
-            raise ValueError(f"lat0 {lat0} must be less than lat1 {lat1}")
+            raise ValueError(f'lat0 {lat0} must be less than lat1 {lat1}')
         if dlon <= 0 or dlat <= 0:
-            raise ValueError(f"dlon and dlat ({dlon, dlat}) must be positive values")
+            raise ValueError(f'dlon and dlat ({dlon, dlat}) must be positive values')
         if (Decimal(str(lat1)) - Decimal(str(lat0))) % Decimal(str(dlat)) != 0:
             raise ValueError(
-                f"lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}"
+                f'lat1 {lat1} - lat0 {lat0} must be divisible by dlat {dlat}'
             )
         if (Decimal(str(lon1)) - Decimal(str(lon0))) % Decimal(str(dlon)) != 0:
             raise ValueError(
-                f"lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}"
+                f'lon1 {lon1} - lon0 {lon0} must be divisible by dlon {dlon}'
             )
 
         self.lon0 = lon0
@@ -312,20 +312,20 @@ class ModelConfig:
             Depth increment along the cross-section in km.
         """
         if length_km <= 0:
-            raise ValueError("length_km must be a positive value.")
+            raise ValueError('length_km must be a positive value.')
         if ddist_km <= 0:
-            raise ValueError("ddist_km must be a positive value.")
+            raise ValueError('ddist_km must be a positive value.')
         if min_depth_km < 0:
-            raise ValueError("min_depth_km must be a non-negative value.")
+            raise ValueError('min_depth_km must be a non-negative value.')
         if max_depth_km <= min_depth_km:
-            raise ValueError("max_depth_km must be greater than min_depth_km.")
+            raise ValueError('max_depth_km must be greater than min_depth_km.')
         if ddepth_km <= 0:
-            raise ValueError("ddepth_km must be a positive value.")
+            raise ValueError('ddepth_km must be a positive value.')
         if (Decimal(str(max_depth_km)) - Decimal(str(min_depth_km))) % Decimal(
             str(ddepth_km)
         ) != 0:
             raise ValueError(
-                f"max_depth_km {max_depth_km} - min_depth_km {min_depth_km} must be divisible by ddepth_km {ddepth_km}"
+                f'max_depth_km {max_depth_km} - min_depth_km {min_depth_km} must be divisible by ddepth_km {ddepth_km}'
             )
 
         self.lon0 = lon0
@@ -338,7 +338,7 @@ class ModelConfig:
         self.ddepth_km = ddepth_km
 
     def __repr__(self):
-        return f"<ModelConfig with method={self.method}, region={self.region}, snr={self.snr}>"
+        return f'<ModelConfig with method={self.method}, region={self.region}, snr={self.snr}>'
 
 
 def _read_station_data(stations_in):
@@ -363,18 +363,18 @@ def _read_station_data(stations_in):
         stations_df = pd.read_csv(stations_in)
     else:
         stations_df = stations_in.copy()
-    if "elevation_m" in stations_df.columns:
-        stations_df["elevation_m"] *= 1e-3
-        stations_df.rename(columns={"elevation_m": "elevation_km"}, inplace=True)
+    if 'elevation_m' in stations_df.columns:
+        stations_df['elevation_m'] *= 1e-3
+        stations_df.rename(columns={'elevation_m': 'elevation_km'}, inplace=True)
     required_cols = {
-        "longitude",
-        "latitude",
-        "elevation_km",
-        "noise [nm]",
-        "station",
+        'longitude',
+        'latitude',
+        'elevation_km',
+        'noise [nm]',
+        'station',
     }
     if not required_cols.issubset(stations_df.columns):
-        raise ValueError(f"Missing columns: {required_cols - set(stations_df.columns)}")
+        raise ValueError(f'Missing columns: {required_cols - set(stations_df.columns)}')
     return stations_df
 
 
@@ -407,16 +407,16 @@ def _read_das_noise_data(das_in):
     else:
         das_df = das_in.copy()
     required_cols = {
-        "channel_index",
-        "fiber_length_m",
-        "longitude",
-        "latitude",
-        "noise_m",
+        'channel_index',
+        'fiber_length_m',
+        'longitude',
+        'latitude',
+        'noise_m',
     }
     if not required_cols.issubset(das_df.columns):
-        raise ValueError(f"Missing columns: {required_cols - set(das_df.columns)}")
-    if "elevation_km" not in das_df.columns:
+        raise ValueError(f'Missing columns: {required_cols - set(das_df.columns)}')
+    if 'elevation_km' not in das_df.columns:
         # If elevation is not provided, set it to zero
-        das_df["elevation_km"] = 0.0
+        das_df['elevation_km'] = 0.0
 
     return das_df
