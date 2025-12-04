@@ -91,7 +91,7 @@ class DetectionCapabilityModel:
     def __repr__(self):
         return f'<DetectionCapabilityModel with {len(self.networks)} networks, {len(self.arrays)} arrays, and {len(self.das_fibres)} DAS fibres>'
 
-    def add_network(self, network):
+    def add_network(self, network, network_code=None):
         """
         Add a seismic network to the model.
         """
@@ -100,7 +100,7 @@ class DetectionCapabilityModel:
             self.n_networks += 1
             print(f'Seismic network {network.network_code} added to model.')
         else:
-            net_to_add = SeismicNetwork(stations=network)
+            net_to_add = SeismicNetwork(stations=network, network_code=network_code)
             self.networks.append(net_to_add)
             self.n_networks += 1
             print(
@@ -220,9 +220,8 @@ class DetectionCapabilityModel:
             'nproc': getattr(self.config, 'nproc', 1),
             'model_stacking_das': getattr(self.config, 'model_stacking_das', True),
         }
-        if self.config.method == 'GMPE':
-            model_kwargs['gmpe'] = self.config.gmpe
-            model_kwargs['gmpe_model_type'] = self.config.gmpe_model_type
+        model_kwargs['gmpe'] = self.config.gmpe
+        model_kwargs['gmpe_model_type'] = self.config.gmpe_model_type
         if self.n_networks > 0:
             model_kwargs['networks'] = self.networks
         else:
@@ -238,7 +237,7 @@ class DetectionCapabilityModel:
 
         return model_kwargs
 
-    def run_model(self):
+    def run_model(self, return_result=False):
         """
         Run the detection capability model over a specified geographic region.
 
@@ -257,7 +256,10 @@ class DetectionCapabilityModel:
         mag_det = find_min_ml(
             **model_kwargs,
         )
-        return mag_det
+        if return_result:
+            return mag_det
+        else:
+            return
 
 
 def find_min_ml(**model_kwargs):
@@ -350,9 +352,6 @@ def _minml_worker(grid_point, **kwargs):
 
     if 'networks' in kwargs:
         for Network in kwargs['networks']:
-            print(
-                f'Calculating min ML at grid point for Seismic Network {Network.network_code}'
-            )
             # spell out kwargs here for clarify and to avoid passing
             # unnecessary data to worker processes
             min_mag_net = calc_min_ml_at_gridpoint(
