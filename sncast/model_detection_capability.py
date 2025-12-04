@@ -253,11 +253,11 @@ class DetectionCapabilityModel:
             raise ValueError('No seismic networks, arrays or DAS provided!')
 
         model_kwargs = self._make_model_kwargs()
-        mag_det = find_min_ml(
+        self.mag_det_model = find_min_ml(
             **model_kwargs,
         )
         if return_result:
-            return mag_det
+            return self.mag_det_model
         else:
             return
 
