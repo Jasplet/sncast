@@ -139,6 +139,10 @@ class DASFibre:
         ----------
         das_data : str or pd.DataFrame
             Path to a CSV file or a DataFrame containing DAS noise data.
+        detection_length_m : int, optional
+            Continuous length of fibre along which a detection must be made (in meters), by default 1000m
+        gauge_length_m : int, optional
+            Gauge length of the DAS fibre (in meters), by default 10m.
         """
         self.das_channels = _read_das_noise_data(das_data)
 
