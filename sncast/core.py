@@ -6,7 +6,7 @@
 """
 Filename : core.py
 
-Purpose : High-level core Classes for SNACT
+Purpose : High-level core Classes for SNCAST
 
 Author : Joseph Asplet, University of Oxford
 
