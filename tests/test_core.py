@@ -118,7 +118,7 @@ def test_DASFibre_initialization_from_csv():
 
 def test_DASFibre_initialization_from_df():
     df = pd.read_csv('tests/data/das_dummy_data.csv')
-    fibre = DASFibre(df, detection_length_m=2000, gauge_length_m=10)
+    fibre = DASFibre(df, detection_length_m=2000, gauge_length_m=10, fibre_code='TEST')
     assert fibre.detection_length_m == 2000
     assert fibre.gauge_length_m == 10
 
@@ -126,11 +126,17 @@ def test_DASFibre_initialization_from_df():
 def test_DASFibre_invalid_initialization():
     with pytest.raises(ValueError, match='detection_length_m must be a positive value'):
         DASFibre(
-            'tests/data/das_dummy_data.csv', detection_length_m=-100, gauge_length_m=20
+            'tests/data/das_dummy_data.csv',
+            detection_length_m=-100,
+            gauge_length_m=20,
+            fibre_code='TEST',
         )
     with pytest.raises(ValueError, match='gauge_length_m must be a positive value'):
         DASFibre(
-            'tests/data/das_dummy_data.csv', detection_length_m=1000, gauge_length_m=-5
+            'tests/data/das_dummy_data.csv',
+            detection_length_m=1000,
+            gauge_length_m=-5,
+            fibre_code='TEST',
         )
 
 
@@ -144,8 +150,8 @@ def test_ModelConfig_defaults():
     assert Config.mag_min == -2.0
     assert Config.mag_delta == 0.1
     assert Config.model_stacking_das is True
-    assert Config.gmpe is None
-    assert Config.gmpe_model_type is None
+    assert not hasattr(config, 'gmpe')
+    assert not hasattr(config, 'gmpe_model_type')
 
     Config_GMPE_default = ModelConfig(method='GMPE')
     assert Config_GMPE_default.gmpe == 'AK14'
@@ -172,6 +178,8 @@ def test_ModelConfig_custom_initialization():
     assert config.mag_min == -3.0
     assert config.mag_delta == 0.05
     assert config.model_stacking_das is False
+    assert not hasattr(config, 'gmpe')
+    assert not hasattr(config, 'gmpe_model_type')
 
 
 @pytest.mark.parametrize('bad_region', ['USA', '', 10, 'MARS'])
