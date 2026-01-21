@@ -105,7 +105,8 @@ def estimate_noise_displacement(station_ppsd, f0=5, n=0.5, case='worst', verbose
     elif type(case) is int:
         period, psd_accl = station_ppsd.get_percentile(case)
         freqs_psd = 1 / period
-
+    else:
+        raise ValueError('case must be "worst", "mode" or an integer percentile')
     mean_psd_db = psd_accl[(freqs_psd >= f1) & (freqs_psd <= f2)].mean()
 
     displacement = psd_db_to_displacement_amplitude(mean_psd_db, f0=f0, f1=f1, f2=f2)
