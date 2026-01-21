@@ -264,6 +264,9 @@ class DetectionCapabilityModel:
         if self.config.method == 'GMPE':
             model_kwargs['gmpe'] = self.config.gmpe
             model_kwargs['gmpe_model_type'] = self.config.gmpe_model_type
+        else:
+            model_kwargs['gmpe'] = None
+            model_kwargs['gmpe_model_type'] = None
         if self.n_networks > 0:
             model_kwargs['networks'] = self.networks
         else:
