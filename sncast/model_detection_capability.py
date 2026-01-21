@@ -1057,6 +1057,9 @@ def calc_ampl_from_magnitude(local_mag, hypo_dist, region):
 
         ampl = np.power(10, (local_mag - a * np.log10(hypo_dist) - b * hypo_dist - c))
 
+    else:
+        raise ValueError(f'Unknown region: {region}')
+
     return ampl
 
 
@@ -1162,7 +1165,7 @@ def _est_min_ml_at_station(noise, mag_min, mag_delta, distance, snr, **kwargs):
         while signal < snr * noise:
             ml = ml + mag_delta
             mw = convert_ml_to_mw(ml, region)
-            signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)
+            signal = eval_gmpe(mw, distance, gmpe, model_type=gmpe_model_type)  # type: ignore
             ml = convert_mw_to_ml(mw, region)
             if ml > 3:
                 break
