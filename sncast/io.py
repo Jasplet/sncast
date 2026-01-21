@@ -7,6 +7,8 @@ from pathlib import Path
 
 import yaml
 
+from sncast import core as sncore
+
 
 def load_config(config_file: str) -> dict:
     """
@@ -33,3 +35,21 @@ def load_config(config_file: str) -> dict:
             return all_config
     except yaml.YAMLError as e:
         raise ValueError(f'Error parsing YAML config file: {e}')
+
+
+def _init_model_config(model_config: dict) -> sncore.ModelConfig:
+    """
+    Initialize model configuration with default values where necessary.
+
+    Parameters
+    ----------
+    model_config : dict
+        Model configuration parameters.
+
+    Returns
+    -------
+    model_config : dict
+        Initialized model configuration with defaults applied.
+    """
+
+    return sncore.ModelConfig(**model_config)
