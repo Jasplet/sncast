@@ -261,8 +261,9 @@ class DetectionCapabilityModel:
             'nproc': getattr(self.config, 'nproc', 1),
             'model_stacking_das': getattr(self.config, 'model_stacking_das', True),
         }
-        model_kwargs['gmpe'] = self.config.gmpe
-        model_kwargs['gmpe_model_type'] = self.config.gmpe_model_type
+        if self.config.method == 'GMPE':
+            model_kwargs['gmpe'] = self.config.gmpe
+            model_kwargs['gmpe_model_type'] = self.config.gmpe_model_type
         if self.n_networks > 0:
             model_kwargs['networks'] = self.networks
         else:
