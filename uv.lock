@@ -2166,7 +2166,6 @@ dependencies = [
     { name = "obspy" },
     { name = "pandas" },
     { name = "pygc" },
-    { name = "pygmt" },
     { name = "pyyaml" },
     { name = "xarray" },
 ]
