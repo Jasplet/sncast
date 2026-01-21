@@ -125,7 +125,7 @@ class DetectionCapabilityModel:
             self.n_networks += 1
             print(f'Seismic network {network.network_code} added to model.')
         else:
-            net_to_add = SeismicNetwork(stations=network, network_code=network_code)
+            net_to_add = SeismicNetwork(stations=network, network_code=network_code)  # type: ignore
             self.networks.append(net_to_add)
             self.n_networks += 1
             print(
@@ -154,7 +154,7 @@ class DetectionCapabilityModel:
             self.n_arrays += 1
             print(f'Seismic array {arr_to_add.array_code} created and added to model.')
 
-    def add_das_fibre(self, das_fibre, fibre_code):
+    def add_das_fibre(self, das_fibre, fibre_code=None):
         """
         Add a DAS fibre to the model.
 
@@ -171,7 +171,7 @@ class DetectionCapabilityModel:
             self.n_das_fibres += 1
             print(f'DAS fibre {das_fibre.fibre_code} added to model.')
         else:
-            das_to_add = DASFibre(fibres=das_fibre)
+            das_to_add = DASFibre(das_data=das_fibre, fibre_code=fibre_code)  # type: ignore
             self.das_fibres.append(das_to_add)
             self.n_das_fibres += 1
             print(f'DAS fibre {das_to_add.fibre_code} created and added to model.')
