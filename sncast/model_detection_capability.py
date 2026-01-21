@@ -78,20 +78,20 @@ class DetectionCapabilityModel:
             An instance of ModelConfig containing configuration parameters.
             If not provided, a new ModelConfig will be created using other
             keyword arguments.
-            snr : float, optional
-                Signal-to-noise ratio threshold for detection, by default 3.0
-            foc_depth_km : float, optional
-                Focal depth in kilometers, by default 2.0
-            region : str, optional
-                Geographical region for the model, by default "CAL"
-            nproc : int, optional
-                Number of processors to use for computation, by default 1
-            method : str, optional
-                Method for ground motion prediction, by default "ML"
-            gmpe : str, optional
-                GMPE model to use if method is "GMPE", by default "AK14"
-            gmpe_model_type : str, optional
-                Type of GMPE model, by default "PGV"
+        snr : float, optional
+            Signal-to-noise ratio threshold for detection, by default 3.0
+        foc_depth_km : float, optional
+            Focal depth in kilometers, by default 2.0
+        region : str, optional
+            Geographical region for the model, by default "CAL"
+        nproc : int, optional
+            Number of processors to use for computation, by default 1
+        method : str, optional
+            Method for ground motion prediction, by default "ML"
+        gmpe : str, optional
+            GMPE model to use if method is "GMPE", by default "AK14"
+        gmpe_model_type : str, optional
+            Type of GMPE model, by default "PGV"
         """
         if 'model_config' in kwargs:
             self.config = kwargs['model_config']
@@ -111,6 +111,14 @@ class DetectionCapabilityModel:
     def add_network(self, network, network_code=None):
         """
         Add a seismic network to the model.
+
+        Parameters
+        ----------
+        network : SeismicNetwork or pd.DataFrame or str
+            An instance of SeismicNetwork, a DataFrame containing station data,
+            or a path to a CSV file with station data.
+        network_code : str, optional
+            A code to identify the network if a DataFrame or CSV file is provided.
         """
         if isinstance(network, SeismicNetwork):
             self.networks.append(network)
@@ -124,9 +132,17 @@ class DetectionCapabilityModel:
                 f'Seismic network {net_to_add.network_code} created and added to model.'
             )
 
-    def add_array(self, array):
+    def add_array(self, array, array_code):
         """
         Add a seismic array to the model.
+
+        Parameters
+        ----------
+        array : SeismicArrayNetwork or pd.DataFrame or str
+            An instance of SeismicArrayNetwork, a DataFrame containing station data,
+            or a path to a CSV file with station data.
+        array_code : str
+            Network code associated with the array.
         """
         if isinstance(array, SeismicArrayNetwork):
             self.arrays.append(array)
@@ -138,9 +154,17 @@ class DetectionCapabilityModel:
             self.n_arrays += 1
             print(f'Seismic array {arr_to_add.array_code} created and added to model.')
 
-    def add_das_fibre(self, das_fibre):
+    def add_das_fibre(self, das_fibre, fibre_code):
         """
         Add a DAS fibre to the model.
+
+        Parameters
+        ----------
+        das_fibre : DASFibre or pd.DataFrame or str
+            An instance of DASFibre, a DataFrame containing DAS channel data,
+            or a path to a CSV file with DAS channel data.
+        fibre_code : str
+            Code to identify the DAS fibre.
         """
         if isinstance(das_fibre, DASFibre):
             self.das_fibres.append(das_fibre)
