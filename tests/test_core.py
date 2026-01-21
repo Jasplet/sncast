@@ -110,7 +110,10 @@ def test_SeismicArrayNetwork_initialization():
 
 def test_DASFibre_initialization_from_csv():
     fibre = DASFibre(
-        'tests/data/das_dummy_data.csv', detection_length_m=1500, gauge_length_m=20
+        'tests/data/das_dummy_data.csv',
+        detection_length_m=1500,
+        gauge_length_m=20,
+        fibre_code='TEST',
     )
     assert fibre.detection_length_m == 1500
     assert fibre.gauge_length_m == 20
@@ -150,8 +153,8 @@ def test_ModelConfig_defaults():
     assert Config.mag_min == -2.0
     assert Config.mag_delta == 0.1
     assert Config.model_stacking_das is True
-    assert not hasattr(config, 'gmpe')
-    assert not hasattr(config, 'gmpe_model_type')
+    assert not hasattr(Config, 'gmpe')
+    assert not hasattr(Config, 'gmpe_model_type')
 
     Config_GMPE_default = ModelConfig(method='GMPE')
     assert Config_GMPE_default.gmpe == 'AK14'
