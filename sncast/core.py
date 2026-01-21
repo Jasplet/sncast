@@ -129,6 +129,7 @@ class DASFibre:
     def __init__(
         self,
         das_data: str | pd.DataFrame,
+        fibre_code: str,
         detection_length_m: int = 1000,
         gauge_length_m: int = 10,
     ):
@@ -147,14 +148,14 @@ class DASFibre:
             Gauge length of the DAS fibre (in meters), by default 10m.
         """
         self.das_channels = _read_das_noise_data(das_data)
-
+        self.fibre_code = fibre_code
         self.detection_length_m = detection_length_m
         self.gauge_length_m = gauge_length_m
         self._validate()
         print(f'DAS Fibre initialized with {len(self.das_channels)} channels.')
 
     def __repr__(self):
-        return f'<DASFibre with {len(self.das_data)} channels>'
+        return f'<DASFibre with {len(self.das_channels)} channels>'
 
     def _validate(self):
         """
