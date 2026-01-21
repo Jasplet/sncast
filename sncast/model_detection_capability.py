@@ -74,12 +74,29 @@ class DetectionCapabilityModel:
 
         Parameters
         ----------
-        **kwargs : dict
-            Additional keyword arguments to control the method and parameters:
-            - method: 'ML' or 'GMPE'. Default is "ML".
-            - region: Locality for assumed ML scale parameters ("UK" or "CAL"). Default is "CAL".
+        model_config : ModelConfig, optional
+            An instance of ModelConfig containing configuration parameters.
+            If not provided, a new ModelConfig will be created using other
+            keyword arguments.
+            snr : float, optional
+                Signal-to-noise ratio threshold for detection, by default 3.0
+            foc_depth_km : float, optional
+                Focal depth in kilometers, by default 2.0
+            region : str, optional
+                Geographical region for the model, by default "CAL"
+            nproc : int, optional
+                Number of processors to use for computation, by default 1
+            method : str, optional
+                Method for ground motion prediction, by default "ML"
+            gmpe : str, optional
+                GMPE model to use if method is "GMPE", by default "AK14"
+            gmpe_model_type : str, optional
+                Type of GMPE model, by default "PGV"
         """
-        self.config = ModelConfig(**kwargs)
+        if 'model_config' in kwargs:
+            self.config = kwargs['model_config']
+        else:
+            self.config = ModelConfig(**kwargs)
         self.networks = []
         self.n_networks = 0
         self.arrays = []
