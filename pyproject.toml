@@ -1,17 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "sncast"
 version = "0.1.0"
 description = "Software for modelling earthquake detection capability for a seismic network"
 readme = "README.md"
-license = "GNU General Public License v3.0 (GPLv3)"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [
     { name = "Martin Molhoff" },
     { name = "Joseph Asplet", email = "joseph.asplet@earth.ox.ac.uk" },
 ]
 classifiers = [
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
 ]
 requires-python = ">=3.12"
@@ -19,7 +22,7 @@ dependencies = [
     "numpy>=2.3.5",
     "obspy>=1.4.2",
     "pandas>=2.3.3",
-    "pygc>=2.0.0",,
+    "pygc>=2.0.0",
     "pyyaml>=6.0.3",
     "xarray>=2025.11.0",
 ]
@@ -37,6 +40,13 @@ examples = [
 
 [project.urls]
 Homepage = "https://github.com/Jasplet/sncast"
+
+
+[tool.hatch.build.targets.wheel]
+packages = ["sncast"]
+
+[tool.hatch.build.targets.sdist]
+packages = ["sncast"]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
