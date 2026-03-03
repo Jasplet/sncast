@@ -147,12 +147,14 @@ class DetectionCapabilityModel:
         if isinstance(array, SeismicArrayNetwork):
             self.arrays.append(array)
             self.n_arrays += 1
-            print(f'Seismic array {array.array_code} added to model.')
+            print(f'Seismic array {array_code} added to model.')
         else:
-            arr_to_add = SeismicArrayNetwork(arrays=array)
+            arr_to_add = SeismicArrayNetwork(arrays=array, array_code=array_code)  # type: ignore
             self.arrays.append(arr_to_add)
             self.n_arrays += 1
-            print(f'Seismic array {arr_to_add.array_code} created and added to model.')
+            print(
+                f'Seismic array {arr_to_add.network_code} created and added to model.'
+            )
 
     def add_das_fibre(self, das_fibre, fibre_code=None):
         """
