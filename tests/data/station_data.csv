@@ -1,3 +1,7 @@
 longitude,latitude,elevation_km,noise [nm],station
 0.0,50.0,0.0,1.0,STA1
 1.0,51.0,0.0,1.0,STA2
+3.0,52.0,0.0,1.0,STA3
+2.0,53.0,0.0,1.0,STA4
+4.0,54.0,0.0,1.0,STA5
+-1,-22,10.0,1.0,STA6
