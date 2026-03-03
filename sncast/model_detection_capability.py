@@ -56,6 +56,7 @@ from .magnitude_conversions import convert_ml_to_mw, convert_mw_to_ml
 
 ML_COEFFS = {
     'UK': {'a': 1.11, 'b': 0.00189, 'c': -2.09, 'd': -1.16, 'e': -0.2},
+    'UK_P': {'a': 0.86, 'b': 0.0014, 'c': -0.95},
     'CAL': {'a': 1.11, 'b': 0.00189, 'c': -2.09},
 }
 
@@ -1112,7 +1113,8 @@ def calc_local_magnitude(required_ampl, hypo_dist, region, mag_min, mag_delta):
             + c
             + d * np.exp(e * hypo_dist)
         )
-    elif region == 'CAL':
+    elif region in ['CAL', 'UK_P']:
+        # models with only the a,b,c coefficiants
         coeffs = ML_COEFFS[region]
         a = coeffs['a']
         b = coeffs['b']

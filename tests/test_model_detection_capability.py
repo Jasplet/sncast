@@ -1,16 +1,19 @@
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pandas as pd
 import pytest
-from unittest.mock import MagicMock, patch
 import xarray
 
 from sncast.core import SeismicNetwork
-from sncast.model_detection_capability import find_min_ml
-from sncast.model_detection_capability import create_grid
-from sncast.model_detection_capability import _est_min_ml_at_station
-from sncast.model_detection_capability import calc_ampl_from_magnitude
-from sncast.model_detection_capability import calc_local_magnitude
-from sncast.model_detection_capability import calc_min_ml_at_gridpoint
+from sncast.model_detection_capability import (
+    _est_min_ml_at_station,
+    calc_ampl_from_magnitude,
+    calc_local_magnitude,
+    calc_min_ml_at_gridpoint,
+    create_grid,
+    find_min_ml,
+)
 
 
 def test_calc_amplitude_UK():
@@ -156,6 +159,38 @@ def test_calc_local_magnitude_CAL(ampl, distance, snr, mag_delta, mag_min):
     )
     assert np.isclose(expected - result, 0, atol=mag_delta), (
         f'Failed for CAL region: expected {expected}, got {result}'
+    )
+
+
+@pytest.mark.parametrize(
+    'ampl, distance, snr, mag_delta, mag_min',
+    [
+        (10.0, 1.0, 1, 0.1, -2.0),
+        (0.5, 2.0, 2, 0.5, -4),
+        (0.01, 100, 1, 0.2, 0.0),
+        (1.0, 0.01, 2.0, 0.05, -2),
+    ],
+)
+def test_calc_local_magnitude_UK_ML_P(ampl, distance, snr, mag_delta, mag_min):
+    def ml_cal(a_s, r):
+        a = 0.86
+        b = 0.0014
+        c = -0.95
+        ml = np.log10(a_s) + a * np.log10(r) + b * r + c
+        ml = np.maximum(
+            mag_min, np.ceil((ml - mag_min) / mag_delta) * mag_delta + mag_min
+        )
+        if ml < mag_min:
+            return mag_min
+        else:
+            return ml
+
+    expected = ml_cal(ampl * snr, distance)
+    result = calc_local_magnitude(
+        ampl * snr, distance, region='CAL', mag_min=mag_min, mag_delta=mag_delta
+    )
+    assert np.isclose(expected - result, 0, atol=mag_delta), (
+        f'Failed for UK_P region: expected {expected}, got {result}'
     )
 
 
