@@ -24,6 +24,11 @@ jobs:
       with:
         python-version-file : pyproject.toml
     
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install proj-bin
+
     - name: Install uv
       uses: astral-sh/setup-uv@v7
       with:
