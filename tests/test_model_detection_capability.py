@@ -7,6 +7,7 @@ import xarray
 
 from sncast.core import SeismicNetwork
 from sncast.model_detection_capability import (
+    DetectionCapabilityModel,
     _est_min_ml_at_station,
     calc_ampl_from_magnitude,
     calc_local_magnitude,
@@ -14,6 +15,15 @@ from sncast.model_detection_capability import (
     create_grid,
     find_min_ml,
 )
+
+
+def test_DetectionCapabilityModel_full_workflow():
+    model = DetectionCapabilityModel(snr=3.0, region='UK')
+    model.add_network('tests/data/station_data.csv', 'XX')
+    model.setup_grid(0, 1, 50, 51, 0.1, 0.1)
+    result = model.run_model(return_result=True)
+    assert isinstance(result, xarray.DataArray)
+    assert result.shape == (11, 11)  # Based on grid params
 
 
 def test_calc_amplitude_UK():
