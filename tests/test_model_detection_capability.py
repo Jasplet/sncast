@@ -182,7 +182,7 @@ def test_calc_local_magnitude_CAL(ampl, distance, snr, mag_delta, mag_min):
     ],
 )
 def test_calc_local_magnitude_UK_ML_P(ampl, distance, snr, mag_delta, mag_min):
-    def ml_cal(a_s, r):
+    def ml_ukp(a_s, r):
         a = 0.86
         b = 0.0014
         c = -0.95
@@ -195,9 +195,9 @@ def test_calc_local_magnitude_UK_ML_P(ampl, distance, snr, mag_delta, mag_min):
         else:
             return ml
 
-    expected = ml_cal(ampl * snr, distance)
+    expected = ml_ukp(ampl * snr, distance)
     result = calc_local_magnitude(
-        ampl * snr, distance, region='CAL', mag_min=mag_min, mag_delta=mag_delta
+        ampl * snr, distance, region='UK_P', mag_min=mag_min, mag_delta=mag_delta
     )
     assert np.isclose(expected - result, 0, atol=mag_delta), (
         f'Failed for UK_P region: expected {expected}, got {result}'
