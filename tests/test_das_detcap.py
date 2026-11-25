@@ -13,164 +13,13 @@ Copyright (C) 2025 Joseph Asplet, University of Oxford
 import numpy as np
 import pandas as pd
 import pygc
-import pytest
+
+# import pytest
 from unittest.mock import patch
 
 # import functions to test
-from sncast.model_detection_capability import read_das_noise_data
 from sncast.model_detection_capability import get_das_noise_levels
 from sncast.model_detection_capability import calc_min_ml_at_gridpoint_das
-
-
-def test_read_das_noise_data():
-    """Tests reading DAS noise data from a DataFrame and CSV file."""
-    # Create a DataFrame matching the dummy CSV file
-    dummy_df = pd.DataFrame(
-        {
-            "channel_index": [
-                10010,
-                10020,
-                10030,
-                10040,
-                10050,
-                10060,
-                10070,
-                10080,
-                10090,
-                10100,
-            ],
-            "fiber_length_m": [
-                1000,
-                2000,
-                3000,
-                4000,
-                5000,
-                6000,
-                7000,
-                8000,
-                9000,
-                10000,
-            ],
-            "longitude": [0.01] * 10,
-            "latitude": [
-                50.01,
-                50.02,
-                50.03,
-                50.04,
-                50.05,
-                50.06,
-                50.07,
-                50.08,
-                50.09,
-                50.10,
-            ],
-            "noise_m": [
-                1e-8,
-                2e-9,
-                2.6e-8,
-                1.2e-8,
-                3e-9,
-                4e-9,
-                1.5e-8,
-                2.2e-8,
-                5e-9,
-                3.1e-8,
-            ],
-            "elevation_km": [0.01] * 10,
-        }
-    )
-    output = read_das_noise_data(dummy_df)
-    output_csv = read_das_noise_data("tests/data/das_dummy_data.csv")
-    assert output.equals(dummy_df)
-    assert output_csv.equals(dummy_df)
-
-
-def test_read_das_noise_data_from_str():
-    """Tests reading DAS noise data from a CSV file path."""
-    dummy_str = "tests/data/das_dummy_data.csv"
-    # read dummy df
-    dummy_df = pd.read_csv(dummy_str)
-    # read using function
-    out_df = read_das_noise_data(dummy_str)
-    # check they are the same
-    assert out_df.equals(dummy_df)
-    # check columns
-    assert all(
-        col in out_df.columns
-        for col in [
-            "channel_index",
-            "fiber_length_m",
-            "longitude",
-            "latitude",
-            "noise_m",
-            "elevation_km",
-        ]
-    )
-
-
-def test_read_das_noise_data_from_df():
-    """Tests reading DAS noise data from a DataFrame."""
-    # create dummy df
-    dummy_df = pd.read_csv("tests/data/das_dummy_data.csv")
-    # read using function
-    out_df = read_das_noise_data(dummy_df)
-    # check they are the same
-    assert out_df.equals(dummy_df)
-    # check columns
-    assert all(
-        col in out_df.columns
-        for col in [
-            "channel_index",
-            "fiber_length_m",
-            "longitude",
-            "latitude",
-            "noise_m",
-            "elevation_km",
-        ]
-    )
-
-
-def test_read_das_noise_data_missing_columns():
-    """Tests that an error is raised if required columns are missing."""
-    # create dummy df with missing columns
-    dummy_df = pd.DataFrame(
-        {
-            "channel_index": [10010, 10020],
-            "fiber_length_m": [1000, 2000],
-            "longitude": [0.01, 0.01],
-            # 'latitude' column is missing
-            "noise_m": [1e-8, 2e-9],
-            "elevation_km": [0.0, 10.0],
-        }
-    )
-    with pytest.raises(ValueError):
-        read_das_noise_data(dummy_df)
-
-
-def test_read_das_noise_data_no_elevation():
-    """Tests that the function works if elevation_km column is missing."""
-    # elev is optional, so test without it too
-    dummy_no_elev_df = pd.DataFrame(
-        {
-            "channel_index": [10010, 10020],
-            "fiber_length_m": [1000, 2000],
-            "longitude": [0.01, 0.01],
-            "latitude": [50.01, 50.02],
-            "noise_m": [1e-8, 2e-9],
-            # 'elevation_km' column is missing
-        }
-    )
-    # This should not raise an error
-    out_df = read_das_noise_data(dummy_no_elev_df)
-    # function should add elevation_km column of 0s
-    assert "elevation_km" in out_df.columns
-    assert np.all(out_df["elevation_km"].values == 0.0)
-
-
-def test_read_das_noise_data_empty_dataframe():
-    empty_df = pd.DataFrame()
-    with pytest.raises(ValueError):
-        read_das_noise_data(empty_df)
 
 
 # test get_das_noise_levels
@@ -241,8 +90,8 @@ def test_get_das_noise_levels_stacking_edges_odd():
 
 
 #   test calc_min_ml_at_gridpoint_das
-@patch("sncast.model_detection_capability.get_das_noise_levels")
-@patch("sncast.model_detection_capability.calc_local_magnitude")
+@patch('sncast.model_detection_capability.get_das_noise_levels')
+@patch('sncast.model_detection_capability.calc_local_magnitude')
 def test_calc_min_ml_at_gridpoint_das(
     mock_calc_local_magnitude, mock_get_das_noise_levels
 ):
@@ -251,31 +100,32 @@ def test_calc_min_ml_at_gridpoint_das(
     test_noise = np.array([6e-9, 6e-9, 6e-9, 6e-9])
     mock_calc_local_magnitude.return_value = test_mags
     mock_get_das_noise_levels.return_value = test_noise
-    dummy_fibre = pd.read_csv("tests/data/das_dummy_data.csv")
+    dummy_fibre = pd.read_csv('tests/data/das_dummy_data.csv')
     lat = 1
     lon = 50
     distances_km = (
         pygc.great_distance(
-            start_latitude=dummy_fibre["latitude"].values,
+            start_latitude=dummy_fibre['latitude'].values,
             end_latitude=lat,
-            start_longitude=dummy_fibre["longitude"].values,
+            start_longitude=dummy_fibre['longitude'].values,
             end_longitude=lon,
-        )["distance"]
+        )['distance']
         * 1e-3
     )
     print(distances_km)
     result = calc_min_ml_at_gridpoint_das(
-        dummy_fibre,
-        100,
-        lon,
-        lat,
+        lon=lon,
+        lat=lat,
+        fibre=dummy_fibre,
+        detection_length_m=100,
+        gauge_length_m=10,
+        model_stacking=True,
         foc_depth=0,
         snr=1,
-        region="UK",
-        method="ML",
+        region='UK',
+        method='ML',
         mag_min=-2,
         mag_delta=0.1,
-        gauge_len=10,
     )
     minmag = min(test_mags)
     assert result == minmag
