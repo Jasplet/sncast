@@ -27,8 +27,12 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install proj-bin
-
+        sudo apt-get install -y \
+          libproj-dev \
+          proj-bin \
+          libxml2-dev \
+          libxslt1-dev
+          
     - name: Install uv
       uses: astral-sh/setup-uv@v7
       with:
