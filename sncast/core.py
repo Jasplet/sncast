@@ -18,7 +18,7 @@ from decimal import Decimal
 import pandas as pd
 
 SUPPORTED_METHODS = ['ML', 'GMPE']
-SUPPORTED_REGIONS = ['UK', 'CAL']
+SUPPORTED_REGIONS = ['UK', 'UK_P', 'CAL']
 SUPPORTED_GMPES = ['RE19', 'AK14']
 SUPPORTED_GMPE_MODEL_TYPES = ['PGV', 'PGA']
 

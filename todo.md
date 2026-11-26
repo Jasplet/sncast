@@ -1,7 +1,6 @@
 To-Do list:
-- fill out unit tests
-- seperate DAS
-- generalise noise estimation - cvurrently uses fixed directory!!
+- check test coverage
+- switch to Marimo for exmaples
+- migrate from pandas to polars? 
 - add examples
-- fix linting / refactor functions with large number of args.
 - build docs

@@ -52,17 +52,20 @@ from sncast.model_detection_capability import find_min_ml
 
 # Calculate minimum detectable magnitude for a grid
 result = find_min_ml(
-    lon0=-1.0, lon1=1.0,      # Longitude bounds
-    lat0=50.0, lat1=52.0,      # Latitude bounds
-    dlon=0.2, dlat=0.2,        # Grid spacing
-    networks=['stations.csv'], # Station data file
-    stat_num=[5],              # Number of stations required
-    foc_depth=0.0,             # Focal depth in km
-    snr=3.0,                   # Signal-to-noise ratio
-    mag_min=-2.0,              # Minimum magnitude to test
-    mag_delta=0.1,             # Magnitude increment
-    method='ML',               # Method: 'ML' or 'GMPE'
-    region='UK'                # Region: 'UK' or 'CAL'
+    lon0=-1.0,
+    lon1=1.0,  # Longitude bounds
+    lat0=50.0,
+    lat1=52.0,  # Latitude bounds
+    dlon=0.2,
+    dlat=0.2,  # Grid spacing
+    networks=['stations.csv'],  # Station data file
+    stat_num=[5],  # Number of stations required
+    foc_depth=0.0,  # Focal depth in km
+    snr=3.0,  # Signal-to-noise ratio
+    mag_min=-2.0,  # Minimum magnitude to test
+    mag_delta=0.1,  # Magnitude increment
+    method='ML',  # Method: 'ML' or 'GMPE'
+    region='UK',  # Region: 'UK' or 'CAL'
 )
 
 # Result is an xarray DataArray with detection capability grid
