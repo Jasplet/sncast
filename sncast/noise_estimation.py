@@ -158,7 +158,7 @@ def estimate_noise_velocity(station_ppsd, f0=5, n=0.5, case='worst', verbose=Fal
         raise ValueError('case must be "worst", "mode" or an integer percentile')
     mean_psd_db = psd_accl[(freqs_psd >= f1) & (freqs_psd <= f2)].mean()
 
-    velocity = psd_db_to_velocity(mean_psd_db, f0=f0, f1=f1, f2=f2)
+    velocity = psd_db_to_velocity(mean_psd_db, f1=f1, f2=f2)
 
     return velocity
 
@@ -350,12 +350,16 @@ def make_noise_estimate_for_ppsds(
     - This function assumes that the PPSD files are stored in a specific directory structure.
       This needs to be fixed before release.
     """
-    if unit not in ['displ', 'vel']:
-        raise ValueError(f'unit must be one of ["displ", "vel"] not {unit}')
+
+    if unit == 'vel':
+        noise_key = 'noise [cm/s]'
+        noise_default = 2e-05
     elif unit == 'displ':
         noise_key = 'noise [nm]'
-    elif unit == 'vel':
-        noise_key = 'noise [cm/s]'
+        noise_default = 10
+    else:
+        raise ValueError(f'unit must be one of ["displ", "vel"] not {unit}')
+
     station_noise_dict = {
         'longitude': [],
         'latitude': [],
@@ -393,13 +397,21 @@ def make_noise_estimate_for_ppsds(
                         else:
                             vel_ms = estimate_noise_velocity(ppsd, case=case)
                         noise = vel_ms * 1e2  # vel in cm/s
+                    else:
+                        raise ValueError(
+                            f'unit must be one of ["displ", "vel"] not {unit}'
+                        )
 
                 except FileNotFoundError:
                     print(ppsd_file)
                     if unit == 'displ':
-                        noise = 10  # nm
+                        noise = noise_default  # nm
                     elif unit == 'vel':
-                        noise = 2e-05  # cm/s
+                        noise = noise_default  # cm/s
+                    else:
+                        raise ValueError(
+                            f'unit must be one of ["displ", "vel"] not {unit}'
+                        )
 
                 station_noise_dict['longitude'].append(station.longitude)
                 station_noise_dict['latitude'].append(station.latitude)
